@@ -23,6 +23,9 @@ import {
   Sparkles,
   Layers,
   Send,
+  LogOut,
+  KeyRound,
+  Lock,
 } from "lucide-react";
 
 export type PortalKey =
@@ -34,13 +37,22 @@ export type PortalKey =
   | "siswa"
   | "ortu";
 
+interface ActiveSession {
+  userId: string;
+  identifier: string;
+  name: string;
+  baseRole: "ADMIN" | "TU" | "GTK" | "SISWA" | "ORTU" | "PPDB";
+  subProfileKey?: string;
+  additionalRoles?: string[];
+  targetPath: string;
+}
+
 interface PortalTab {
   key: PortalKey;
   label: string;
   sublabel: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  badgeColor: string;
 }
 
 const PORTAL_TABS: PortalTab[] = [
@@ -50,7 +62,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "CMS & Live Piket",
     href: "/",
     icon: Globe,
-    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   },
   {
     key: "ppdb",
@@ -58,7 +69,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "End-to-End R2",
     href: "/ppdb",
     icon: UserPlus,
-    badgeColor: "bg-teal-500/20 text-teal-300 border-teal-500/30",
   },
   {
     key: "admin",
@@ -66,7 +76,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "RBAC & Inval",
     href: "/admin",
     icon: ShieldCheck,
-    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   },
   {
     key: "tu",
@@ -74,7 +83,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "Buku Induk & EMIS",
     href: "/tu",
     icon: FileSpreadsheet,
-    badgeColor: "bg-sky-500/20 text-sky-300 border-sky-500/30",
   },
   {
     key: "gtk",
@@ -82,7 +90,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "Dynamic RBAC",
     href: "/gtk",
     icon: GraduationCap,
-    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
   },
   {
     key: "siswa",
@@ -90,7 +97,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "KBM & Tabungan",
     href: "/siswa",
     icon: Users,
-    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
   },
   {
     key: "ortu",
@@ -98,7 +104,6 @@ const PORTAL_TABS: PortalTab[] = [
     sublabel: "Multi-Child Sync",
     href: "/ortu",
     icon: HeartHandshake,
-    badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30",
   },
 ];
 
@@ -108,7 +113,8 @@ type ExtendedModalType =
   | "schedule_conflict"
   | "bk_counseling"
   | "batch_promotion"
-  | "r2_uploader";
+  | "r2_uploader"
+  | "change_password";
 
 export default function SimmWorkspaceShell({
   activePortal,
@@ -117,11 +123,16 @@ export default function SimmWorkspaceShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [session, setSession] = useState<ActiveSession | null>(null);
   const [barCollapsed, setBarCollapsed] = useState(false);
   const [activeModal, setActiveModal] = useState<ExtendedModalType>(null);
   const [toastMsg, setToastMsg] = useState<{ title: string; sub: string } | null>(
     null
   );
+
+  // State Ubah Kata Sandi
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
   const [ppdbApplicants, setPpdbApplicants] = useState([
@@ -163,7 +174,7 @@ export default function SimmWorkspaceShell({
     },
   ]);
 
-  // State Modul 2: Penyusunan Jadwal Pelajaran Anti-Bentrok (Conflict Detection)
+  // State Modul 2: Penyusunan Jadwal Pelajaran Anti-Bentrok
   const [schedules, setSchedules] = useState([
     {
       id: "sch-1",
@@ -261,6 +272,25 @@ export default function SimmWorkspaceShell({
     setTimeout(() => setToastMsg(null), 4500);
   };
 
+  // Muat sesi aktif dari server (/api/auth)
+  const fetchCurrentSession = async () => {
+    try {
+      const res = await fetch("/api/auth");
+      const data = await res.json();
+      if (data && data.session) {
+        setSession(data.session);
+      } else {
+        setSession(null);
+      }
+    } catch {
+      setSession(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrentSession();
+  }, [pathname]);
+
   // Dengarkan event postMessage dari iframe portal
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -270,6 +300,7 @@ export default function SimmWorkspaceShell({
       if (data.type === "NAVIGATE" && data.payload?.path) {
         router.push(data.payload.path);
       } else if (data.type === "AUTH_SUCCESS" && data.payload?.targetPath) {
+        setSession(data.payload);
         triggerToast(
           `Autentikasi Berhasil (${data.payload.baseRole})`,
           `Selamat datang, ${data.payload.name}`
@@ -289,6 +320,62 @@ export default function SimmWorkspaceShell({
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth", { method: "DELETE" });
+    } catch {
+      // ignore
+    }
+    setSession(null);
+    triggerToast("Sesi Berakhir", "Anda telah keluar dari portal SIMS.");
+    router.push("/");
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      triggerToast("Validasi Gagal", "Kata sandi baru minimal 6 karakter.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      triggerToast("Validasi Gagal", "Konfirmasi kata sandi tidak cocok.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/auth", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNewPassword("");
+        setConfirmPassword("");
+        setActiveModal(null);
+        triggerToast("Kata Sandi Diperbarui", data.message);
+      } else {
+        triggerToast("Gagal", data.error || "Gagal memperbarui kata sandi");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server autentikasi");
+    }
+  };
+
+  // Deteksi hak akses modul tambahan sesuai BaseRole + Dynamic Additional Roles
+  const isSuperAdmin = session?.baseRole === "ADMIN";
+  const isTu = session?.baseRole === "TU";
+  const isGtk = session?.baseRole === "GTK";
+  const joinedRoles = (session?.additionalRoles || []).join(" ").toLowerCase();
+
+  const canAccessPpdbScoring =
+    isSuperAdmin || isTu || (isGtk && joinedRoles.includes("ppdb"));
+  const canAccessScheduleBuilder =
+    isSuperAdmin || (isGtk && (joinedRoles.includes("kurikulum") || joinedRoles.includes("piket")));
+  const canAccessBkDesk =
+    isSuperAdmin || (isGtk && (joinedRoles.includes("bk") || joinedRoles.includes("wali")));
+  const canAccessBatchPromotion = isSuperAdmin || isTu;
+  const canAccessR2Manager = isSuperAdmin || isTu || isGtk;
 
   // Deteksi bentrok jadwal secara real-time
   const conflictingSchedule = schedules.find(
@@ -351,7 +438,11 @@ export default function SimmWorkspaceShell({
     );
   };
 
-  const handleOneClickMigrate = async (regNo: string, name: string, rombel: string) => {
+  const handleOneClickMigrate = async (
+    regNo: string,
+    name: string,
+    rombel: string
+  ) => {
     try {
       await fetch("/api/simm", {
         method: "POST",
@@ -365,7 +456,9 @@ export default function SimmWorkspaceShell({
       // ignore
     }
     setPpdbApplicants((prev) =>
-      prev.map((a) => (a.regNo === regNo ? { ...a, status: "SUDAH_MIGRASI" } : a))
+      prev.map((a) =>
+        a.regNo === regNo ? { ...a, status: "SUDAH_MIGRASI" } : a
+      )
     );
     triggerToast(
       "One-Click Migration Berhasil!",
@@ -409,7 +502,10 @@ export default function SimmWorkspaceShell({
       },
     ]);
     setBkReplyText("");
-    triggerToast("Pesan Terkirim ke Orang Tua", "Balasan konsultasi BK telah diteruskan ke portal Orang Tua.");
+    triggerToast(
+      "Pesan Terkirim ke Orang Tua",
+      "Balasan konsultasi BK telah diteruskan ke portal Orang Tua."
+    );
   };
 
   const handleBatchPromotion = async (e: React.FormEvent) => {
@@ -434,7 +530,9 @@ export default function SimmWorkspaceShell({
     triggerToast("Kenaikan Kelas Massal Selesai", label);
   };
 
-  const handleDirectR2FileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDirectR2FileSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setR2Uploading(true);
@@ -475,125 +573,225 @@ export default function SimmWorkspaceShell({
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 select-none">
       {/* ===================================================================
-          TOP GLOBAL SIMS NAVIGATION & EXTENDED SPECIFICATION TOOLBAR
+          PRODUCTION RBAC BAR (HANYA TAMPIL JIKA USER SUDAH LOGIN)
+          Pengunjung publik (belum login) tidak melihat bilah internal ini.
       =================================================================== */}
-      {!barCollapsed ? (
+      {session && !barCollapsed && (
         <header className="z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-200 shadow-lg">
-          {/* Left: Brand & Portal Switcher Pills */}
+          {/* Left: Session Identity & Portal Switcher (Full Switcher only for Super Admin) */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <div className="flex items-center gap-2 pr-2 mr-1 border-r border-slate-700/80 shrink-0">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-bold tracking-tight text-white">
-                SIMS MTs Nurul Falah
-              </span>
-              <span className="hidden xl:inline-block text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
-                Supabase + R2 Live
+            <div className="flex items-center gap-2 pr-2.5 mr-1 border-r border-slate-700/80 shrink-0">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-bold text-white">{session.name}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                {session.baseRole}
               </span>
             </div>
 
-            {PORTAL_TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive =
-                activePortal === tab.key || pathname === tab.href;
-              return (
+            {isSuperAdmin ? (
+              PORTAL_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive =
+                  activePortal === tab.key || pathname === tab.href;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => router.push(tab.href)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition shrink-0 border ${
+                      isActive
+                        ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                        : "bg-slate-800/70 hover:bg-slate-800 text-slate-300 border-slate-700/70"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={tab.key}
-                  onClick={() => router.push(tab.href)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition shrink-0 border ${
-                    isActive
-                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                      : "bg-slate-800/70 hover:bg-slate-800 text-slate-300 border-slate-700/70"
-                  }`}
+                  onClick={() => router.push(session.targetPath)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white border border-emerald-500 font-medium"
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Dashboard Saya ({session.baseRole})</span>
                 </button>
-              );
-            })}
+                <button
+                  onClick={() => router.push("/")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Beranda Publik</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Right: 4 Extended Specification Modules + Direct R2 Upload */}
+          {/* Right: Role-Permitted Extended Modules + Change Password + Logout */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="hidden 2xl:inline text-[11px] text-slate-400 mr-1">
-              Modul Spesifikasi Tambahan:
-            </span>
+            {canAccessPpdbScoring && (
+              <button
+                onClick={() => setActiveModal("ppdb_scoring")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 font-medium transition"
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>Skor & Ranking PPDB</span>
+              </button>
+            )}
+
+            {canAccessScheduleBuilder && (
+              <button
+                onClick={() => setActiveModal("schedule_conflict")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-medium transition"
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span>Jadwal Anti-Bentrok</span>
+              </button>
+            )}
+
+            {canAccessBkDesk && (
+              <button
+                onClick={() => setActiveModal("bk_counseling")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Meja Kerja BK</span>
+              </button>
+            )}
+
+            {canAccessBatchPromotion && (
+              <button
+                onClick={() => setActiveModal("batch_promotion")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 font-medium transition"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Kenaikan Kelas Massal</span>
+              </button>
+            )}
+
+            {canAccessR2Manager && (
+              <button
+                onClick={() => setActiveModal("r2_uploader")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-medium transition"
+              >
+                <CloudUpload className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Arsip R2</span>
+              </button>
+            )}
 
             <button
-              onClick={() => setActiveModal("ppdb_scoring")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 font-medium transition"
-              title="Meja Kerja Panitia PPDB: Input Skor Seleksi BTQ/Tahfidz, TPA, Wawancara & Perankingan"
+              onClick={() => setActiveModal("change_password")}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition"
+              title="Ubah Kata Sandi Akun"
             >
-              <Award className="w-3.5 h-3.5" />
-              <span>Skor & Ranking PPDB</span>
+              <KeyRound className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Ubah Sandi</span>
             </button>
 
             <button
-              onClick={() => setActiveModal("schedule_conflict")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-medium transition"
-              title="Waka Kurikulum & Admin: Penyusunan Jadwal Pelajaran dengan Conflict Detection"
+              onClick={handleLogout}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold transition"
+              title="Keluar dari Sesi SIMS"
             >
-              <CalendarClock className="w-3.5 h-3.5" />
-              <span>Jadwal Anti-Bentrok</span>
-            </button>
-
-            <button
-              onClick={() => setActiveModal("bk_counseling")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium transition"
-              title="Meja Kerja Guru Wali / BK: Input Catatan Pembinaan, Poin & Chat Orang Tua"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Meja Kerja BK</span>
-            </button>
-
-            <button
-              onClick={() => setActiveModal("batch_promotion")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 font-medium transition"
-              title="Buku Induk: Kenaikan Kelas Massal (Batch Promotion) & Alumni"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Kenaikan Kelas Massal</span>
-            </button>
-
-            <button
-              onClick={() => setActiveModal("r2_uploader")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-medium transition"
-              title="Uji & Kelola Unggahan Langsung ke Bucket Cloudflare R2 (simm-media)"
-            >
-              <CloudUpload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Cloudflare R2</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Keluar</span>
             </button>
 
             <button
               onClick={() => setBarCollapsed(true)}
               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition"
-              title="Sembunyikan Bilah Navigasi Portal"
+              title="Sembunyikan Bilah Sesi"
             >
               <ChevronUp className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
-      ) : (
+      )}
+
+      {session && barCollapsed && (
         <button
           onClick={() => setBarCollapsed(false)}
           className="fixed top-2 right-3 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-emerald-300 border border-emerald-500/40 text-xs font-semibold shadow-lg backdrop-blur-md transition"
         >
           <Database className="w-3.5 h-3.5" />
-          <span>Pindah Portal / Modul SIMS</span>
+          <span>{session.baseRole} • Menu Sesi</span>
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
       )}
 
       {/* ===================================================================
-          MAIN PORTAL VIEWPORT (100% PROTOTYPE FIDELITY + R2/SUPABASE BRIDGE)
+          MAIN PORTAL VIEWPORT
       =================================================================== */}
       <main className="relative flex-1 w-full h-full bg-slate-50 overflow-hidden">
         <iframe
-          key={activePortal}
+          key={`${activePortal}-${session?.userId || "guest"}`}
           src={`/api/portal/${activePortal}`}
           title={`Portal SIMS - ${activePortal.toUpperCase()}`}
           className="w-full h-full border-0"
         />
       </main>
+
+      {/* ===================================================================
+          MODAL UBAH KATA SANDI MANDIRI (PRODUCTION SECURITY)
+      =================================================================== */}
+      {activeModal === "change_password" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-emerald-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-base font-bold">Ubah Kata Sandi Akun</h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4 text-sm">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                Akun Aktif: <strong className="text-slate-900">{session?.name}</strong> ({session?.identifier})
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Kata Sandi Baru (Minimal 6 Karakter)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi baru..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Konfirmasi Kata Sandi Baru
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ulangi kata sandi baru..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+              >
+                Simpan Kata Sandi Baru ke Supabase
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================
           MODAL 1: MEJA KERJA PANITIA PPDB (INPUT SKOR SELEKSI & PERANKINGAN)
@@ -955,7 +1153,6 @@ export default function SimmWorkspaceShell({
                   </div>
                 </div>
 
-                {/* Indikator Real-Time Conflict Detection */}
                 {conflictingSchedule ? (
                   <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
@@ -1035,7 +1232,7 @@ export default function SimmWorkspaceShell({
       )}
 
       {/* ===================================================================
-          MODAL 3: MEJA KERJA GURU WALI / BK (POIN, KONSELING & CHAT ORTU)
+          MODAL 3: MEJA KERJA GURU WALI / BK
       =================================================================== */}
       {activeModal === "bk_counseling" && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1058,7 +1255,6 @@ export default function SimmWorkspaceShell({
             </div>
 
             <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-6 text-sm">
-              {/* Left 7 cols: Input Catatan BK & Poin */}
               <div className="lg:col-span-7 space-y-4">
                 <form
                   onSubmit={handleAddBkRecord}
@@ -1180,7 +1376,6 @@ export default function SimmWorkspaceShell({
                 </div>
               </div>
 
-              {/* Right 5 cols: Direct Messaging dengan Orang Tua */}
               <div className="lg:col-span-5 flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                 <div className="p-3.5 bg-slate-900 text-white">
                   <p className="font-bold text-xs">
@@ -1372,7 +1567,7 @@ export default function SimmWorkspaceShell({
                 </h4>
                 {r2UploadedFiles.length === 0 ? (
                   <p className="text-xs text-slate-500 italic">
-                    Belum ada file yang diunggah pada sesi ini. Anda dapat mengunggah dari sini atau langsung melalui tombol unggah R2 di dalam 7 portal.
+                    Belum ada file yang diunggah pada sesi ini.
                   </p>
                 ) : (
                   r2UploadedFiles.map((f, i) => (
