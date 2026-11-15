@@ -29,24 +29,24 @@ export interface MadrasahProfileConfig {
 
 const DEFAULT_MADRASAH_PROFILE: MadrasahProfileConfig = {
   name: "MTs Nurul Falah",
-  nsm: "121232040089",
-  npsn: "20278412",
-  accreditation: "Terakreditasi A (Unggul)",
+  nsm: "121216050060",
+  npsn: "69963460",
+  accreditation: "Terakreditasi C",
   academicYear: "2026/2027",
   semester: "Ganjil",
   curriculum: "Kurikulum Merdeka & KMA 450",
-  headmasterName: "Dr. H. Ahmad Fauzi, M.Pd.",
-  headmasterNip: "197605142003121003",
-  tuHeadName: "Bapak Ridwan Kamil, S.AP.",
-  tuHeadNip: "198204152009011008",
+  headmasterName: "Syarip Husin, S.Sos., Gr.",
+  headmasterNip: "10649207182001",
+  tuHeadName: "-",
+  tuHeadNip: "-",
   address:
-    "Jl. Pendidikan No. 45, Kel. Mekarjaya, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40622",
-  phone: "0812-2345-6789",
+    "Jl. Jambi Lama RT. 004 Kel. Terawas Kec. STL Ulu Terawas Kab. Musi Rawas 30771",
+  phone: "-",
   email: "info@mtsnurulfalah.sch.id",
-  gpsLat: "-6.9348",
-  gpsLng: "107.7186",
+  gpsLat: "-3.0659978",
+  gpsLng: "102.8196529",
   gpsRadiusMeters: 100,
-  komiteBankInfo: "BSI (Bank Syariah Indonesia) 7123456789 a.n. Komite MTs Nurul Falah",
+  komiteBankInfo: "Bank Mandiri | 1130016126868 a.n. MTSS NURUL FALAH",
 };
 
 export async function getMadrasahProfile(): Promise<MadrasahProfileConfig> {
@@ -70,6 +70,50 @@ export async function getMadrasahProfile(): Promise<MadrasahProfileConfig> {
   }
 }
 
+export async function getPortalDatabaseSummary() {
+  const [
+    teachers,
+    students,
+    ppdb,
+    cmsPosts,
+    serviceRequests,
+    mailAgenda,
+    profile,
+  ] = await Promise.all([
+    prisma.teacherProfile.findMany({
+      include: { user: true, roles: true },
+      orderBy: { nip: "asc" },
+    }),
+    prisma.student.findMany({
+      orderBy: { nis: "asc" },
+    }),
+    prisma.ppdbApplicant.findMany({
+      orderBy: { regNo: "desc" },
+    }),
+    prisma.cmsPost.findMany({
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.serviceRequest.findMany({
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.mailAgenda.findMany({
+      orderBy: { createdAt: "desc" },
+    }),
+    getMadrasahProfile(),
+  ]);
+
+  return {
+    ok: true,
+    profile,
+    teachers,
+    students,
+    ppdb,
+    cmsPosts,
+    serviceRequests,
+    mailAgenda,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const resource = req.nextUrl.searchParams.get("resource") || "summary";
@@ -80,47 +124,8 @@ export async function GET(req: NextRequest) {
     }
 
     if (resource === "summary") {
-      const [
-        teachers,
-        students,
-        ppdb,
-        cmsPosts,
-        serviceRequests,
-        mailAgenda,
-        profile,
-      ] = await Promise.all([
-        prisma.teacherProfile.findMany({
-          include: { user: true, roles: true },
-          orderBy: { nip: "asc" },
-        }),
-        prisma.student.findMany({
-          orderBy: { nis: "asc" },
-        }),
-        prisma.ppdbApplicant.findMany({
-          orderBy: { regNo: "desc" },
-        }),
-        prisma.cmsPost.findMany({
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.serviceRequest.findMany({
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.mailAgenda.findMany({
-          orderBy: { createdAt: "desc" },
-        }),
-        getMadrasahProfile(),
-      ]);
-
-      return NextResponse.json({
-        ok: true,
-        profile,
-        teachers,
-        students,
-        ppdb,
-        cmsPosts,
-        serviceRequests,
-        mailAgenda,
-      });
+      const summary = await getPortalDatabaseSummary();
+      return NextResponse.json(summary);
     }
 
     if (resource === "nisn") {
@@ -314,7 +319,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, importedCount });
       }
 
-      // 0D. Reset / Bersihkan Data Dummy (Persiapan Go-Live Produksi)
+      // 0D. Reset / Bersihkan Data Dummy (Pertahankan Data Riil Guru, Siswa & Identitas Madrasah)
       case "RESET_DUMMY_DATA": {
         await prisma.$transaction([
           prisma.savingsTransaction.deleteMany(),
@@ -325,13 +330,22 @@ export async function POST(req: NextRequest) {
           prisma.studentAchievement.deleteMany(),
           prisma.serviceRequest.deleteMany(),
           prisma.ppdbApplicant.deleteMany(),
-          prisma.studentParent.deleteMany(),
-          prisma.student.deleteMany(),
+          prisma.teacherAttendance.deleteMany(),
+          prisma.dailyDutySchedule.deleteMany(),
+          prisma.cleaningRoster.deleteMany(),
+          prisma.piketIncidentLog.deleteMany(),
+          prisma.directMessage.deleteMany(),
+          prisma.classSchedule.deleteMany(),
+          prisma.cmsPost.deleteMany(),
+          prisma.mailAgenda.deleteMany(),
+          prisma.systemActivityLog.deleteMany({
+            where: { category: { not: "madrasah_profile" } },
+          }),
         ]);
         return NextResponse.json({
           ok: true,
           message:
-            "Seluruh data siswa contoh, transaksi contoh, dan pendaftar PPDB dummy berhasil dibersihkan dari Supabase.",
+            "Seluruh data operasional/contoh berhasil dibersihkan. Data riil Guru, Siswa, dan Identitas Resmi Madrasah tetap dipertahankan.",
         });
       }
 

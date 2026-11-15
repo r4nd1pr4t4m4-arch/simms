@@ -609,7 +609,7 @@
               <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Struktur &amp; Amanah Pendidik</span>
               <h2 class="font-heading text-2xl sm:text-3xl font-bold text-slate-900 mt-1">Direktori GTK &amp; Tugas Tambahan</h2>
               <p class="text-sm text-slate-500 mt-1">
-                Data ditarik otomatis dari modul <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-mono">additional_roles</code> SIMS pada tahun ajaran berjalan.
+                Daftar resmi pendidik dan tenaga kependidikan beserta amanah tugas tambahan aktif pada tahun ajaran berjalan.
               </p>
             </div>
 
@@ -1279,12 +1279,14 @@
     // -----------------------------------------------------------------------
     function renderHeroPiketWidget() {
       const container = document.getElementById('hero-piket-list');
-      // Filter GTK yang bertugas piket pada hari Sabtu (sesuai tanggal sistem: Sabtu, 14 Nov 2026)
-      const dutyTeachers = GTK_DATA.filter(g =>
-        g.additionalRoles.some(r => r.label.toLowerCase().includes('piket sabtu'))
+      let dutyTeachers = GTK_DATA.filter(g =>
+        g.additionalRoles.some(r => r.label.toLowerCase().includes('piket'))
       );
+      if (dutyTeachers.length === 0) {
+        dutyTeachers = GTK_DATA.slice(0, 2);
+      }
 
-      container.innerHTML = dutyTeachers.map(teacher => {
+      container.innerHTML = dutyTeachers.slice(0, 2).map(teacher => {
         const initials = getInitials(teacher.name);
         return `
           <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/90 border border-emerald-200/60">
@@ -1679,8 +1681,11 @@
       lucide.createIcons();
     }
 
-    function handleSimulatedLogin(e) {
+    async function handleSimulatedLogin(e) {
       if (e && e.preventDefault) e.preventDefault();
+      if (typeof window.__SIMM_DO_LOGIN__ === 'function') {
+        return window.__SIMM_DO_LOGIN__(e);
+      }
     }
 
     // -----------------------------------------------------------------------

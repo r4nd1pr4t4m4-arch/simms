@@ -146,25 +146,24 @@ export default function SimmWorkspaceShell({
   >("identitas");
   const [madrasahProfile, setMadrasahProfile] = useState({
     name: "MTs Nurul Falah",
-    nsm: "121232040089",
-    npsn: "20278412",
-    accreditation: "Terakreditasi A (Unggul)",
+    nsm: "121216050060",
+    npsn: "69963460",
+    accreditation: "Terakreditasi C",
     academicYear: "2026/2027",
     semester: "Ganjil",
     curriculum: "Kurikulum Merdeka & KMA 450",
-    headmasterName: "Dr. H. Ahmad Fauzi, M.Pd.",
-    headmasterNip: "197605142003121003",
-    tuHeadName: "Bapak Ridwan Kamil, S.AP.",
-    tuHeadNip: "198204152009011003",
+    headmasterName: "Syarip Husin, S.Sos., Gr.",
+    headmasterNip: "10649207182001",
+    tuHeadName: "-",
+    tuHeadNip: "-",
     address:
-      "Jl. Pendidikan No. 45, Kel. Mekarjaya, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40622",
-    phone: "0812-2345-6789",
+      "Jl. Jambi Lama RT. 004 Kel. Terawas Kec. STL Ulu Terawas Kab. Musi Rawas 30771",
+    phone: "-",
     email: "info@mtsnurulfalah.sch.id",
-    gpsLat: "-6.9348",
-    gpsLng: "107.7186",
+    gpsLat: "-3.0659978",
+    gpsLng: "102.8196529",
     gpsRadiusMeters: 100,
-    komiteBankInfo:
-      "BSI (Bank Syariah Indonesia) 7123456789 a.n. Komite MTs Nurul Falah",
+    komiteBankInfo: "Bank Mandiri | 1130016126868 a.n. MTSS NURUL FALAH",
   });
   const [importTarget, setImportTarget] = useState<"students" | "teachers">(
     "students"
@@ -173,132 +172,80 @@ export default function SimmWorkspaceShell({
   const [importingCsv, setImportingCsv] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
 
-  // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
-  const [ppdbApplicants, setPpdbApplicants] = useState([
-    {
-      regNo: "PPDB-2027-0142",
-      name: "Muhammad Zidan Al-Farizi",
-      nisn: "0134582910",
-      track: "PRESTASI",
-      school: "MI Plus Al-Muhajirin",
-      btq: 95,
-      academic: 91,
-      interview: 93,
-      status: "DITERIMA",
-      rombel: "VII-A",
-    },
-    {
-      regNo: "PPDB-2027-0148",
-      name: "Anindya Putri Salsabila",
-      nisn: "0139041822",
-      track: "REGULER",
-      school: "SDN 124 Hanura Bandung",
-      btq: 86,
-      academic: 88,
-      interview: 85,
-      status: "MENUNGGU_VERIFIKASI",
-      rombel: "VII-A",
-    },
-    {
-      regNo: "PPDB-2027-0151",
-      name: "Rafa Aditya Pratama",
-      nisn: "0137761209",
-      track: "AFIRMASI",
-      school: "SDN Cibiru 04",
-      btq: 82,
-      academic: 84,
-      interview: 88,
-      status: "PERLU_REVISI",
-      rombel: "VII-B",
-    },
+  const [realTeacherNames, setRealTeacherNames] = useState<string[]>([
+    "Ananda Roza, S.Pd.I.",
+    "Della Hesaftra Lova, S.Pd.",
+    "Endry Ovriyanty, S.Pd.",
+    "Fauzia, S.Pd.",
+    "Ida Royani, S.Pd.",
+    "Neri Silfiana, S.Pd.",
+    "Randi Pratama S.Pd.",
+    "Sri Aryani, S.Pd.",
+    "Syaifullah, S.Pd.",
+    "Syarip Husin, S.Sos., Gr.",
   ]);
+  const [realStudentLabels, setRealStudentLabels] = useState<string[]>([
+    "Agung Saputra (7A)",
+  ]);
+  const [realRombels, setRealRombels] = useState<string[]>(["7A", "8A", "9A"]);
+
+  // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
+  const [ppdbApplicants, setPpdbApplicants] = useState<
+    Array<{
+      regNo: string;
+      name: string;
+      nisn: string;
+      track: string;
+      school: string;
+      btq: number;
+      academic: number;
+      interview: number;
+      status: string;
+      rombel: string;
+    }>
+  >([]);
 
   // State Modul 2: Penyusunan Jadwal Pelajaran Anti-Bentrok
-  const [schedules, setSchedules] = useState([
-    {
-      id: "sch-1",
-      day: "Senin",
-      slot: "Jam ke 1–2 (07.30 – 08.50)",
-      rombel: "VIII-A",
-      subject: "Matematika",
-      teacher: "Ust. Ahmad Fauzi, S.Pd.",
-    },
-    {
-      id: "sch-2",
-      day: "Senin",
-      slot: "Jam ke 1–2 (07.30 – 08.50)",
-      rombel: "IX-A",
-      subject: "IPA Terpadu",
-      teacher: "Budi Santoso, M.Pd.",
-    },
-    {
-      id: "sch-3",
-      day: "Senin",
-      slot: "Jam ke 3–4 (09.10 – 10.30)",
-      rombel: "VII-A",
-      subject: "Bahasa Arab",
-      teacher: "M. Iqbal Maulana, S.Pd.",
-    },
-  ]);
+  const [schedules, setSchedules] = useState<
+    Array<{
+      id: string;
+      day: string;
+      slot: string;
+      rombel: string;
+      subject: string;
+      teacher: string;
+    }>
+  >([]);
   const [newSchDay, setNewSchDay] = useState("Senin");
   const [newSchSlot, setNewSchSlot] = useState("Jam ke 1–2 (07.30 – 08.50)");
-  const [newSchRombel, setNewSchRombel] = useState("VIII-B");
+  const [newSchRombel, setNewSchRombel] = useState("7A");
   const [newSchSubject, setNewSchSubject] = useState("Matematika");
-  const [newSchTeacher, setNewSchTeacher] = useState("Ust. Ahmad Fauzi, S.Pd.");
+  const [newSchTeacher, setNewSchTeacher] = useState("Randi Pratama S.Pd.");
 
   // State Modul 3: Meja Kerja Guru Wali / BK
-  const [bkRecords, setBkRecords] = useState([
-    {
-      id: "bk-1",
-      student: "Muhammad Rizky Pratama (VIII-A)",
-      type: "Prestasi & Apresiasi",
-      points: +15,
-      note: "Juara 1 Olimpiade Matematika Terintegrasi Tingkat Kota & disiplin ibadah dhuha.",
-      date: "14 Nov 2026",
-    },
-    {
-      id: "bk-2",
-      student: "Aisyah Zahra Kusuma (VII-B)",
-      type: "Bimbingan Tahfidz",
-      points: +10,
-      note: "Capaian setoran hafalan Juz 29 lancar (Predikat Mumtaz).",
-      date: "12 Nov 2026",
-    },
-    {
-      id: "bk-3",
-      student: "Fajar Ramadhan Putra (IX-A)",
-      type: "Konseling Karir & Studi Lanjut",
-      points: +5,
-      note: "Pendampingan pemilihan MAN Insan Cendekia & pemetaan minat bakat.",
-      date: "10 Nov 2026",
-    },
-  ]);
-  const [bkStudent, setBkStudent] = useState("Muhammad Rizky Pratama (VIII-A)");
+  const [bkRecords, setBkRecords] = useState<
+    Array<{
+      id: string;
+      student: string;
+      type: string;
+      points: number;
+      note: string;
+      date: string;
+    }>
+  >([]);
+  const [bkStudent, setBkStudent] = useState("Agung Saputra (7A)");
   const [bkCategory, setBkCategory] = useState("Prestasi & Apresiasi (+Poin)");
   const [bkPoints, setBkPoints] = useState(10);
   const [bkNote, setBkNote] = useState("");
   const [bkReplyText, setBkReplyText] = useState("");
-  const [bkChatThread, setBkChatThread] = useState([
-    {
-      sender: "Bapak Hendra Kusuma, S.T. (Orang Tua Rizky)",
-      role: "ortu",
-      text: "Assalamu'alaikum Ustadzah Dewi, mohon info perkembangan adaptasi belajar Rizky di semester ganjil ini.",
-      time: "08:30 WIB",
-    },
-    {
-      sender: "Dewi Sartika Putri, S.Psi. (Koordinator BK)",
-      role: "bk",
-      text: "Wa'alaikumussalam Bapak Hendra. Alhamdulillah perkembangan akademik dan karakter ananda Rizky sangat positif (+105 poin teladan).",
-      time: "08:42 WIB",
-    },
-  ]);
+  const [bkChatThread, setBkChatThread] = useState<
+    Array<{ sender: string; role: string; text: string; time: string }>
+  >([]);
 
   // State Modul 4: Kenaikan Kelas Massal
-  const [fromRombel, setFromRombel] = useState("VII-A");
-  const [toRombel, setToRombel] = useState("VIII-A");
-  const [batchHistory, setBatchHistory] = useState<string[]>([
-    "TA 2025/2026 → 2026/2027: 32 Siswa Rombel VII-A dinaikkan ke VIII-A (Status: Selesai)",
-  ]);
+  const [fromRombel, setFromRombel] = useState("7A");
+  const [toRombel, setToRombel] = useState("8A");
+  const [batchHistory, setBatchHistory] = useState<string[]>([]);
 
   // State Modul 5: Direct Cloudflare R2 Uploader
   const [r2Uploading, setR2Uploading] = useState(false);
@@ -311,17 +258,56 @@ export default function SimmWorkspaceShell({
     setTimeout(() => setToastMsg(null), 4500);
   };
 
-  // Muat sesi aktif & profil madrasah dari server
+  // Muat sesi aktif & data riil madrasah dari server
   useEffect(() => {
     fetch("/api/auth")
       .then((r) => r.json())
       .then((d) => setSession(d?.session || null))
       .catch(() => setSession(null));
 
-    fetch("/api/simm?resource=profile")
+    fetch("/api/simm?resource=summary")
       .then((r) => r.json())
       .then((d) => {
         if (d?.profile) setMadrasahProfile(d.profile);
+        if (Array.isArray(d?.teachers) && d.teachers.length > 0) {
+          const tNames = d.teachers.map(
+            (t: any) => t.user?.name || t.nip
+          );
+          setRealTeacherNames(tNames);
+          setNewSchTeacher(tNames[0]);
+        }
+        if (Array.isArray(d?.students) && d.students.length > 0) {
+          const sLabels = d.students.map(
+            (s: any) => `${s.name} (${s.rombel})`
+          );
+          setRealStudentLabels(sLabels);
+          setBkStudent(sLabels[0]);
+          const rombels = Array.from(
+            new Set(d.students.map((s: any) => String(s.rombel || "")).filter(Boolean))
+          ).sort() as string[];
+          if (rombels.length > 0) {
+            setRealRombels(rombels);
+            setNewSchRombel(rombels[0]);
+            setFromRombel(rombels[0]);
+            setToRombel(rombels[1] || rombels[0]);
+          }
+        }
+        if (Array.isArray(d?.ppdb)) {
+          setPpdbApplicants(
+            d.ppdb.map((p: any) => ({
+              regNo: p.regNo,
+              name: p.fullName,
+              nisn: p.nisn,
+              track: p.track,
+              school: p.previousSchool,
+              btq: p.scoreBtq || 0,
+              academic: p.scoreAcademic || 0,
+              interview: p.scoreInterview || 0,
+              status: p.status,
+              rombel: p.targetClassroom || "7A",
+            }))
+          );
+        }
       })
       .catch(() => null);
   }, [pathname]);
@@ -333,7 +319,7 @@ export default function SimmWorkspaceShell({
       if (!data || data.source !== "SIMM_PORTAL") return;
 
       if (data.type === "NAVIGATE" && data.payload?.path) {
-        router.push(data.payload.path);
+        window.location.href = data.payload.path;
       } else if (data.type === "OPEN_MODAL" && data.payload?.modal) {
         setActiveModal(data.payload.modal as ExtendedModalType);
       } else if (data.type === "LOGOUT") {
@@ -344,6 +330,7 @@ export default function SimmWorkspaceShell({
           `Autentikasi Berhasil (${data.payload.baseRole})`,
           `Selamat datang, ${data.payload.name}`
         );
+        window.location.replace(data.payload.targetPath);
       } else if (data.type === "R2_UPLOADED" && data.payload?.key) {
         setR2UploadedFiles((prev) => [
           {
@@ -1563,13 +1550,11 @@ export default function SimmWorkspaceShell({
                       onChange={(e) => setNewSchRombel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"
                     >
-                      {["VII-A", "VII-B", "VIII-A", "VIII-B", "IX-A", "IX-B"].map(
-                        (r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        )
-                      )}
+                      {realRombels.map((r) => (
+                        <option key={r} value={r}>
+                          Kelas {r}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1592,21 +1577,11 @@ export default function SimmWorkspaceShell({
                       onChange={(e) => setNewSchTeacher(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"
                     >
-                      <option value="Ust. Ahmad Fauzi, S.Pd.">
-                        Ust. Ahmad Fauzi, S.Pd.
-                      </option>
-                      <option value="Budi Santoso, M.Pd.">
-                        Budi Santoso, M.Pd.
-                      </option>
-                      <option value="M. Iqbal Maulana, S.Pd.">
-                        M. Iqbal Maulana, S.Pd.
-                      </option>
-                      <option value="Fitriani Rahmawati, S.E.">
-                        Fitriani Rahmawati, S.E.
-                      </option>
-                      <option value="Nurul Hidayah, S.Ag.">
-                        Nurul Hidayah, S.Ag.
-                      </option>
+                      {realTeacherNames.map((tName) => (
+                        <option key={tName} value={tName}>
+                          {tName}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1731,18 +1706,11 @@ export default function SimmWorkspaceShell({
                         onChange={(e) => setBkStudent(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
                       >
-                        <option value="Muhammad Rizky Pratama (VIII-A)">
-                          Muhammad Rizky Pratama (VIII-A)
-                        </option>
-                        <option value="Aisyah Zahra Kusuma (VII-B)">
-                          Aisyah Zahra Kusuma (VII-B)
-                        </option>
-                        <option value="Nabila Khairunnisa (VII-A)">
-                          Nabila Khairunnisa (VII-A)
-                        </option>
-                        <option value="Fajar Ramadhan Putra (IX-A)">
-                          Fajar Ramadhan Putra (IX-A)
-                        </option>
+                        {realStudentLabels.map((sLabel) => (
+                          <option key={sLabel} value={sLabel}>
+                            {sLabel}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1923,13 +1891,11 @@ export default function SimmWorkspaceShell({
                       onChange={(e) => setFromRombel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold"
                     >
-                      {["VII-A", "VII-B", "VIII-A", "VIII-B", "IX-A", "IX-B"].map(
-                        (r) => (
-                          <option key={r} value={r}>
-                            Rombel {r}
-                          </option>
-                        )
-                      )}
+                      {realRombels.map((r) => (
+                        <option key={r} value={r}>
+                          Rombel {r}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1941,10 +1907,11 @@ export default function SimmWorkspaceShell({
                       onChange={(e) => setToRombel(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold"
                     >
-                      <option value="VIII-A">Naik ke Kelas VIII-A</option>
-                      <option value="VIII-B">Naik ke Kelas VIII-B</option>
-                      <option value="IX-A">Naik ke Kelas IX-A</option>
-                      <option value="IX-B">Naik ke Kelas IX-B</option>
+                      {realRombels.map((r) => (
+                        <option key={r} value={r}>
+                          Naik ke Kelas {r}
+                        </option>
+                      ))}
                       <option value="LULUS_ALUMNI">
                         Luluskan Menjadi Alumni (Kelas IX → Alumni)
                       </option>

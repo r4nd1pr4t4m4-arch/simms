@@ -1,9 +1,13 @@
 /**
  * SIMS — Production Security, RBAC, Supabase & Cloudflare R2 Bridge
+ * Synchronous Preload Edition (0ms Sidebar & Real-Data Hydration)
  */
 (function () {
   if (window.__SIMM_BRIDGE_INITIALIZED__) return;
   window.__SIMM_BRIDGE_INITIALIZED__ = true;
+
+  let currentSession = window.__SIMM_PRELOADED_SESSION__ || null;
+  let dbSummary = window.__SIMM_PRELOADED_DB__ || null;
 
   function notifyShell(type, payload) {
     try {
@@ -15,33 +19,160 @@
     }
   }
 
+  function showUnifiedToast(title, message) {
+    if (typeof window.showToast !== "function") return;
+    try {
+      if (window.showToast.length >= 2) {
+        window.showToast(title, message || "");
+      } else {
+        window.showToast(message ? `${title}: ${message}` : title);
+      }
+    } catch (e) {
+      console.warn("Toast error:", e);
+    }
+  }
+
   window.__SIMM_OPEN_MODAL__ = function (modalKey) {
     notifyShell("OPEN_MODAL", { modal: modalKey });
   };
 
   window.__SIMM_NAVIGATE__ = function (path) {
     notifyShell("NAVIGATE", { path });
-    if (window.parent === window) {
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = path;
+      } else {
+        window.location.href = path;
+      }
+    } catch (_) {
       window.location.href = path;
     }
   };
 
   window.__SIMM_LOGOUT__ = async function () {
+    await fetch("/api/auth", { method: "DELETE" }).catch(() => null);
     notifyShell("LOGOUT", {});
-    if (window.parent === window) {
-      await fetch("/api/auth", { method: "DELETE" }).catch(() => null);
-      window.location.href = "/";
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.replace("/");
+      } else {
+        window.location.replace("/");
+      }
+    } catch (_) {
+      window.location.replace("/");
     }
   };
 
-  // Gabungkan menu sesi & modul tambahan langsung ke dalam daftar menu di Sidebar masing-masing dashboard
+  // Handler Login Utama (Aktif secara sinkron sejak 0ms saat halaman dimuat)
+  async function performRealLogin(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const identifierEl = document.getElementById("login-identifier");
+    const passwordEl = document.getElementById("login-password");
+    const identifier = identifierEl ? identifierEl.value.trim() : "";
+    const password = passwordEl ? passwordEl.value : "";
+
+    if (!identifier || !password) {
+      showUnifiedToast(
+        "Validasi Login",
+        "Harap isi NIP / NISN / Username dan kata sandi Anda."
+      );
+      return;
+    }
+
+    const submitBtn = document.querySelector(
+      '#login-modal button[type="submit"]'
+    );
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span>Memverifikasi Akun...</span>`;
+    }
+
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+      const data = await res.json();
+
+      if (!data.ok || !data.session) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origBtnHtml;
+        }
+        showUnifiedToast(
+          "Gagal Masuk",
+          data.error || "Periksa kembali NIP/NISN/Username dan kata sandi Anda."
+        );
+        return;
+      }
+
+      currentSession = data.session;
+
+      if (typeof window.closeLoginModal === "function") {
+        window.closeLoginModal();
+      }
+
+      const targetPath = data.session.targetPath || "/gtk";
+      showUnifiedToast(
+        "Login Berhasil",
+        `Mengarahkan ke dashboard ${data.session.name}...`
+      );
+
+      notifyShell("AUTH_SUCCESS", data.session);
+      notifyShell("NAVIGATE", { path: targetPath });
+
+      try {
+        if (window.top && window.top !== window) {
+          window.top.location.replace(targetPath);
+        } else {
+          window.location.replace(targetPath);
+        }
+      } catch (_) {
+        window.location.replace(targetPath);
+      }
+    } catch (err) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+      showUnifiedToast(
+        "Gangguan Koneksi",
+        "Gagal menghubungi server autentikasi. Silakan coba lagi."
+      );
+      console.error("Auth hook error:", err);
+    }
+  }
+
+  window.__SIMM_DO_LOGIN__ = performRealLogin;
+  window.handleSimulatedLogin = performRealLogin;
+
+  function getInitials(name) {
+    if (!name) return "SM";
+    const parts = String(name)
+      .replace(/^(Ust\.|Usth\.|Dr\.|Drs\.|H\.|Hj\.|Bapak|Ibu)\s+/gi, "")
+      .split(",")[0]
+      .trim()
+      .split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  // Gabungkan menu sesi & modul tambahan langsung ke dalam daftar menu di Sidebar secara serentak (0ms)
   function injectIntegratedSidebarSessionMenus(session) {
     if (!session) return;
 
     // Jika sedang di Halaman Publik (/), ubah tombol "Masuk SIMS" menjadi "Dashboard Saya"
-    const loginBtns = document.querySelectorAll('button[onclick*="openLoginModal"]');
+    const loginBtns = document.querySelectorAll(
+      'button[onclick*="openLoginModal"]'
+    );
     loginBtns.forEach((btn) => {
-      btn.setAttribute("onclick", `window.__SIMM_NAVIGATE__('${session.targetPath || "/"}')`);
+      btn.setAttribute(
+        "onclick",
+        `window.__SIMM_NAVIGATE__('${session.targetPath || "/gtk"}')`
+      );
       btn.innerHTML = `<i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Dashboard Saya</span>`;
     });
 
@@ -79,10 +210,14 @@
       (isGtk && (joinedRoles.includes("bk") || joinedRoles.includes("wali")));
     const canAccessBatchPromotion = isSuperAdmin || isTu;
 
-    const currentPortalPath =
-      window.parent && window.parent !== window
-        ? window.parent.location.pathname
-        : window.location.pathname;
+    let currentPortalPath = window.location.pathname;
+    try {
+      if (window.parent && window.parent !== window) {
+        currentPortalPath = window.parent.location.pathname;
+      }
+    } catch (_) {
+      // ignore cross-origin check
+    }
 
     const moduleButtons = [];
 
@@ -212,17 +347,32 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
-  function getInitials(name) {
-    if (!name) return "SM";
-    const parts = String(name)
-      .replace(/^(Ust\.|Usth\.|Dr\.|Drs\.|H\.|Hj\.|Bapak|Ibu)\s+/gi, "")
-      .trim()
-      .split(/\s+/);
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+  // Pasang hook fungsi render sidebar SECARA SINKRON sebelum DOMContentLoaded dijalankan
+  function hookSidebarRenderersSync() {
+    [
+      "renderSidebarNavigation",
+      "renderSidebarMenu",
+      "renderSidebarNav",
+      "updateSidebarActiveState",
+    ].forEach((fnName) => {
+      if (
+        typeof window[fnName] === "function" &&
+        !window[fnName].__simmHooked
+      ) {
+        const origFn = window[fnName];
+        const wrapped = function () {
+          origFn.apply(this, arguments);
+          if (currentSession) {
+            injectIntegratedSidebarSessionMenus(currentSession);
+          }
+        };
+        wrapped.__simmHooked = true;
+        window[fnName] = wrapped;
+      }
+    });
   }
 
-  // Terapkan identitas resmi madrasah ke elemen teks halaman jika berbeda dari default
+  // Terapkan identitas resmi madrasah ke elemen teks halaman
   function applyMadrasahIdentityToDOM(profile) {
     if (!profile || !profile.name) return;
     document.title = document.title.replace(/MTs Nurul Falah/g, profile.name);
@@ -238,7 +388,8 @@
         node.nodeValue &&
         (node.nodeValue.includes("MTs Nurul Falah") ||
           node.nodeValue.includes("121232040089") ||
-          node.nodeValue.includes("20278412"))
+          node.nodeValue.includes("20278412") ||
+          node.nodeValue.includes("Dr. H. Ahmad Fauzi"))
       ) {
         nodes.push(node);
       }
@@ -246,15 +397,755 @@
     nodes.forEach((n) => {
       n.nodeValue = n.nodeValue
         .replace(/MTs Nurul Falah/g, profile.name)
-        .replace(/121232040089/g, profile.nsm || "121232040089")
-        .replace(/20278412/g, profile.npsn || "20278412");
+        .replace(/121232040089/g, profile.nsm || "121216050060")
+        .replace(/20278412/g, profile.npsn || "69963460")
+        .replace(
+          /Dr\. H\. Ahmad Fauzi, M\.Pd\./g,
+          profile.headmasterName || "Syarip Husin, S.Sos., Gr."
+        );
     });
   }
 
-  // Terapkan profil pengguna yang sedang login beserta Tugas Tambahan Dinamisnya
+  // Perbarui opsi dropdown filter Rombel dengan rombel riil dari database (7A, 8A, 9A)
+  function syncRombelSelectOptions(students) {
+    if (!Array.isArray(students) || students.length === 0) return;
+    const uniqueRombels = Array.from(
+      new Set(
+        students
+          .map((s) => String(s.rombel || "").trim())
+          .filter(Boolean)
+      )
+    ).sort();
+    if (uniqueRombels.length === 0) return;
+
+    const filterSelectIds = ["student-rombel-filter", "induk-filter-rombel"];
+    filterSelectIds.forEach((id) => {
+      const sel = document.getElementById(id);
+      if (sel) {
+        const currentVal = sel.value || "Semua";
+        sel.innerHTML =
+          `<option value="Semua">Semua Rombel / Kelas (${students.length} Siswa)</option>` +
+          uniqueRombels
+            .map((r) => `<option value="${r}">Kelas ${r}</option>`)
+            .join("");
+        if (uniqueRombels.includes(currentVal) || currentVal === "Semua") {
+          sel.value = currentVal;
+        }
+      }
+    });
+
+    const formSelectIds = ["new-stu-rombel", "new-role-classroom", "add-rombel"];
+    formSelectIds.forEach((id) => {
+      const sel = document.getElementById(id);
+      if (sel) {
+        sel.innerHTML = uniqueRombels
+          .map((r) => `<option value="${r}">Kelas ${r}</option>`)
+          .join("");
+      }
+    });
+  }
+
+  // Sinkronkan seluruh variabel data di 7 portal dengan data nyata dari Supabase (hapus total data dummy)
+  function syncDatabaseRecordsToPortal(db) {
+    if (!db || !db.ok) return;
+
+    const realStudents = Array.isArray(db.students) ? db.students : [];
+    const realTeachers = Array.isArray(db.teachers) ? db.teachers : [];
+    const realPpdb = Array.isArray(db.ppdb) ? db.ppdb : [];
+    const realCms = Array.isArray(db.cmsPosts) ? db.cmsPosts : [];
+    const realServices = Array.isArray(db.serviceRequests)
+      ? db.serviceRequests
+      : [];
+    const realMail = Array.isArray(db.mailAgenda) ? db.mailAgenda : [];
+    const profile = db.profile || window.__MADRASAH_PROFILE__ || {};
+
+    applyMadrasahIdentityToDOM(profile);
+    syncRombelSelectOptions(realStudents);
+
+    const uniqueRombels = Array.from(
+      new Set(realStudents.map((s) => s.rombel).filter(Boolean))
+    ).sort();
+
+    // =========================================================================
+    // A. HALAMAN PUBLIK (`/`)
+    // =========================================================================
+    if (typeof GTK_DATA !== "undefined" && realTeachers.length > 0) {
+      GTK_DATA.length = 0;
+      realTeachers.forEach((t, idx) => {
+        const name = (t.user && t.user.name) || t.nip;
+        const roles = Array.isArray(t.roles) ? t.roles : [];
+        const categories = [];
+        const additionalRoles = [];
+
+        roles.forEach((r) => {
+          const rType = String(r.type || "");
+          const rLower = rType.toLowerCase();
+          const label =
+            r.detail &&
+            r.detail !== "SK Tahun Ajaran Aktif" &&
+            !rType.includes(r.detail)
+              ? `${rType} (${r.detail})`
+              : rType;
+
+          if (
+            rLower.includes("kepala") ||
+            rLower.includes("waka") ||
+            rLower.includes("operator") ||
+            rLower.includes("koordinator")
+          ) {
+            if (!categories.includes("pimpinan")) categories.push("pimpinan");
+            additionalRoles.push({ label, color: "emerald" });
+          } else if (rLower.includes("wali kelas")) {
+            if (!categories.includes("wali_kelas"))
+              categories.push("wali_kelas");
+            additionalRoles.push({ label, color: "sky" });
+          } else if (rLower.includes("piket")) {
+            if (!categories.includes("guru_piket"))
+              categories.push("guru_piket");
+            additionalRoles.push({ label, color: "amber" });
+          } else if (
+            rLower.includes("bendahara") ||
+            rLower.includes("tabungan") ||
+            rLower.includes("komite")
+          ) {
+            if (!categories.includes("keuangan")) categories.push("keuangan");
+            additionalRoles.push({ label, color: "purple" });
+          } else if (rType) {
+            additionalRoles.push({ label, color: "teal" });
+          }
+        });
+
+        if (additionalRoles.length === 0) {
+          additionalRoles.push({ label: "Pendidik Aktif", color: "slate" });
+        }
+
+        GTK_DATA.push({
+          id: idx + 1,
+          name,
+          nip: t.nip,
+          subject: t.subject || "Pendidik Madrasah",
+          categories,
+          additionalRoles,
+        });
+      });
+
+      if (typeof window.renderHeroPiketWidget === "function") {
+        window.renderHeroPiketWidget();
+      }
+      if (typeof window.renderGTKDirectory === "function") {
+        window.renderGTKDirectory();
+      }
+    }
+
+    if (typeof SAMPLE_STUDENTS !== "undefined") {
+      Object.keys(SAMPLE_STUDENTS).forEach((k) => delete SAMPLE_STUDENTS[k]);
+      realStudents.forEach((s) => {
+        const record = {
+          nisn: s.nisn,
+          nis: s.nis,
+          name: s.name,
+          rombel: `Kelas ${s.rombel}`,
+          waliKelas: s.waliKelas || "-",
+          status: s.status || "Aktif (Buku Induk Terverifikasi)",
+        };
+        if (s.nisn) SAMPLE_STUDENTS[s.nisn] = record;
+        if (s.nis) SAMPLE_STUDENTS[s.nis] = record;
+      });
+    }
+
+    if (typeof NEWS_DATA !== "undefined") {
+      NEWS_DATA.length = 0;
+      if (realCms.length > 0) {
+        realCms.forEach((post, idx) => {
+          NEWS_DATA.push({
+            id: idx + 1,
+            featured: idx === 0,
+            category: post.category || "Pengumuman",
+            title: post.title,
+            date: post.dateLabel || "Tahun Ajaran 2026/2027",
+            author: post.author || "Humas MTs Nurul Falah",
+            readTime: "3 menit baca",
+            excerpt: post.excerpt || post.content || "",
+            content: String(post.content || post.excerpt || "").split("\n"),
+          });
+        });
+      } else {
+        NEWS_DATA.push(
+          {
+            id: 101,
+            featured: true,
+            category: "Pengumuman",
+            title: `Informasi Layanan Akademik & PPDB ${profile.name || "MTs Nurul Falah"} TA ${profile.academicYear || "2026/2027"}`,
+            date: "Semester " + (profile.semester || "Ganjil") + " 2026/2027",
+            author: profile.headmasterName || "Syarip Husin, S.Sos., Gr.",
+            readTime: "3 menit baca",
+            excerpt: `Selamat datang di Sistem Informasi Manajemen Madrasah (${profile.name || "MTs Nurul Falah"}, NSM: ${profile.nsm || "121216050060"}, NPSN: ${profile.npsn || "69963460"}).`,
+            content: [
+              `${profile.name || "MTs Nurul Falah"} menyelenggarakan layanan pendidikan terpadu berbasis ${profile.curriculum || "Kurikulum Merdeka & KMA 450"} dengan dukungan Sistem Informasi Manajemen Madrasah (SIMS).`,
+              `Saat ini tercatat sebanyak ${realStudents.length} peserta didik aktif pada rombongan belajar ${uniqueRombels.join(", ") || "7A, 8A, 9A"} serta ${realTeachers.length} pendidik dan tenaga kependidikan aktif.`,
+              `Masyarakat dan orang tua/wali dapat mengakses layanan cek NISN Buku Induk, informasi pendaftaran peserta didik baru (PPDB), serta portal akademik secara daring.`,
+            ],
+          },
+          {
+            id: 102,
+            featured: false,
+            category: "Kegiatan Madrasah",
+            title: `Implementasi Kurikulum Merdeka & KMA 450 di ${profile.name || "MTs Nurul Falah"}`,
+            date: "Tahun Ajaran " + (profile.academicYear || "2026/2027"),
+            author: "Tim Kurikulum MTs Nurul Falah",
+            readTime: "2 menit baca",
+            excerpt:
+              "Penguatan karakter keislaman, literasi sains, dan ketertiban administrasi akademik seluruh rombongan belajar.",
+            content: [
+              "Pelaksanaan kegiatan belajar mengajar (KBM) terintegrasi secara digital mencakup jurnal mengajar harian, presensi peserta didik, serta pemantauan buku induk.",
+            ],
+          }
+        );
+      }
+      if (typeof window.renderHomeNews === "function") window.renderHomeNews();
+      if (typeof window.renderNewsPage === "function") window.renderNewsPage();
+    }
+
+    if (typeof SCHEDULE_BY_DAY !== "undefined" && realTeachers.length > 0) {
+      const tNames = realTeachers.map(
+        (t) => (t.user && t.user.name) || t.nip
+      );
+      const tSubj = realTeachers.map((t) => t.subject || "Mata Pelajaran");
+      SCHEDULE_BY_DAY.Senin = {
+        piket: [tNames[0] || "-", tNames[1] || "-"],
+        slots: [
+          {
+            jam: "07.00 – 07.45",
+            mapel: "Upacara Bendera & Pembinaan Wali Kelas",
+            guru: "Seluruh Pendidik & Wali Kelas",
+          },
+          {
+            jam: "07.45 – 09.05",
+            mapel: `${tSubj[0] || "Mata Pelajaran"} (${uniqueRombels[0] || "7A"})`,
+            guru: tNames[0] || "-",
+          },
+          {
+            jam: "09.25 – 10.45",
+            mapel: `${tSubj[1] || "Mata Pelajaran"} (${uniqueRombels[1] || "8A"})`,
+            guru: tNames[1] || "-",
+          },
+        ],
+      };
+      SCHEDULE_BY_DAY.Rabu = {
+        piket: [tNames[2] || tNames[0] || "-", tNames[3] || tNames[1] || "-"],
+        slots: [
+          {
+            jam: "07.30 – 08.50",
+            mapel: `${tSubj[2] || "Mata Pelajaran"} (${uniqueRombels[0] || "7A"})`,
+            guru: tNames[2] || tNames[0] || "-",
+          },
+          {
+            jam: "09.10 – 10.30",
+            mapel: `${tSubj[3] || "Mata Pelajaran"} (${uniqueRombels[2] || "9A"})`,
+            guru: tNames[3] || tNames[1] || "-",
+          },
+        ],
+      };
+      SCHEDULE_BY_DAY.Sabtu = {
+        piket: [tNames[4] || tNames[0] || "-", tNames[5] || tNames[1] || "-"],
+        slots: [
+          {
+            jam: "07.30 – 08.50",
+            mapel: `${tSubj[4] || "Mata Pelajaran"} (${uniqueRombels[1] || "8A"})`,
+            guru: tNames[4] || tNames[0] || "-",
+          },
+          {
+            jam: "09.10 – 10.30",
+            mapel: `${tSubj[5] || "Mata Pelajaran"} (${uniqueRombels[2] || "9A"})`,
+            guru: tNames[5] || tNames[1] || "-",
+          },
+        ],
+      };
+    }
+
+    // =========================================================================
+    // B. DASHBOARD SUPER ADMIN (`/admin`)
+    // =========================================================================
+    if (typeof STUDENTS_LIST !== "undefined") {
+      STUDENTS_LIST.length = 0;
+      realStudents.forEach((s, idx) => {
+        STUDENTS_LIST.push({
+          id: idx + 1,
+          nis: s.nis,
+          nisn: s.nisn,
+          name: s.name,
+          gender: String(s.gender).toLowerCase().startsWith("p") ? "P" : "L",
+          rombel: s.rombel,
+          waliKelas: s.waliKelas || "-",
+          parentName:
+            s.fatherName && s.fatherName !== "-"
+              ? s.fatherName
+              : s.motherName || "-",
+          status: s.status || "Aktif",
+          docs: {
+            kk: Boolean(s.r2KkUrl),
+            akta: Boolean(s.r2AktaUrl),
+            ijazah: Boolean(s.r2IjazahUrl),
+          },
+        });
+      });
+
+      const kpiSiswa = document.getElementById("kpi-total-siswa");
+      if (kpiSiswa) {
+        kpiSiswa.textContent = String(realStudents.length);
+        const subEl = kpiSiswa.nextElementSibling;
+        if (subEl) {
+          subEl.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>Tersebar di ${uniqueRombels.length || 3} Rombel (${uniqueRombels.join(", ") || "7A, 8A, 9A"})</span>`;
+        }
+      }
+    }
+
+    if (typeof GTK_LIST !== "undefined" && realTeachers.length > 0) {
+      GTK_LIST.length = 0;
+      realTeachers.forEach((t, idx) => {
+        GTK_LIST.push({
+          id: idx + 1,
+          name: (t.user && t.user.name) || t.nip,
+          nip: t.nip,
+          subject: t.subject || "Pendidik Madrasah",
+          roles: Array.isArray(t.roles)
+            ? t.roles.map((r, rIdx) => ({
+                id: r.id || idx * 100 + rIdx + 1,
+                type: r.type,
+                detail: r.detail,
+              }))
+            : [],
+        });
+      });
+    }
+
+    if (typeof INVAL_SCHEDULES !== "undefined") {
+      INVAL_SCHEDULES.length = 0;
+      const invalBadge = document.getElementById("sidebar-inval-badge");
+      if (invalBadge) invalBadge.textContent = "0";
+      const kpiInvalStatus = document.getElementById("kpi-inval-status");
+      if (kpiInvalStatus) {
+        kpiInvalStatus.className =
+          "text-xs text-emerald-700 font-semibold mt-1.5 flex items-center gap-1";
+        kpiInvalStatus.innerHTML = `<span>Tidak Ada Jam Kosong</span>`;
+        const prevP = kpiInvalStatus.previousElementSibling;
+        if (prevP) {
+          prevP.innerHTML = `0 <span class="text-base font-bold text-slate-500">Jadwal</span>`;
+        }
+      }
+    }
+
+    // Update KPI 2 Kehadiran Guru Hari Ini di Admin
+    const kpiSiswaEl = document.getElementById("kpi-total-siswa");
+    if (kpiSiswaEl && realTeachers.length > 0) {
+      const kpiGrid = kpiSiswaEl.closest(".grid");
+      if (kpiGrid && kpiGrid.children[1]) {
+        const kpi2 = kpiGrid.children[1];
+        const numEl = kpi2.querySelector(".text-3xl");
+        const subEl = kpi2.querySelector(".text-amber-700, .text-emerald-700");
+        if (numEl) {
+          numEl.innerHTML = `${realTeachers.length}<span class="text-lg font-bold text-slate-400">/${realTeachers.length}</span>`;
+        }
+        if (subEl) {
+          subEl.className =
+            "text-xs text-emerald-700 font-medium mt-1.5 flex items-center gap-1";
+          subEl.innerHTML = `<span>100% Pendidik Aktif</span>`;
+        }
+      }
+    }
+
+    if (typeof TODAY_PIKET_SLOTS !== "undefined" && realTeachers.length > 0) {
+      const piketTeachers = realTeachers.filter(
+        (t) =>
+          Array.isArray(t.roles) &&
+          t.roles.some((r) => String(r.type).toLowerCase().includes("piket"))
+      );
+      const p1 = piketTeachers[0] || realTeachers[0];
+      const p2 = piketTeachers[1] || realTeachers[1] || realTeachers[0];
+      TODAY_PIKET_SLOTS.length = 0;
+      if (p1) {
+        TODAY_PIKET_SLOTS.push({
+          slotId: 1,
+          shiftLabel: "Petugas Piket 1 (Pagi – Siang)",
+          permanentTeacher: (p1.user && p1.user.name) || p1.nip,
+          overrideTeacher: null,
+          overrideReason: null,
+        });
+      }
+      if (p2) {
+        TODAY_PIKET_SLOTS.push({
+          slotId: 2,
+          shiftLabel: "Petugas Piket 2 (Pagi – Siang)",
+          permanentTeacher: (p2.user && p2.user.name) || p2.nip,
+          overrideTeacher: null,
+          overrideReason: null,
+        });
+      }
+    }
+
+    if (typeof WEEKLY_ATTENDANCE !== "undefined") {
+      const gCount = realTeachers.length;
+      const sCount = realStudents.length;
+      ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"].forEach(
+        (day, idx) => {
+          if (WEEKLY_ATTENDANCE[idx]) {
+            WEEKLY_ATTENDANCE[idx].day = day;
+            WEEKLY_ATTENDANCE[idx].guru = 100;
+            WEEKLY_ATTENDANCE[idx].siswa = 100;
+            WEEKLY_ATTENDANCE[idx].detail =
+              `Guru: ${gCount}/${gCount} Aktif • Siswa: ${sCount}/${sCount} Aktif`;
+          }
+        }
+      );
+    }
+
+    if (typeof ACTIVITY_LOGS !== "undefined") {
+      ACTIVITY_LOGS.length = 0;
+      ACTIVITY_LOGS.push(
+        {
+          time: "Aktif",
+          actor: profile.headmasterName || "Kepala Madrasah",
+          action: `Identitas resmi ${profile.name || "MTs Nurul Falah"} (NSM: ${profile.nsm || "121216050060"}) aktif di seluruh portal.`,
+          badge: "Profil Resmi",
+          color: "emerald",
+        },
+        {
+          time: "Tersinkron",
+          actor: "Database SIMS",
+          action: `${realStudents.length} data siswa Buku Induk (${uniqueRombels.join(", ")}) & ${realTeachers.length} data GTK aktif dimuat.`,
+          badge: "Data Riil",
+          color: "teal",
+        }
+      );
+    }
+
+    if (typeof CMS_POSTS !== "undefined") {
+      CMS_POSTS.length = 0;
+      realCms.forEach((p, idx) => {
+        CMS_POSTS.push({
+          id: idx + 1,
+          title: p.title,
+          category: p.category || "Pengumuman",
+          date: p.dateLabel || "TA 2026/2027",
+          author: p.author || "Admin Madrasah",
+          thumb: p.r2ThumbUrl || "-",
+          status: p.status || "Published",
+          excerpt: p.excerpt || "",
+        });
+      });
+    }
+
+    // Sinkronisasi PPDB pada Admin & TU (`PPDB_APPLICANTS`)
+    if (typeof PPDB_APPLICANTS !== "undefined") {
+      PPDB_APPLICANTS.length = 0;
+      realPpdb.forEach((app, idx) => {
+        PPDB_APPLICANTS.push({
+          id: idx + 1,
+          regNo: app.regNo,
+          nisn: app.nisn,
+          nik: app.nik,
+          name: app.fullName,
+          gender: app.gender === "PEREMPUAN" ? "P" : "L",
+          originSchool: app.previousSchool,
+          prevSchool: app.previousSchool,
+          track: app.track,
+          parentName: app.fatherName || app.motherName || "-",
+          father: app.fatherName || "-",
+          mother: app.motherName || "-",
+          docsStatus: "Berkas Tersimpan",
+          status:
+            app.status === "SUDAH_MIGRASI"
+              ? "Sudah Dimigrasi"
+              : app.status === "DITERIMA"
+                ? "Diterima"
+                : "Menunggu Verifikasi",
+          migratedNis: app.nisIssued || null,
+          docs: {
+            kk: {
+              uploaded: Boolean(app.docKkUrl),
+              verified: Boolean(app.docKkUrl),
+              file: app.docKkUrl || "-",
+            },
+            akta: {
+              uploaded: Boolean(app.docAktaUrl),
+              verified: Boolean(app.docAktaUrl),
+              file: app.docAktaUrl || "-",
+            },
+            rapor: {
+              uploaded: Boolean(app.docSklUrl),
+              verified: Boolean(app.docSklUrl),
+              file: app.docSklUrl || "-",
+            },
+            khusus: {
+              uploaded: Boolean(app.docFotoUrl),
+              verified: Boolean(app.docFotoUrl),
+              label: "Pas Foto",
+              file: app.docFotoUrl || "-",
+            },
+          },
+        });
+      });
+      const kpiPpdb = document.getElementById("kpi-total-ppdb");
+      if (kpiPpdb) kpiPpdb.textContent = String(realPpdb.length);
+      const sidebarPpdbBadge = document.getElementById("sidebar-ppdb-badge");
+      if (sidebarPpdbBadge)
+        sidebarPpdbBadge.textContent = String(realPpdb.length);
+    }
+
+    if (typeof window.renderOverview === "function") window.renderOverview();
+    if (typeof window.renderGtkView === "function") window.renderGtkView();
+    if (typeof window.renderJadwalView === "function")
+      window.renderJadwalView();
+    if (typeof window.renderStudentsTable === "function")
+      window.renderStudentsTable();
+    if (typeof window.renderPpdbTable === "function") window.renderPpdbTable();
+    if (typeof window.renderCmsTable === "function") window.renderCmsTable();
+
+    // =========================================================================
+    // C. PORTAL TATA USAHA (`/tu`)
+    // =========================================================================
+    const tuStudentsTarget =
+      typeof STUDENTS_DB !== "undefined"
+        ? STUDENTS_DB
+        : typeof STUDENTS_DATA !== "undefined"
+          ? STUDENTS_DATA
+          : null;
+
+    if (tuStudentsTarget) {
+      tuStudentsTarget.length = 0;
+      realStudents.forEach((s, idx) => {
+        tuStudentsTarget.push({
+          id: idx + 1,
+          nis: s.nis,
+          nisn: s.nisn,
+          nik:
+            s.nik && s.nik !== "3204120000000000" ? s.nik : "1605000000000000",
+          name: s.name,
+          ttl:
+            s.ttl && s.ttl !== "Bandung, 01 Januari 2013" ? s.ttl : "-",
+          gender: s.gender || "Laki-laki",
+          father: s.fatherName || "-",
+          mother: s.motherName || "-",
+          address: s.address || "-",
+          prevSchool: s.prevSchool || "-",
+          rombel: s.rombel || "7A",
+          waliKelas: s.waliKelas || "-",
+          status: s.status || "Aktif",
+          academicHistory:
+            s.academicHistory || `Terdaftar Aktif Kelas ${s.rombel}`,
+          r2Docs: {
+            kk: {
+              uploaded: Boolean(s.r2KkUrl),
+              key: s.r2KkUrl || `buku-induk/${s.nis}-KK.pdf`,
+              updated: s.r2KkUpdated || "-",
+            },
+            akta: {
+              uploaded: Boolean(s.r2AktaUrl),
+              key: s.r2AktaUrl || `buku-induk/${s.nis}-AKTA.pdf`,
+              updated: s.r2AktaUpdated || "-",
+            },
+            ijazah: {
+              uploaded: Boolean(s.r2IjazahUrl),
+              key: s.r2IjazahUrl || `buku-induk/${s.nis}-IJAZAH.pdf`,
+              updated: s.r2IjazahUpdated || "-",
+            },
+            foto: {
+              uploaded: Boolean(s.r2FotoUrl),
+              key: s.r2FotoUrl || `buku-induk/${s.nis}-FOTO.jpg`,
+              updated: s.r2FotoUpdated || "-",
+            },
+          },
+        });
+      });
+    }
+
+    if (typeof SERVICE_REQUESTS !== "undefined") {
+      SERVICE_REQUESTS.length = 0;
+      realServices.forEach((req) => {
+        SERVICE_REQUESTS.push({
+          id: req.reqCode || req.id,
+          kind: req.kind || "surat",
+          letterType: req.letterType || "Surat Keterangan",
+          title: req.title,
+          studentId: 1,
+          studentName: req.studentName,
+          rombel: req.rombel,
+          nis: req.nis,
+          requester: req.requesterName,
+          submittedAt: req.submittedAt,
+          fieldKey: req.fieldKey,
+          fieldLabel: req.fieldLabel,
+          oldValue: req.oldValue,
+          newValue: req.newValue,
+          purpose: req.purpose,
+          r2Proof: req.r2ProofKey,
+          status: req.status,
+          issuedNumber: req.issuedNumber,
+          r2Output: req.r2OutputKey,
+        });
+      });
+    }
+
+    if (typeof MAIL_AGENDA_LIST !== "undefined") {
+      MAIL_AGENDA_LIST.length = 0;
+      realMail.forEach((m) => {
+        MAIL_AGENDA_LIST.push({
+          agendaNo: m.agendaNo,
+          letterNo: m.letterNo,
+          date: m.dateLabel,
+          type: m.type,
+          category: m.category,
+          party: m.party,
+          subject: m.subject,
+          r2File: m.r2FileKey || "-",
+        });
+      });
+    }
+
+    if (typeof GTK_DIRECTORY !== "undefined" && realTeachers.length > 0) {
+      GTK_DIRECTORY.length = 0;
+      realTeachers.forEach((t, idx) => {
+        GTK_DIRECTORY.push({
+          id: "gtk-" + (idx + 1),
+          name: (t.user && t.user.name) || t.nip,
+          nip: t.nip,
+          status: t.statusKepeg || "Pendidik Madrasah",
+          tmt: t.tmtDate || "Aktif",
+          mainRole: "Guru " + (t.subject || "Mata Pelajaran"),
+          extraDuties: Array.isArray(t.roles)
+            ? t.roles.map((r) =>
+                r.detail && r.detail !== "SK Tahun Ajaran Aktif"
+                  ? `${r.type} (${r.detail})`
+                  : r.type
+              )
+            : [],
+          skNo:
+            (Array.isArray(t.roles) &&
+              t.roles[0] &&
+              t.roles[0].skNumber) ||
+            "SK-Aktif/2026",
+          r2Docs: ["SK Pembagian Tugas Mengajar"],
+        });
+      });
+    }
+
+    if (typeof TU_ACTIVITY_LOGS !== "undefined") {
+      TU_ACTIVITY_LOGS.length = 0;
+      TU_ACTIVITY_LOGS.push(
+        {
+          time: "Tersinkron",
+          actor: "Sistem Buku Induk",
+          action: `Memuat ${realStudents.length} data siswa riil (${uniqueRombels.join(", ")}) & ${realTeachers.length} data pendidik MTs Nurul Falah.`,
+          tag: "Buku Induk",
+        },
+        {
+          time: "Aktif",
+          actor: profile.headmasterName || "Kepala Madrasah",
+          action: `Identitas kelembagaan NSM ${profile.nsm || "121216050060"} / NPSN ${profile.npsn || "69963460"} siap digunakan untuk penomoran surat.`,
+          tag: "Profil Resmi",
+        }
+      );
+    }
+
+    if (typeof window.renderBukuIndukTable === "function")
+      window.renderBukuIndukTable();
+    if (typeof window.renderPersuratanView === "function")
+      window.renderPersuratanView();
+    if (typeof window.renderPpdbView === "function") window.renderPpdbView();
+    if (typeof window.renderEmisView === "function") window.renderEmisView();
+    if (typeof window.renderOverviewView === "function")
+      window.renderOverviewView();
+
+    const kpiMailTotal = document.getElementById("kpi-mail-total");
+    if (kpiMailTotal) kpiMailTotal.textContent = `${realMail.length} Surat`;
+    const kpiMailSub = document.getElementById("kpi-mail-sub");
+    if (kpiMailSub) {
+      const inCount = realMail.filter((m) => m.type === "Surat Masuk").length;
+      const outCount = realMail.filter((m) => m.type === "Surat Keluar").length;
+      kpiMailSub.textContent = `${inCount} Surat Masuk • ${outCount} Surat Keluar`;
+    }
+
+    // =========================================================================
+    // D. PORTAL GURU & GTK (`/gtk`)
+    // =========================================================================
+    if (
+      typeof PIKET_TEACHER_STATUS !== "undefined" &&
+      realTeachers.length > 0
+    ) {
+      PIKET_TEACHER_STATUS.length = 0;
+      realTeachers.forEach((t, idx) => {
+        const rombel =
+          uniqueRombels[idx % (uniqueRombels.length || 1)] || "7A";
+        PIKET_TEACHER_STATUS.push({
+          id: idx + 1,
+          teacherName: (t.user && t.user.name) || t.nip,
+          scheduleInfo: `${t.subject || "Mata Pelajaran"} • Kelas ${rombel}`,
+          status: "Hadir",
+          statusDetail: "Terjadwal Aktif",
+          needsInval: false,
+          substitute: null,
+          candidates: [],
+        });
+      });
+    }
+
+    if (typeof PIKET_STUDENT_LOGS !== "undefined") {
+      PIKET_STUDENT_LOGS.length = 0;
+    }
+
+    if (typeof STUDENT_SAVINGS !== "undefined" && realStudents.length > 0) {
+      STUDENT_SAVINGS.length = 0;
+      realStudents.forEach((s, idx) => {
+        STUDENT_SAVINGS.push({
+          id: idx + 1,
+          nis: s.nis,
+          name: s.name,
+          classroom: s.rombel,
+          balance: s.savingsBalance || 0,
+          lastMutation: "Belum ada transaksi",
+        });
+      });
+    }
+
+    if (typeof SAVINGS_MUTATIONS !== "undefined") {
+      SAVINGS_MUTATIONS.length = 0;
+    }
+
+    if (typeof KOMITE_PAYMENTS !== "undefined" && realStudents.length > 0) {
+      KOMITE_PAYMENTS.length = 0;
+      realStudents.forEach((s, idx) => {
+        KOMITE_PAYMENTS.push({
+          id: idx + 1,
+          nis: s.nis,
+          name: s.name,
+          classroom: s.rombel,
+          amount: 75000,
+          status: s.komiteUnpaidMonths > 0 ? "Belum Lunas" : "Lunas",
+          receipt: "-",
+        });
+      });
+    }
+
+    if (typeof MY_DAILY_LOGS !== "undefined") {
+      MY_DAILY_LOGS.length = 0;
+    }
+
+    if (typeof MY_LEAVE_HISTORY !== "undefined") {
+      MY_LEAVE_HISTORY.length = 0;
+    }
+  }
+
+  // Terapkan profil pengguna yang sedang login beserta Tugas Tambahan Dinamisnya secara sinkron
   function applyLiveUserSessionToPortal(session, db) {
     if (!session) return;
     const initials = getInitials(session.name);
+    const realStudents =
+      db && Array.isArray(db.students) ? db.students : [];
+    const realTeachers =
+      db && Array.isArray(db.teachers) ? db.teachers : [];
+    const uniqueRombels = Array.from(
+      new Set(realStudents.map((s) => s.rombel).filter(Boolean))
+    ).sort();
 
     // 1. Dashboard Super Admin / Kepala Madrasah (/admin)
     const adminAvatar = document.getElementById("topbar-admin-avatar");
@@ -279,7 +1170,8 @@
       typeof TEACHER_PROFILES !== "undefined" &&
       typeof window.switchTeacherProfile === "function"
     ) {
-      const baseTemplate = TEACHER_PROFILES.fauzi || Object.values(TEACHER_PROFILES)[0];
+      const baseTemplate =
+        TEACHER_PROFILES.fauzi || Object.values(TEACHER_PROFILES)[0];
       const rawRoles = Array.isArray(session.roleDetails)
         ? session.roleDetails
         : (session.additionalRoles || []).map((r) => {
@@ -291,7 +1183,7 @@
           });
 
       const mappedRoles = [];
-      let waliRombel = "VIII-A";
+      let waliRombel = uniqueRombels[0] || "7A";
       const isKamadOrAdmin =
         session.baseRole === "ADMIN" ||
         rawRoles.some((r) =>
@@ -300,9 +1192,10 @@
 
       rawRoles.forEach((r) => {
         const t = String(r.type || "").toLowerCase();
-        const detail = r.detail || "";
+        const detail =
+          r.detail && r.detail !== "SK Tahun Ajaran Aktif" ? r.detail : "";
         if (t.includes("wali kelas")) {
-          waliRombel = detail || "VIII-A";
+          waliRombel = detail || uniqueRombels[0] || "7A";
           mappedRoles.push({
             id: "walikelas",
             label: "Wali Kelas " + waliRombel,
@@ -362,33 +1255,43 @@
         }
       }
 
-      // Jika ada data siswa di rombel binaan wali kelas, muat ke daftar siswa kelas
+      // Muat siswa riil di rombel binaan wali kelas
       if (
-        db &&
-        Array.isArray(db.students) &&
+        realStudents.length > 0 &&
         typeof CLASS_8A_STUDENTS !== "undefined"
       ) {
-        const classStudents = db.students.filter(
+        const classStudents = realStudents.filter(
           (s) =>
             String(s.rombel || "").toUpperCase() ===
             String(waliRombel).toUpperCase()
         );
         const sourceList =
-          classStudents.length > 0 ? classStudents : db.students.slice(0, 15);
-        if (sourceList.length > 0) {
-          CLASS_8A_STUDENTS.length = 0;
+          classStudents.length > 0 ? classStudents : realStudents.slice(0, 20);
+        CLASS_8A_STUDENTS.length = 0;
+        sourceList.forEach((s, idx) => {
+          CLASS_8A_STUDENTS.push({
+            id: idx + 1,
+            nis: s.nis,
+            nisn: s.nisn,
+            name: s.name,
+            morningStatus: "H",
+            note: "Siswa Aktif Rombel " + s.rombel,
+          });
+        });
+
+        if (typeof CLEANING_ROSTER_8A !== "undefined") {
+          const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+          days.forEach((d) => (CLEANING_ROSTER_8A[d] = []));
           sourceList.forEach((s, idx) => {
-            CLASS_8A_STUDENTS.push({
-              id: idx + 1,
-              nis: s.nis,
-              nisn: s.nisn,
-              name: s.name,
-              morningStatus: "H",
-              note: "Siswa Aktif Rombel " + s.rombel,
-            });
+            CLEANING_ROSTER_8A[days[idx % days.length]].push(s.name);
           });
         }
       }
+
+      const teacherSubject = session.subject || "Mata Pelajaran";
+      const r1 = uniqueRombels[0] || "7A";
+      const r2 = uniqueRombels[1] || r1;
+      const r3 = uniqueRombels[2] || r1;
 
       const profileKey = session.identifier || "active_gtk";
       TEACHER_PROFILES[profileKey] = {
@@ -397,9 +1300,75 @@
         name: session.name,
         initials,
         nip: session.nip || session.identifier,
-        subject: session.subject || "Pendidik Madrasah",
+        subject: teacherSubject,
         totalJp: "18 JP / Pekan",
         roles: mappedRoles,
+        attendanceToday: {
+          status: "pending",
+          time: null,
+          leaveType: null,
+          leaveReason: null,
+          r2File: null,
+        },
+        schedules: [
+          {
+            id: 101,
+            day: "Senin",
+            isToday: true,
+            isInval: false,
+            subject: teacherSubject,
+            classroom: r1,
+            timeSlot: "Jam ke 1–2 (07.30 – 08.50)",
+            room: `R. Kelas ${r1}`,
+            journalFilled: false,
+            topic: "",
+            notes: "",
+            attendanceSummary: {
+              H: realStudents.filter((s) => s.rombel === r1).length || 20,
+              S: 0,
+              I: 0,
+              A: 0,
+            },
+          },
+          {
+            id: 102,
+            day: "Rabu",
+            isToday: true,
+            isInval: false,
+            subject: teacherSubject,
+            classroom: r2,
+            timeSlot: "Jam ke 3–4 (09.10 – 10.30)",
+            room: `R. Kelas ${r2}`,
+            journalFilled: false,
+            topic: "",
+            notes: "",
+            attendanceSummary: {
+              H: realStudents.filter((s) => s.rombel === r2).length || 20,
+              S: 0,
+              I: 0,
+              A: 0,
+            },
+          },
+          {
+            id: 103,
+            day: "Sabtu",
+            isToday: true,
+            isInval: false,
+            subject: teacherSubject,
+            classroom: r3,
+            timeSlot: "Jam ke 1–2 (07.30 – 08.50)",
+            room: `R. Kelas ${r3}`,
+            journalFilled: false,
+            topic: "",
+            notes: "",
+            attendanceSummary: {
+              H: realStudents.filter((s) => s.rombel === r3).length || 19,
+              S: 0,
+              I: 0,
+              A: 0,
+            },
+          },
+        ],
       };
       window.switchTeacherProfile(profileKey);
     }
@@ -409,7 +1378,8 @@
       typeof TU_STAFF_PROFILES !== "undefined" &&
       typeof window.switchTuStaffProfile === "function"
     ) {
-      const baseTu = TU_STAFF_PROFILES.ridwan || Object.values(TU_STAFF_PROFILES)[0];
+      const baseTu =
+        TU_STAFF_PROFILES.ridwan || Object.values(TU_STAFF_PROFILES)[0];
       const tuKey = session.identifier || "active_tu";
       const pos =
         (session.additionalRoles && session.additionalRoles[0]) ||
@@ -424,7 +1394,9 @@
         nip: session.nip || session.identifier,
         position: pos,
         badge: "AKSES PENUH",
+        roleScope: `${pos} (Otorisasi Penuh)`,
         canAuthorizeTte: true,
+        canSignOfficial: true,
       };
       window.switchTuStaffProfile(tuKey);
     }
@@ -438,204 +1410,222 @@
         STUDENT_PROFILES.rizky || Object.values(STUDENT_PROFILES)[0];
       const stuKey = session.identifier || "active_student";
       const matchedStudent =
-        db && Array.isArray(db.students)
-          ? db.students.find(
-              (s) =>
-                s.nisn === session.identifier ||
-                s.nis === session.identifier ||
-                s.name === session.name
-            )
-          : null;
+        realStudents.find(
+          (s) =>
+            s.nisn === session.identifier ||
+            s.nis === session.identifier ||
+            s.name === session.name
+        ) || realStudents[0];
+
+      const stuRombel = matchedStudent
+        ? matchedStudent.rombel
+        : session.rombel || "7A";
+      const classmates = realStudents.filter((s) => s.rombel === stuRombel);
+      const rosterSource = classmates.length > 0 ? classmates : realStudents;
+      const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const piketRoster = {};
+      days.forEach((d) => (piketRoster[d] = []));
+      rosterSource.forEach((c, idx) => {
+        piketRoster[days[idx % days.length]].push(c.name);
+      });
+
+      const t1 = realTeachers[0];
+      const t2 = realTeachers[1] || t1;
+      const t3 = realTeachers[2] || t1;
 
       STUDENT_PROFILES[stuKey] = {
         ...baseStu,
         key: stuKey,
         name: matchedStudent ? matchedStudent.name : session.name,
-        initials: getInitials(matchedStudent ? matchedStudent.name : session.name),
-        classroom: matchedStudent
-          ? matchedStudent.rombel
-          : session.rombel || "VII-A",
+        initials: getInitials(
+          matchedStudent ? matchedStudent.name : session.name
+        ),
+        classroom: stuRombel,
         nis: matchedStudent ? matchedStudent.nis : session.nis || "-",
         nisn: matchedStudent
           ? matchedStudent.nisn
           : session.nisn || session.identifier,
-        nik: matchedStudent ? matchedStudent.nik : "-",
-        ttl: matchedStudent ? matchedStudent.ttl : "-",
+        nik:
+          matchedStudent &&
+          matchedStudent.nik &&
+          matchedStudent.nik !== "3204120000000000"
+            ? matchedStudent.nik
+            : "-",
+        ttl:
+          matchedStudent &&
+          matchedStudent.ttl &&
+          matchedStudent.ttl !== "Bandung, 01 Januari 2013"
+            ? matchedStudent.ttl
+            : "-",
         gender: matchedStudent ? matchedStudent.gender : "-",
-        waliKelas: matchedStudent
-          ? matchedStudent.waliKelas
-          : session.waliKelas || "-",
-        parentFather: matchedStudent ? matchedStudent.fatherName : "-",
-        parentMother: matchedStudent ? matchedStudent.motherName : "-",
-        parentPhone: matchedStudent ? matchedStudent.parentPhone : "-",
-        address: matchedStudent ? matchedStudent.address : "-",
-        prevSchool: matchedStudent ? matchedStudent.prevSchool : "-",
+        waliKelas:
+          matchedStudent && matchedStudent.waliKelas !== "-"
+            ? matchedStudent.waliKelas
+            : (t1 && t1.user && t1.user.name) || "-",
+        parentFather: matchedStudent ? matchedStudent.fatherName || "-" : "-",
+        parentMother: matchedStudent ? matchedStudent.motherName || "-" : "-",
+        parentPhone: matchedStudent ? matchedStudent.parentPhone || "-" : "-",
+        address: matchedStudent ? matchedStudent.address || "-" : "-",
+        prevSchool: matchedStudent ? matchedStudent.prevSchool || "-" : "-",
         piketDay: matchedStudent ? matchedStudent.piketDay || "Senin" : "Senin",
+        todayAttendance: {
+          status: "Hadir",
+          time: "07:00 WIB",
+          note: "Tercatat Aktif",
+        },
         kpis: {
           ...baseStu.kpis,
           attendancePct: matchedStudent
             ? matchedStudent.attendanceRate || "100%"
             : "100%",
+          attendanceSub: "Terdaftar Aktif TA 2026/2027",
+          hadirCount: 1,
+          sakitCount: 0,
+          izinCount: 0,
+          alpaCount: 0,
           savingsBalance: matchedStudent
             ? matchedStudent.savingsBalance || 0
             : 0,
+          savingsSub: "Saldo Buku Tabungan Siswa",
+          savingsTotalIn: matchedStudent
+            ? matchedStudent.savingsBalance || 0
+            : 0,
+          savingsTotalOut: 0,
+          komiteStatus: "Aktif TA 2026/2027",
+          komiteSub: "Administrasi Komite Madrasah",
           pointsTotal: matchedStudent
             ? (matchedStudent.pointsTotal || 100) + " Poin"
             : "100 Poin",
+          pointsBonus: "+0 Poin",
+          pointsSub: "Predikat: Baik",
         },
+        weeklySchedules: [
+          {
+            id: 1,
+            day: "Senin",
+            isToday: true,
+            timeSlot: "Jam ke 1–2 (07.30 – 08.50)",
+            subject: (t1 && t1.subject) || "Mata Pelajaran",
+            room: `R. Kelas ${stuRombel}`,
+            teacher: (t1 && t1.user && t1.user.name) || "-",
+            isInval: false,
+            journalTopic: "Kegiatan Belajar Mengajar (KBM) Reguler",
+            journalNote: "Sesuai jadwal kurikulum aktif.",
+          },
+          {
+            id: 2,
+            day: "Senin",
+            isToday: true,
+            timeSlot: "Jam ke 3–4 (09.10 – 10.30)",
+            subject: (t2 && t2.subject) || "Mata Pelajaran",
+            room: `R. Kelas ${stuRombel}`,
+            teacher: (t2 && t2.user && t2.user.name) || "-",
+            isInval: false,
+            journalTopic: "Kegiatan Belajar Mengajar (KBM) Reguler",
+            journalNote: "Sesuai jadwal kurikulum aktif.",
+          },
+          {
+            id: 3,
+            day: "Rabu",
+            isToday: false,
+            timeSlot: "Jam ke 1–2 (07.30 – 08.50)",
+            subject: (t3 && t3.subject) || "Mata Pelajaran",
+            room: `R. Kelas ${stuRombel}`,
+            teacher: (t3 && t3.user && t3.user.name) || "-",
+            isInval: false,
+            journalTopic: "Kegiatan Belajar Mengajar (KBM) Reguler",
+            journalNote: "Sesuai jadwal kurikulum aktif.",
+          },
+        ],
+        piketRoster,
+        savingsTransactions: [],
+        leaveHistory: [],
+        counselingNotes: [],
+        achievements: [],
       };
       window.switchStudentProfile(stuKey);
     }
-  }
 
-  // Sinkronkan tabel Guru, Siswa, dan PPDB di halaman dengan data nyata dari Supabase
-  function syncDatabaseRecordsToPortal(db) {
-    if (!db || !db.ok) return;
-
-    if (db.profile) {
-      applyMadrasahIdentityToDOM(db.profile);
-    }
-
-    // 1. Sinkronisasi Data Siswa pada Dashboard Admin (`STUDENTS_LIST`)
-    if (Array.isArray(db.students) && typeof STUDENTS_LIST !== "undefined") {
-      STUDENTS_LIST.length = 0;
-      db.students.forEach((s, idx) => {
-        STUDENTS_LIST.push({
-          id: idx + 1,
-          nis: s.nis,
-          nisn: s.nisn,
-          name: s.name,
-          gender:
-            String(s.gender).toLowerCase().startsWith("p") ? "P" : "L",
-          rombel: s.rombel,
-          waliKelas: s.waliKelas || "-",
-          parentName: s.fatherName || "-",
-          status: s.status || "Aktif",
-          docs: {
-            kk: Boolean(s.r2KkUrl),
-            akta: Boolean(s.r2AktaUrl),
-            ijazah: Boolean(s.r2IjazahUrl),
-          },
-        });
-      });
-      if (typeof window.renderStudentsTable === "function") {
-        window.renderStudentsTable();
-      }
-      const kpiSiswa = document.getElementById("kpi-total-siswa");
-      if (kpiSiswa) kpiSiswa.textContent = String(db.students.length);
-    }
-
-    // 2. Sinkronisasi Data Siswa pada Portal TU (`STUDENTS_DATA`)
-    if (Array.isArray(db.students) && typeof STUDENTS_DATA !== "undefined") {
-      STUDENTS_DATA.length = 0;
-      db.students.forEach((s, idx) => {
-        STUDENTS_DATA.push({
-          id: idx + 1,
-          nis: s.nis,
-          nisn: s.nisn,
-          nik: s.nik || "",
-          name: s.name,
-          ttl: s.ttl || "-",
-          gender: s.gender || "Laki-laki",
-          father: s.fatherName || "-",
-          mother: s.motherName || "-",
-          address: s.address || "-",
-          prevSchool: s.prevSchool || "-",
-          rombel: s.rombel || "VII-A",
-          waliKelas: s.waliKelas || "-",
-          status: s.status || "Aktif",
-          academicHistory:
-            s.academicHistory || "Terdaftar Aktif pada Buku Induk",
-          r2Docs: {
-            kk: {
-              uploaded: Boolean(s.r2KkUrl),
-              key: s.r2KkUrl || `buku-induk/${s.nis}-KK.pdf`,
-              updated: s.r2KkUpdated || "-",
-            },
-            akta: {
-              uploaded: Boolean(s.r2AktaUrl),
-              key: s.r2AktaUrl || `buku-induk/${s.nis}-AKTA.pdf`,
-              updated: s.r2AktaUpdated || "-",
-            },
-            ijazah: {
-              uploaded: Boolean(s.r2IjazahUrl),
-              key: s.r2IjazahUrl || `buku-induk/${s.nis}-IJAZAH.pdf`,
-              updated: s.r2IjazahUpdated || "-",
-            },
-            foto: {
-              uploaded: Boolean(s.r2FotoUrl),
-              key: s.r2FotoUrl || `buku-induk/${s.nis}-FOTO.jpg`,
-              updated: s.r2FotoUpdated || "-",
-            },
-          },
-        });
-      });
-      if (typeof window.renderBukuIndukView === "function") {
-        window.renderBukuIndukView();
-      }
-      if (typeof window.renderEmisView === "function") {
-        window.renderEmisView();
-      }
-      if (typeof window.renderOverviewView === "function") {
-        window.renderOverviewView();
-      }
-    }
-
-    // 3. Sinkronisasi Data Guru pada Dashboard Admin (`GTK_LIST`)
+    // 5. Portal Orang Tua / Wali (/ortu)
     if (
-      Array.isArray(db.teachers) &&
-      db.teachers.length > 0 &&
-      typeof GTK_LIST !== "undefined"
+      typeof CHILDREN_PROFILES !== "undefined" &&
+      typeof window.switchChildProfile === "function"
     ) {
-      GTK_LIST.length = 0;
-      db.teachers.forEach((t, idx) => {
-        GTK_LIST.push({
-          id: idx + 1,
-          name: (t.user && t.user.name) || t.nip,
-          nip: t.nip,
-          subject: t.subject || "Pendidik Madrasah",
-          roles: Array.isArray(t.roles)
-            ? t.roles.map((r, rIdx) => ({
-                id: r.id || idx * 100 + rIdx,
-                type: r.type,
-                detail: r.detail,
-              }))
-            : [],
-        });
-      });
-      if (typeof window.renderGtkView === "function") {
-        window.renderGtkView();
-      }
-    }
+      const baseChild =
+        CHILDREN_PROFILES.rizky || Object.values(CHILDREN_PROFILES)[0];
+      const matchedChildren = realStudents.filter(
+        (s) =>
+          s.nisn === session.identifier ||
+          s.nis === session.identifier ||
+          s.fatherName === session.name ||
+          s.motherName === session.name
+      );
+      const childrenList =
+        matchedChildren.length > 0
+          ? matchedChildren
+          : realStudents.slice(0, 2);
 
-    // 4. Sinkronisasi Data Guru pada Portal TU (`GTK_DIRECTORY`)
-    if (
-      Array.isArray(db.teachers) &&
-      db.teachers.length > 0 &&
-      typeof GTK_DIRECTORY !== "undefined"
-    ) {
-      GTK_DIRECTORY.length = 0;
-      db.teachers.forEach((t, idx) => {
-        GTK_DIRECTORY.push({
-          id: "gtk-" + (idx + 1),
-          name: (t.user && t.user.name) || t.nip,
-          nip: t.nip,
-          status: t.statusKepeg || "Pendidik Madrasah",
-          tmt: "Aktif",
-          mainRole: "Guru " + (t.subject || "Mata Pelajaran"),
-          extraDuties: Array.isArray(t.roles)
-            ? t.roles.map((r) => `${r.type} (${r.detail})`)
-            : [],
-          skNo:
-            (Array.isArray(t.roles) &&
-              t.roles[0] &&
-              t.roles[0].skNumber) ||
-            "SK-Aktif/2026",
-          r2Docs: ["SK Pembagian Tugas Mengajar"],
+      if (childrenList.length > 0) {
+        Object.keys(CHILDREN_PROFILES).forEach(
+          (k) => delete CHILDREN_PROFILES[k]
+        );
+        const t1 = realTeachers[0];
+        childrenList.forEach((child, idx) => {
+          const cKey = child.nis || child.nisn || `child_${idx}`;
+          CHILDREN_PROFILES[cKey] = {
+            ...baseChild,
+            key: cKey,
+            name: child.name,
+            initials: getInitials(child.name),
+            classroom: child.rombel,
+            nis: child.nis,
+            nisn: child.nisn,
+            nik:
+              child.nik && child.nik !== "3204120000000000" ? child.nik : "-",
+            ttl:
+              child.ttl && child.ttl !== "Bandung, 01 Januari 2013"
+                ? child.ttl
+                : "-",
+            gender: child.gender || "-",
+            prevSchool: child.prevSchool || "-",
+            waliKelas:
+              child.waliKelas && child.waliKelas !== "-"
+                ? child.waliKelas
+                : (t1 && t1.user && t1.user.name) || "-",
+            waliKelasInitials: getInitials(
+              child.waliKelas && child.waliKelas !== "-"
+                ? child.waliKelas
+                : (t1 && t1.user && t1.user.name) || "WK"
+            ),
+            guruBk: "Koordinator BK MTs Nurul Falah",
+            piketDay: child.piketDay || "Senin",
+            todayStatus: {
+              label: "Hadir Tepat Waktu",
+              isLate: false,
+            },
+            kpis: {
+              ...baseChild.kpis,
+              attRate: child.attendanceRate || "100%",
+              attDetail: "Siswa Aktif TA 2026/2027",
+              hadir: 1,
+              sakit: 0,
+              izin: 0,
+              terlambat: 0,
+              alpa: 0,
+              savingsBalance: child.savingsBalance || 0,
+              savingsDetail: "Saldo Tabungan Siswa",
+              komiteStatus: "Aktif TA 2026/2027",
+              komiteDetail: "Administrasi Komite Madrasah",
+              pointsScore: (child.pointsTotal || 100) + " Poin",
+              pointsDetail: "Predikat: Baik",
+            },
+            notifications: [],
+            leaveRequests: [],
+            savingsHistory: [],
+          };
         });
-      });
-      if (typeof window.renderGtkView === "function") {
-        window.renderGtkView();
+        const firstKey = Object.keys(CHILDREN_PROFILES)[0];
+        if (firstKey) window.switchChildProfile(firstKey);
       }
     }
   }
@@ -653,12 +1643,10 @@
       document.body.removeChild(input);
       if (!file) return;
 
-      if (typeof window.showToast === "function") {
-        window.showToast(
-          "Mengunggah Dokumen...",
-          "Mengirim " + file.name + " ke penyimpanan awan..."
-        );
-      }
+      showUnifiedToast(
+        "Mengunggah Dokumen...",
+        "Mengirim " + file.name + " ke penyimpanan awan..."
+      );
 
       try {
         const formData = new FormData();
@@ -672,16 +1660,14 @@
         });
         const data = await res.json();
         if (data.ok) {
-          if (typeof window.showToast === "function") {
-            window.showToast(
-              "Dokumen Tersimpan",
-              "Berkas " +
-                file.name +
-                " (" +
-                Math.round((file.size || 1024) / 1024) +
-                " KB) berhasil diunggah."
-            );
-          }
+          showUnifiedToast(
+            "Dokumen Tersimpan",
+            "Berkas " +
+              file.name +
+              " (" +
+              Math.round((file.size || 1024) / 1024) +
+              " KB) berhasil diunggah."
+          );
           notifyShell("R2_UPLOADED", data);
           if (onSuccess) onSuccess(data, file);
         } else {
@@ -707,55 +1693,69 @@
 
   window.__SIMM_PICK_UPLOAD_R2__ = pickAndUploadToR2;
 
-  window.addEventListener("DOMContentLoaded", async () => {
-    // 0. Ambil sesi pengguna & data terbaru dari Supabase secara paralel
-    let currentSession = null;
-    let dbSummary = null;
-
-    try {
-      const [authRes, dbRes] = await Promise.all([
-        fetch("/api/auth").catch(() => null),
-        fetch("/api/simm?resource=summary").catch(() => null),
-      ]);
-      if (authRes) {
-        const authData = await authRes.json().catch(() => null);
-        if (authData && authData.session) {
-          currentSession = authData.session;
-        }
-      }
-      if (dbRes) {
-        const dbData = await dbRes.json().catch(() => null);
-        if (dbData && dbData.ok) {
-          dbSummary = dbData;
-          window.__SIMM_DB__ = dbData;
-        }
-      }
-    } catch (e) {
-      console.warn("Initial sync warning:", e);
-    }
-
-    if (dbSummary) {
+  // ===========================================================================
+  // EKSEKUSI SINKRON SEBELUM DOMContentLoaded (0ms Delay untuk Sidebar & Data)
+  // ===========================================================================
+  try {
+    hookSidebarRenderersSync();
+    if (dbSummary && dbSummary.ok) {
+      window.__SIMM_DB__ = dbSummary;
       syncDatabaseRecordsToPortal(dbSummary);
     }
-
-    // Hook fungsi render sidebar di setiap portal agar menu sesi selalu tergabung di sidebar
-    ["renderSidebarNavigation", "renderSidebarMenu", "renderSidebarNav", "updateSidebarActiveState"].forEach(
-      (fnName) => {
-        if (typeof window[fnName] === "function") {
-          const origFn = window[fnName];
-          window[fnName] = function () {
-            origFn.apply(this, arguments);
-            if (currentSession) {
-              injectIntegratedSidebarSessionMenus(currentSession);
-            }
-          };
-        }
-      }
-    );
-
     if (currentSession) {
       applyLiveUserSessionToPortal(currentSession, dbSummary);
       injectIntegratedSidebarSessionMenus(currentSession);
+    }
+  } catch (syncErr) {
+    console.warn("Synchronous hydration warning:", syncErr);
+  }
+
+  // ===========================================================================
+  // VERIFIKASI ULANG SAAT DOMContentLoaded & PEMASANGAN EVENT HOOKS
+  // ===========================================================================
+  window.addEventListener("DOMContentLoaded", async () => {
+    hookSidebarRenderersSync();
+    window.handleSimulatedLogin = performRealLogin;
+
+    // Jika data sudah dipreload dari server, langsung render ulang sidebar serentak (0ms)
+    if (dbSummary && dbSummary.ok) {
+      syncDatabaseRecordsToPortal(dbSummary);
+    }
+    if (currentSession) {
+      applyLiveUserSessionToPortal(currentSession, dbSummary);
+      injectIntegratedSidebarSessionMenus(currentSession);
+    }
+
+    // Jika belum ada data preload (fallback), baru ambil secara asinkron
+    if (!currentSession || !dbSummary) {
+      try {
+        const [authRes, dbRes] = await Promise.all([
+          !currentSession ? fetch("/api/auth").catch(() => null) : null,
+          !dbSummary
+            ? fetch("/api/simm?resource=summary").catch(() => null)
+            : null,
+        ]);
+        if (authRes) {
+          const authData = await authRes.json().catch(() => null);
+          if (authData && authData.session) {
+            currentSession = authData.session;
+          }
+        }
+        if (dbRes) {
+          const dbData = await dbRes.json().catch(() => null);
+          if (dbData && dbData.ok) {
+            dbSummary = dbData;
+            window.__SIMM_DB__ = dbData;
+            syncDatabaseRecordsToPortal(dbSummary);
+          }
+        }
+        if (currentSession) {
+          applyLiveUserSessionToPortal(currentSession, dbSummary);
+          injectIntegratedSidebarSessionMenus(currentSession);
+        }
+      } catch (e) {
+        console.warn("Fallback sync warning:", e);
+      }
     }
 
     // Jika diarahkan oleh Middleware karena belum login (?login=required), buka modal login otomatis
@@ -769,84 +1769,24 @@
         params.get("login") === "required" &&
         typeof window.openLoginModal === "function"
       ) {
-        setTimeout(() => {
-          window.openLoginModal();
-          if (typeof window.showToast === "function") {
-            window.showToast(
-              "Autentikasi Diperlukan",
-              "Silakan masuk menggunakan akun resmi Anda untuk mengakses dashboard."
-            );
-          }
-        }, 300);
+        window.openLoginModal();
+        showUnifiedToast(
+          "Autentikasi Diperlukan",
+          "Silakan masuk menggunakan akun resmi Anda untuk mengakses dashboard."
+        );
       }
-    } catch (e) {
+    } catch (_) {
       // ignore
     }
 
-    // 1. Hook Portal Login pada Halaman Publik agar melakukan autentikasi nyata & langsung mengarahkan sesuai peran & tugas tambahan
-    if (typeof window.handleSimulatedLogin === "function") {
-      window.handleSimulatedLogin = async function (e) {
-        if (e && e.preventDefault) e.preventDefault();
-
-        const identifierEl = document.getElementById("login-identifier");
-        const passwordEl = document.getElementById("login-password");
-        const identifier = identifierEl ? identifierEl.value.trim() : "";
-        const password = passwordEl ? passwordEl.value : "";
-
-        try {
-          const res = await fetch("/api/auth", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              identifier,
-              password,
-            }),
-          });
-          const data = await res.json();
-          if (!data.ok || !data.session) {
-            if (typeof window.showToast === "function") {
-              window.showToast(
-                "Gagal Masuk",
-                data.error ||
-                  "Periksa kembali NIP/NISN/Email dan kata sandi Anda."
-              );
-            }
-            return;
-          }
-
-          if (typeof window.closeLoginModal === "function") {
-            window.closeLoginModal();
-          }
-
-          if (typeof window.showToast === "function") {
-            window.showToast(
-              "Login Berhasil",
-              "Mengarahkan ke dashboard " + data.session.name + "..."
-            );
-          }
-
-          notifyShell("AUTH_SUCCESS", data.session);
-
-          setTimeout(() => {
-            notifyShell("NAVIGATE", { path: data.session.targetPath });
-            if (window.parent === window) {
-              window.location.href = data.session.targetPath;
-            }
-          }, 300);
-        } catch (err) {
-          console.error("Auth hook error:", err);
-        }
-      };
-    }
-
-    // 2. Hook tombol Layanan PPDB Online di Halaman Publik agar bisa membuka /ppdb langsung
+    // Hook tombol Layanan PPDB Online di Halaman Publik agar bisa membuka /ppdb langsung
     if (typeof window.openQuickService === "function") {
       const origQuick = window.openQuickService;
       window.openQuickService = function (type) {
         origQuick.apply(this, arguments);
         if (type === "ppdb") {
           const body = document.getElementById("quick-modal-body");
-          if (body) {
+          if (body && !document.getElementById("btn-go-ppdb-portal")) {
             const ctaWrap = document.createElement("div");
             ctaWrap.className = "pt-2";
             ctaWrap.innerHTML = `
@@ -858,10 +1798,7 @@
             const btn = document.getElementById("btn-go-ppdb-portal");
             if (btn) {
               btn.onclick = () => {
-                notifyShell("NAVIGATE", { path: "/ppdb" });
-                if (window.parent === window) {
-                  window.location.href = "/ppdb";
-                }
+                window.__SIMM_NAVIGATE__("/ppdb");
               };
             }
           }
@@ -869,7 +1806,7 @@
       };
     }
 
-    // 3. Hook One-Click Migration PPDB -> Buku Induk (Admin & TU)
+    // Hook One-Click Migration PPDB -> Buku Induk (Admin & TU)
     if (typeof window.migratePpdbToBukuInduk === "function") {
       const origMigrate = window.migratePpdbToBukuInduk;
       window.migratePpdbToBukuInduk = async function (idOrRegNo) {
@@ -900,22 +1837,37 @@
       };
     }
 
-    // 4. Hook Tambah Tugas Tambahan GTK (Admin) ke Supabase
+    // Hook Tambah Tugas Tambahan GTK (Admin) ke Supabase
     if (typeof window.handleAssignNewRole === "function") {
       const origAssign = window.handleAssignNewRole;
       window.handleAssignNewRole = async function (e) {
         const type = document.getElementById("new-role-type")?.value;
-        const detail = document.getElementById("new-role-detail")?.value;
+        let detail = document.getElementById("new-role-detail")?.value || "";
+        if (!detail) {
+          if (type === "Wali Kelas") {
+            detail =
+              document.getElementById("new-role-classroom")?.value || "7A";
+          } else if (type === "Guru Piket") {
+            detail = document.getElementById("new-role-day")?.value || "Senin";
+          } else {
+            detail =
+              document.getElementById("new-role-sk")?.value ||
+              "SK Tahun Ajaran Aktif";
+          }
+        }
         let teacherNip = "";
-        if (
-          typeof GTK_LIST !== "undefined" &&
-          typeof selectedGtkIdForRole !== "undefined"
-        ) {
-          const t = GTK_LIST.find((g) => g.id === selectedGtkIdForRole);
+        if (typeof GTK_LIST !== "undefined") {
+          const activeId =
+            typeof selectedRoleTeacherId !== "undefined"
+              ? selectedRoleTeacherId
+              : typeof selectedGtkIdForRole !== "undefined"
+                ? selectedGtkIdForRole
+                : null;
+          const t = GTK_LIST.find((g) => g.id === activeId);
           if (t) teacherNip = t.nip;
         }
         origAssign.apply(this, arguments);
-        if (teacherNip && type && detail) {
+        if (teacherNip && type) {
           fetch("/api/simm", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -928,7 +1880,7 @@
       };
     }
 
-    // 5. Hook Tambah Siswa Baru (Admin & TU) ke Supabase
+    // Hook Tambah Siswa Baru (Admin & TU) ke Supabase
     if (typeof window.handleAddStudentSubmit === "function") {
       const origAddStu = window.handleAddStudentSubmit;
       window.handleAddStudentSubmit = async function (e) {
@@ -959,7 +1911,7 @@
       };
     }
 
-    // 6. Hook Submit Pendaftaran PPDB Online ke Supabase
+    // Hook Submit Pendaftaran PPDB Online ke Supabase
     if (typeof window.submitRegistration === "function") {
       const origSubmitPpdb = window.submitRegistration;
       window.submitRegistration = async function () {
@@ -994,7 +1946,7 @@
       };
     }
 
-    // 7. Hook Buat Berita CMS Baru ke Supabase
+    // Hook Buat Berita CMS Baru ke Supabase
     if (typeof window.handleCreateCmsPost === "function") {
       const origCreateCms = window.handleCreateCmsPost;
       window.handleCreateCmsPost = async function (e) {
@@ -1016,7 +1968,7 @@
       };
     }
 
-    // 8. Hook fungsi Upload Dokumen di 7 portal
+    // Hook fungsi Upload Dokumen di 7 portal
     if (typeof window.simulateR2ThumbnailUpload === "function") {
       const orig = window.simulateR2ThumbnailUpload;
       window.simulateR2ThumbnailUpload = function () {
@@ -1082,7 +2034,9 @@
               doc: "doc-r2-status-text",
             };
             const el = document.getElementById(statusMap[contextKey]);
-            if (el) el.textContent = "✓ Dokumen berhasil diunggah (" + data.key + ")";
+            if (el)
+              el.textContent =
+                "✓ Dokumen berhasil diunggah (" + data.key + ")";
           }
         );
       };
