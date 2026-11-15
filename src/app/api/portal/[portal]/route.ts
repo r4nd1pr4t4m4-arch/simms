@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
 import { getPortalDatabaseSummary } from "@/app/api/simm/route";
 import { getServerSession } from "@/lib/auth";
+import { getPortalTemplate } from "@/portals";
 
 export const dynamic = "force-dynamic";
-
-const PORTAL_FILE_MAP: Record<string, string> = {
-  publik: "Prototype Halaman Publik SIMM.html",
-  ppdb: "Prototype Halaman Portal PPDB Online.html",
-  admin: "Prototype Dashboard Admin SIMM.html",
-  tu: "Prototype Dashboard TU SIMM.html",
-  gtk: "Prototype Dashboard Guru - GTK SIMM.html",
-  siswa: "Prototype Dashboard Siswa SIMM.html",
-  ortu: "Prototype Dashboard Orang Tua-Wali Siswa SIMM.html",
-};
 
 export async function GET(
   _req: NextRequest,
@@ -22,11 +11,9 @@ export async function GET(
 ) {
   try {
     const portalKey = (params.portal || "publik").toLowerCase();
-    const filename = PORTAL_FILE_MAP[portalKey] || PORTAL_FILE_MAP.publik;
-    const filePath = path.join(process.cwd(), filename);
+    const rawHtml = getPortalTemplate(portalKey);
 
-    const [rawHtml, session, dbSummary] = await Promise.all([
-      fs.readFile(filePath, "utf-8"),
+    const [session, dbSummary] = await Promise.all([
       getServerSession().catch(() => null),
       getPortalDatabaseSummary().catch(() => null),
     ]);
@@ -39,28 +26,42 @@ export async function GET(
         html = html.replace(/MTs Nurul Falah/g, profile.name);
       }
       if (profile.nsm) {
-        html = html.replace(/121232040089/g, profile.nsm);
+        html = html
+          .replace(/121232040089/g, profile.nsm)
+          .replace(/121216050060/g, profile.nsm);
       }
       if (profile.npsn) {
-        html = html.replace(/20278412/g, profile.npsn);
+        html = html
+          .replace(/20278412/g, profile.npsn)
+          .replace(/69963460/g, profile.npsn);
       }
       if (profile.address) {
-        html = html.replace(
-          /Jl\. Pendidikan No\. 45, Kel\. Mekarjaya, Kec\. Cileunyi, Kab\. Bandung, Jawa Barat 40622/g,
-          profile.address
-        );
+        html = html
+          .replace(
+            /Jl\. Pendidikan No\. 45, Kel\. Mekarjaya, Kec\. Cileunyi, Kab\. Bandung, Jawa Barat 40622/g,
+            profile.address
+          )
+          .replace(
+            /KP 4 Dusun IV Desa Lubuk Tua, Kec\. Muara Kelingi, Kab\. Musi Rawas, Prov\. Sumatera Selatan/g,
+            profile.address
+          );
       }
       if (profile.accreditation) {
         html = html
           .replace(/Terakreditasi A \(Unggul\)/g, profile.accreditation)
+          .replace(/Terakreditasi C/g, profile.accreditation)
           .replace(/>Peringkat A</g, `>${profile.accreditation}<`)
           .replace(/>Unggul \(BAN-S\/M\)</g, `>BAN-PDM / Kemenag RI<`);
       }
       if (profile.headmasterName) {
-        html = html.replace(/Dr\. H\. Ahmad Fauzi, M\.Pd\./g, profile.headmasterName);
+        html = html
+          .replace(/Dr\. H\. Ahmad Fauzi, M\.Pd\./g, profile.headmasterName)
+          .replace(/Syarip Husin, S\.Sos\., Gr\./g, profile.headmasterName);
       }
       if (profile.headmasterNip) {
-        html = html.replace(/197605142003121003/g, profile.headmasterNip);
+        html = html
+          .replace(/197605142003121003/g, profile.headmasterNip)
+          .replace(/10649207182001/g, profile.headmasterNip);
       }
       if (profile.komiteBankInfo) {
         html = html
@@ -71,13 +72,22 @@ export async function GET(
           .replace(
             /BSI \(Bank Syariah Indonesia\) 7123456789 a\.n\. Komite MTs Nurul Falah/g,
             profile.komiteBankInfo
+          )
+          .replace(
+            /Bank Mandiri \| 1130016126868 a\.n\. MTSS NURUL FALAH/g,
+            profile.komiteBankInfo
           );
       }
       if (profile.gpsLat && profile.gpsLng) {
-        html = html.replace(
-          /-6\.9389,\s*107\.7184/g,
-          `${profile.gpsLat}, ${profile.gpsLng}`
-        );
+        html = html
+          .replace(
+            /-6\.9389,\s*107\.7184/g,
+            `${profile.gpsLat}, ${profile.gpsLng}`
+          )
+          .replace(
+            /-3\.0659978,\s*102\.8196529/g,
+            `${profile.gpsLat}, ${profile.gpsLng}`
+          );
       }
     }
 
@@ -91,11 +101,11 @@ export async function GET(
         : 0;
       html = html
         .replace(
-          /<strong class="text-slate-800 font-semibold">486<\/strong> Siswa Aktif/g,
+          /<strong class="text-slate-800 font-semibold">(?:486|59)<\/strong> Siswa Aktif/g,
           `<strong class="text-slate-800 font-semibold">${stuCount}</strong> Siswa Aktif`
         )
         .replace(
-          /<strong class="text-slate-800 font-semibold">34<\/strong> Pendidik &amp; Tenaga Kependidikan/g,
+          /<strong class="text-slate-800 font-semibold">(?:34|14)<\/strong> Pendidik &amp; Tenaga Kependidikan/g,
           `<strong class="text-slate-800 font-semibold">${gtkCount}</strong> Pendidik &amp; Tenaga Kependidikan`
         );
     }
@@ -122,7 +132,7 @@ window.__SIMM_PRELOADED_DB__ = ${JSON.stringify(dbSummary || null)};
     });
   } catch (error: any) {
     return new NextResponse(
-      `<h1>Gagal memuat portal: ${error?.message || "File tidak ditemukan"}</h1>`,
+      `<h1>Gagal memuat portal: ${error?.message || "Kesalahan internal"}</h1>`,
       {
         status: 500,
         headers: { "Content-Type": "text/html; charset=utf-8" },
