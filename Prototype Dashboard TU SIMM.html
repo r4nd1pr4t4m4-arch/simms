@@ -1,0 +1,3396 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Tata Usaha (TU) — SIMS MTs Nurul Falah</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          },
+          boxShadow: {
+            'glass': '0 10px 30px -10px rgba(15, 23, 42, 0.06), 0 4px 12px -4px rgba(15, 23, 42, 0.03)',
+            'soft': '0 2px 16px -2px rgba(15, 23, 42, 0.045)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+
+    /* Light Glassmorphism Surfaces */
+    .glass-surface {
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(226, 232, 240, 0.78);
+    }
+
+    .glass-sidebar {
+      background: rgba(255, 255, 255, 0.93);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .glass-modal {
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Smooth View Transition */
+    .view-panel {
+      animation: fadeSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Custom Subtle Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Official Print Styling */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printable-official-doc, #printable-official-doc * {
+        visibility: visible;
+      }
+      #printable-official-doc {
+        position: fixed;
+        inset: 0;
+        background: #ffffff;
+        padding: 28px;
+        z-index: 9999;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-emerald-100 selection:text-emerald-900 bg-gradient-to-br from-slate-50 via-white to-emerald-50/35">
+
+  <!-- Ambient Soft Madrasah Gradient Background -->
+  <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+    <div class="absolute -top-28 left-60 w-[34rem] h-[34rem] rounded-full bg-emerald-100/50 blur-3xl"></div>
+    <div class="absolute top-36 right-6 w-[30rem] h-[30rem] rounded-full bg-teal-100/40 blur-3xl"></div>
+    <div class="absolute bottom-0 left-1/3 w-[28rem] h-[28rem] rounded-full bg-sky-100/35 blur-3xl"></div>
+  </div>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
+
+  <!-- ===================================================================== -->
+  <!-- LEFT SIDEBAR NAVIGATION + PENGALIH PROFIL STAF TU                     -->
+  <!-- ===================================================================== -->
+  <aside id="tu-sidebar" class="fixed top-0 left-0 z-50 h-screen w-72 glass-sidebar border-r border-slate-200/80 flex flex-col justify-between transition-transform duration-300 -translate-x-full lg:translate-x-0">
+    
+    <!-- Top & Navigation Scrollable Area -->
+    <div class="flex flex-col flex-1 overflow-y-auto">
+      
+      <!-- Brand Header -->
+      <div class="px-6 h-20 flex items-center justify-between border-b border-slate-200/75 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
+            <i data-lucide="landmark" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="block font-heading font-bold text-base text-slate-900 leading-tight">MTs Nurul Falah</span>
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 tracking-wide">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Tata Usaha &amp; Administrasi
+            </span>
+          </div>
+        </div>
+
+        <button onclick="toggleSidebar(false)" aria-label="Tutup Menu" class="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- PENGALIH PROFIL STAF TU (ROLE & ACCESS SIMULATION) -->
+      <div class="px-4 pt-4 pb-2">
+        <div class="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/95 to-teal-50/85 border border-emerald-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+              Simulasi Peran Staf TU
+            </span>
+            <span id="sidebar-role-tag" class="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold">AKSES PENUH</span>
+          </div>
+
+          <label for="tu-staff-switcher-sidebar" class="sr-only">Pilih Akun Staf TU</label>
+          <select
+            id="tu-staff-switcher-sidebar"
+            onchange="switchTuStaffProfile(this.value)"
+            class="w-full px-2.5 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+          >
+            <option value="ridwan">Bapak Ridwan Kamil, S.AP. (Kepala TU)</option>
+            <option value="nurul">Ibu Nurul Hidayah, A.Md. (Staf Kesiswaan)</option>
+          </select>
+
+          <p id="sidebar-role-desc" class="text-[10px] text-emerald-900/80 leading-relaxed">
+            Akses penuh: Buku Induk, TTE/Nomor Surat Resmi, Verifikasi PPDB, GTK &amp; Validasi EMIS.
+          </p>
+        </div>
+      </div>
+
+      <!-- Primary Navigation Menu (6 Modules) -->
+      <nav id="tu-sidebar-nav" class="px-4 py-3 space-y-1 flex-1" aria-label="Menu Utama Tata Usaha">
+        <!-- Populated dynamically via JS -->
+      </nav>
+    </div>
+
+    <!-- Bottom Infrastructure & Academic Period Info -->
+    <div class="p-4 border-t border-slate-200/75 bg-slate-50/80 shrink-0 space-y-1.5">
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="font-bold text-slate-700">TA 2026/2027 • Ganjil</span>
+        <span class="inline-flex items-center gap-1 text-teal-700 font-semibold">
+          <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+          EMIS Sync
+        </span>
+      </div>
+      <p class="text-[10px] text-slate-400">
+        Senin, 16 November 2026 • Bucket: sims-madrasah-files
+      </p>
+    </div>
+  </aside>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN CONTENT SHELL                                                    -->
+  <!-- ===================================================================== -->
+  <div class="lg:pl-72 min-h-screen flex flex-col">
+
+    <!-- TOP STICKY GLASSMORPHISM HEADER -->
+    <header class="sticky top-0 z-30 h-20 glass-surface border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+      
+      <!-- Left: Mobile Drawer Toggle + Breadcrumb & Page Title -->
+      <div class="flex items-center gap-3 min-w-0">
+        <button onclick="toggleSidebar(true)" aria-label="Buka Navigasi" class="lg:hidden p-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shrink-0">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span class="hidden sm:inline">Tata Usaha SIMS</span>
+            <i data-lucide="chevron-right" class="w-3 h-3 hidden sm:inline"></i>
+            <span id="header-breadcrumb" class="text-emerald-700 font-semibold truncate">Beranda TU</span>
+            <!-- Technical Status Badge (Supabase & R2) -->
+            <span class="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 text-[10px] font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+              Supabase Connected • R2 Storage Ready
+            </span>
+          </div>
+          <h1 id="header-page-title" class="font-heading font-bold text-base sm:text-xl text-slate-900 truncate">
+            Ringkasan Administrasi &amp; Antrean Layanan TU
+          </h1>
+        </div>
+      </div>
+
+      <!-- Right: Topbar Role Switcher + Queue Notifications + Active Staff Badge -->
+      <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
+        
+        <!-- Quick Staff Switcher in Topbar -->
+        <div class="hidden 2xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200/80">
+          <i data-lucide="repeat" class="w-3.5 h-3.5 text-emerald-700"></i>
+          <label for="tu-staff-switcher-topbar" class="text-[11px] font-semibold text-emerald-800">Staf:</label>
+          <select
+            id="tu-staff-switcher-topbar"
+            onchange="switchTuStaffProfile(this.value)"
+            class="bg-transparent text-xs font-bold text-emerald-950 focus:outline-none cursor-pointer"
+          >
+            <option value="ridwan">Bapak Ridwan Kamil, S.AP. (Kepala TU)</option>
+            <option value="nurul">Ibu Nurul Hidayah, A.Md. (Staf Kesiswaan)</option>
+          </select>
+        </div>
+
+        <!-- Interactive Queue Notification Bell -->
+        <div class="relative">
+          <button
+            id="tu-notif-btn"
+            onclick="toggleTuNotifDropdown()"
+            aria-label="Notifikasi Antrean Layanan TU"
+            class="relative p-2.5 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200/85 text-slate-700 hover:text-emerald-700 transition-colors cursor-pointer"
+          >
+            <i data-lucide="bell" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            <span id="tu-notif-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+              5
+            </span>
+          </button>
+
+          <!-- Notification Dropdown -->
+          <div id="tu-notif-dropdown" class="hidden absolute right-0 mt-2.5 w-80 sm:w-96 glass-modal rounded-2xl shadow-2xl border border-slate-200/90 p-4 z-50 space-y-3">
+            <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <div>
+                <h3 class="font-heading font-bold text-xs sm:text-sm text-slate-900">Antrean Layanan &amp; Berkas Masuk</h3>
+                <p id="tu-notif-sub" class="text-[11px] text-slate-500">5 permohonan menunggu tindak lanjut TU</p>
+              </div>
+              <button onclick="switchView('persuratan'); toggleTuNotifDropdown();" class="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer">
+                Semua Antrean →
+              </button>
+            </div>
+            <div id="tu-notif-list" class="max-h-72 overflow-y-auto space-y-2">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Active TU Staff Pill -->
+        <div class="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-2xl bg-white/95 border border-slate-200/85 shadow-2xs">
+          <div id="topbar-staff-avatar" class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-heading font-bold text-xs flex items-center justify-center shrink-0">
+            RK
+          </div>
+          <div class="hidden sm:block text-left">
+            <p id="topbar-staff-name" class="text-xs font-bold text-slate-900 leading-tight">Bapak Ridwan Kamil, S.AP.</p>
+            <p id="topbar-staff-role" class="text-[11px] text-emerald-700 font-medium leading-tight">Kepala Tata Usaha • Akses Penuh</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- MAIN VIEWPORT CONTAINER                                             -->
+    <!-- =================================================================== -->
+    <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+
+      <!-- ================================================================= -->
+      <!-- MENU 1: BERANDA TU (RINGKASAN ADMINISTRASI & ANTREAN LAYANAN)      -->
+      <!-- ================================================================= -->
+      <section id="view-overview" class="view-panel space-y-6">
+        
+        <!-- Personal Welcome & Technical Infrastructure Banner -->
+        <div class="glass-surface rounded-3xl p-6 sm:p-7 shadow-soft relative overflow-hidden">
+          <div class="absolute -right-14 -top-14 w-56 h-56 rounded-full bg-emerald-500/5 blur-2xl pointer-events-none"></div>
+          <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+            
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-heading font-bold">
+                  Senin, 16 November 2026
+                </span>
+                <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-semibold">
+                  TA 2026/2027 • Semester Ganjil
+                </span>
+                <span id="ov-role-scope-pill" class="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200/80 font-semibold">
+                  Mode Kepala Tata Usaha (TTE &amp; Otorisasi Penuh)
+                </span>
+              </div>
+
+              <h2 class="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Assalamu’alaikum, <span id="ov-staff-greeting" class="text-emerald-700">Bapak Ridwan Kamil, S.AP.</span>
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+                Selamat bertugas di Ruang Administrasi Tata Usaha MTs Nurul Falah. Kelola Buku Induk Siswa, penerbitan nomor surat dinas, verifikasi berkas PPDB, kepegawaian GTK, serta validasi data EMIS Kemenag secara terpadu.
+              </p>
+            </div>
+
+            <!-- EMIS Kemenag & Cloudflare R2 Health Status Card -->
+            <div class="p-4 rounded-2xl bg-white/95 border border-slate-200/85 xl:min-w-[325px] space-y-2.5 shrink-0">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                  <i data-lucide="database" class="w-4 h-4 text-teal-600"></i>
+                  Sinkronisasi EMIS Kemenag
+                </span>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                  ✓ Tersinkron (98.5%)
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                  <i data-lucide="hard-drive" class="w-4 h-4 text-sky-600"></i>
+                  Bucket Cloudflare R2
+                </span>
+                <span class="font-mono text-[11px] font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200/80">
+                  sims-madrasah-files • OK
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 4 Modular KPI Cards (Clickable) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          
+          <!-- KPI 1: Total Siswa Aktif -->
+          <div onclick="switchView('bukuinduk')" class="glass-surface rounded-2xl p-5 shadow-soft hover:border-emerald-300/90 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Siswa Aktif</span>
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <i data-lucide="users" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <p id="kpi-total-students" class="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">486 Siswa</p>
+            <p id="kpi-r2-complete-pct" class="text-xs text-emerald-700 font-medium mt-1">94.2% Arsip R2 Lengkap (4/4)</p>
+          </div>
+
+          <!-- KPI 2: Antrean Layanan & Koreksi Data -->
+          <div onclick="switchView('persuratan')" class="glass-surface rounded-2xl p-5 shadow-soft hover:border-amber-300/90 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Antrean Layanan &amp; Koreksi</span>
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center transition-colors">
+                <i data-lucide="inbox" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <p id="kpi-service-queue" class="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">5 Permohonan</p>
+            <p id="kpi-service-queue-sub" class="text-xs text-amber-700 font-semibold mt-1">Koreksi Induk &amp; Surat Keterangan</p>
+          </div>
+
+          <!-- KPI 3: Verifikasi Berkas PPDB 2027/2028 -->
+          <div onclick="switchView('ppdb')" class="glass-surface rounded-2xl p-5 shadow-soft hover:border-sky-300/90 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Verifikasi PPDB 2027/2028</span>
+              <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <p id="kpi-ppdb-pending" class="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">4 Menunggu</p>
+            <p id="kpi-ppdb-sub" class="text-xs text-sky-700 font-medium mt-1">Cek kelayakan berkas R2 pendaftar</p>
+          </div>
+
+          <!-- KPI 4: Agenda Persuratan Bulan Ini -->
+          <div onclick="switchView('persuratan'); switchPersuratanTab('agenda');" class="glass-surface rounded-2xl p-5 shadow-soft hover:border-teal-300/90 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Agenda Persuratan Nov</span>
+              <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white flex items-center justify-center transition-colors">
+                <i data-lucide="mail-check" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <p id="kpi-mail-total" class="font-heading text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">42 Surat</p>
+            <p id="kpi-mail-sub" class="text-xs text-teal-700 font-medium mt-1">18 Surat Masuk • 24 Surat Keluar</p>
+          </div>
+
+        </div>
+
+        <!-- Main Grid: Antrean Prioritas Hari Ini (7 cols) + Arsip R2 per Jenjang & Log Aktivitas (5 cols) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Left (7 cols): Antrean Prioritas Hari Ini (Actionable Queue) -->
+          <div class="lg:col-span-7 glass-surface rounded-2xl p-6 shadow-soft space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200/75">
+              <div>
+                <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Tindak Lanjut Cepat Staf TU</span>
+                </div>
+                <h3 class="font-heading font-bold text-lg text-slate-900 mt-0.5">
+                  Antrean Prioritas Hari Ini (Portal Siswa &amp; Wali)
+                </h3>
+              </div>
+
+              <button onclick="switchView('persuratan')" class="text-xs font-semibold text-emerald-700 hover:underline self-start sm:self-auto cursor-pointer">
+                Kelola Semua Layanan →
+              </button>
+            </div>
+
+            <div id="ov-priority-queue-list" class="space-y-3.5">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Right (5 cols): Kelengkapan Arsip R2 per Jenjang + Log Aktivitas TU Real-Time -->
+          <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Kelengkapan Arsip Digital Cloudflare R2 per Jenjang -->
+            <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/75">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                    <i data-lucide="folder-kanban" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-heading font-bold text-base text-slate-900">Kelengkapan Arsip R2 per Jenjang</h3>
+                    <p class="text-xs text-slate-500">KK, Akta Kelahiran, Ijazah SD/MI &amp; Pas Foto</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-3.5 text-xs">
+                <div class="space-y-1.5">
+                  <div class="flex justify-between font-semibold">
+                    <span class="text-slate-700">Kelas VII (164 Siswa)</span>
+                    <span class="text-emerald-700 font-bold">96% Lengkap</span>
+                  </div>
+                  <div class="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full" style="width: 96%"></div>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <div class="flex justify-between font-semibold">
+                    <span class="text-slate-700">Kelas VIII (162 Siswa)</span>
+                    <span class="text-teal-700 font-bold">94% Lengkap</span>
+                  </div>
+                  <div class="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div class="h-full bg-teal-500 rounded-full" style="width: 94%"></div>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <div class="flex justify-between font-semibold">
+                    <span class="text-slate-700">Kelas IX (160 Siswa)</span>
+                    <span class="text-amber-700 font-bold">92% Lengkap</span>
+                  </div>
+                  <div class="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div class="h-full bg-amber-500 rounded-full" style="width: 92%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <button onclick="jumpToIncompleteR2Students()" class="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer">
+                <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+                <span>Filter Siswa Berkas Belum Lengkap</span>
+              </button>
+            </div>
+
+            <!-- Log Aktivitas Tata Usaha Real-Time -->
+            <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/75">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-heading font-bold text-base text-slate-900">Log Aktivitas TU Real-Time</h3>
+                    <p class="text-xs text-slate-500">Jejak audit R2, nomor surat &amp; Buku Induk</p>
+                  </div>
+                </div>
+              </div>
+
+              <div id="ov-tu-activity-log" class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- MENU 2: BUKU INDUK SISWA & ARSIP R2                               -->
+      <!-- ================================================================= -->
+      <section id="view-bukuinduk" class="view-panel hidden space-y-6">
+        
+        <!-- Filter & Action Toolbar -->
+        <div class="glass-surface rounded-2xl p-5 shadow-soft space-y-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Database Supabase PostgreSQL &amp; Cloudflare R2</span>
+              <h3 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Buku Induk Digital &amp; Manajemen Berkas Siswa</h3>
+            </div>
+
+            <button onclick="openAddStudentModal()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer self-start lg:self-auto">
+              <i data-lucide="user-plus" class="w-4 h-4"></i>
+              <span>+ Tambah Siswa / Mutasi Masuk</span>
+            </button>
+          </div>
+
+          <!-- Search & Dropdown Filters -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2 border-t border-slate-200/75">
+            <div class="lg:col-span-4 relative">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input
+                type="text"
+                id="induk-search-input"
+                oninput="renderBukuIndukTable()"
+                placeholder="Cari Nama Siswa, NIS, NISN, atau NIK..."
+                class="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              />
+            </div>
+
+            <div class="lg:col-span-2">
+              <select id="induk-filter-rombel" onchange="renderBukuIndukTable()" class="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+                <option value="Semua">Semua Rombel</option>
+                <option value="VII-A">Kelas VII-A</option>
+                <option value="VII-B">Kelas VII-B</option>
+                <option value="VII-C">Kelas VII-C</option>
+                <option value="VIII-A">Kelas VIII-A</option>
+                <option value="VIII-B">Kelas VIII-B</option>
+                <option value="IX-A">Kelas IX-A</option>
+              </select>
+            </div>
+
+            <div class="lg:col-span-3">
+              <select id="induk-filter-status" onchange="renderBukuIndukTable()" class="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+                <option value="Semua">Semua Status Siswa</option>
+                <option value="Aktif">Aktif</option>
+                <option value="Mutasi Masuk">Mutasi Masuk</option>
+                <option value="Mutasi Keluar">Mutasi Keluar</option>
+                <option value="Lulus">Lulus</option>
+              </select>
+            </div>
+
+            <div class="lg:col-span-3">
+              <select id="induk-filter-r2" onchange="renderBukuIndukTable()" class="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+                <option value="Semua">Semua Kelengkapan R2</option>
+                <option value="Lengkap">Lengkap (4/4 Berkas)</option>
+                <option value="Belum Lengkap">Belum Lengkap (&lt; 4 Berkas)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Digital Buku Induk Table -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-4">
+          <div class="flex items-center justify-between">
+            <p id="induk-result-counter" class="text-xs font-semibold text-slate-600">Menampilkan 9 data siswa Buku Induk</p>
+            <div class="hidden sm:flex items-center gap-3 text-[11px] text-slate-500">
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Terunggah di R2</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span>Belum Unggah</span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">Identitas Siswa (NIS / NISN / NIK)</th>
+                  <th class="py-3.5 px-4">Rombel &amp; Wali Kelas</th>
+                  <th class="py-3.5 px-4">Status Induk</th>
+                  <th class="py-3.5 px-4">Indikator 4 Berkas R2</th>
+                  <th class="py-3.5 px-4 text-right">Aksi Administrasi</th>
+                </tr>
+              </thead>
+              <tbody id="buku-induk-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- MENU 3: PERSURATAN & LAYANAN ADMINISTRASI                         -->
+      <!-- ================================================================= -->
+      <section id="view-persuratan" class="view-panel hidden space-y-6">
+        
+        <!-- Sub-Tab Switcher -->
+        <div class="glass-surface rounded-2xl p-5 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="switchPersuratanTab('layanan')" data-ptab="layanan" class="ptab-btn px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer">
+              Permohonan Surat &amp; Koreksi Data (Portal Siswa/Ortu)
+            </button>
+            <button onclick="switchPersuratanTab('agenda')" data-ptab="agenda" class="ptab-btn px-4 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer">
+              Agenda Surat Masuk &amp; Surat Keluar
+            </button>
+          </div>
+
+          <div class="text-xs text-slate-500">
+            Penomoran Dinas: <strong class="font-mono text-slate-800">MTs.10.05/PP.00.5/11/2026</strong>
+          </div>
+        </div>
+
+        <!-- SUB-TAB A: PERMOHONAN SURAT & KOREKSI DATA (PORTAL SISWA/ORTU) -->
+        <div id="persuratan-panel-layanan" class="space-y-5">
+          <div id="service-requests-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- SUB-TAB B: AGENDA SURAT MASUK & SURAT KELUAR -->
+        <div id="persuratan-panel-agenda" class="hidden space-y-5">
+          
+          <!-- Agenda Filter & New Mail Toolbar -->
+          <div class="glass-surface rounded-2xl p-5 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <select id="agenda-filter-jenis" onchange="renderMailAgendaTable()" class="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold">
+                <option value="Semua">Semua Jenis Surat</option>
+                <option value="Surat Masuk">Surat Masuk</option>
+                <option value="Surat Keluar">Surat Keluar</option>
+              </select>
+
+              <select id="agenda-filter-kategori" onchange="renderMailAgendaTable()" class="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold">
+                <option value="Semua">Semua Kategori</option>
+                <option value="Kemenag">Kemenag</option>
+                <option value="Dinas Pendidikan">Dinas Pendidikan</option>
+                <option value="Wali Murid">Wali Murid</option>
+                <option value="Umum">Umum</option>
+              </select>
+            </div>
+
+            <button onclick="openNewAgendaModal()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer self-start md:self-auto">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>+ Catat Agenda Surat Baru</span>
+            </button>
+          </div>
+
+          <!-- Agenda Table -->
+          <div class="glass-surface rounded-2xl p-6 shadow-soft">
+            <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th class="py-3.5 px-4">No. Agenda &amp; Nomor Surat</th>
+                    <th class="py-3.5 px-4">Tanggal</th>
+                    <th class="py-3.5 px-4">Jenis &amp; Kategori</th>
+                    <th class="py-3.5 px-4">Perihal &amp; Pengirim / Tujuan</th>
+                    <th class="py-3.5 px-4 text-right">Arsip Scan R2</th>
+                  </tr>
+                </thead>
+                <tbody id="mail-agenda-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- MENU 4: VERIFIKASI BERKAS PPDB 2027/2028                          -->
+      <!-- ================================================================= -->
+      <section id="view-ppdb" class="view-panel hidden space-y-6">
+        
+        <!-- Track Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-emerald-500">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Jalur Reguler</span>
+            <p id="ppdb-track-reguler" class="font-heading text-2xl font-extrabold text-slate-900 mt-1.5">3 Pendaftar</p>
+            <p class="text-xs text-slate-500 mt-1">Seleksi berkas &amp; tes baca Al-Qur'an</p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-sky-500">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-700">Jalur Prestasi</span>
+            <p id="ppdb-track-prestasi" class="font-heading text-2xl font-extrabold text-slate-900 mt-1.5">2 Pendaftar</p>
+            <p class="text-xs text-slate-500 mt-1">Piagam Akademik / Tahfidz / Olahraga</p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-teal-500">
+            <span class="text-xs font-bold uppercase tracking-wider text-teal-700">Jalur Afirmasi / KIP</span>
+            <p id="ppdb-track-afirmasi" class="font-heading text-2xl font-extrabold text-slate-900 mt-1.5">1 Pendaftar</p>
+            <p class="text-xs text-slate-500 mt-1">Validasi KIP / PKH / SKTM</p>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-amber-500">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Siap Migrasi Induk</span>
+            <p id="ppdb-track-ready" class="font-heading text-2xl font-extrabold text-amber-700 mt-1.5">2 Calon Siswa</p>
+            <p class="text-xs text-slate-500 mt-1">Penerbitan NIS otomatis ke Buku Induk</p>
+          </div>
+        </div>
+
+        <!-- PPDB Applicants Table -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="font-heading font-bold text-lg text-slate-900">Verifikasi Berkas Calon Peserta Didik Baru TA 2027/2028</h3>
+              <p class="text-xs text-slate-500">Periksa kelayakan unggahan dokumen R2 pendaftar dan migrasikan siswa diterima ke Buku Induk.</p>
+            </div>
+
+            <select id="ppdb-filter-status" onchange="renderPpdbTable()" class="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold self-start sm:self-auto">
+              <option value="Semua">Semua Status Verifikasi</option>
+              <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+              <option value="Terverifikasi">Terverifikasi</option>
+              <option value="Perlu Perbaikan">Perlu Perbaikan</option>
+              <option value="Diterima - Siap Migrasi">Diterima - Siap Migrasi</option>
+              <option value="Sudah Dimigrasi">Sudah Dimigrasi ke Induk</option>
+            </select>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">No. Pendaftaran</th>
+                  <th class="py-3.5 px-4">Calon Siswa &amp; Asal SD/MI</th>
+                  <th class="py-3.5 px-4">Jalur</th>
+                  <th class="py-3.5 px-4">Kelengkapan Berkas R2</th>
+                  <th class="py-3.5 px-4">Status Verifikasi</th>
+                  <th class="py-3.5 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="ppdb-applicants-tbody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- MENU 5: ADMINISTRASI GTK & KEPEGAWAIAN                            -->
+      <!-- ================================================================= -->
+      <section id="view-gtk" class="view-panel hidden space-y-6">
+        
+        <div class="glass-surface rounded-2xl p-6 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Direktori Pendidik &amp; Tenaga Kependidikan</span>
+            <h3 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Administrasi GTK, Tugas Tambahan &amp; Arsip SK (TA 2026/2027)</h3>
+          </div>
+
+          <div class="flex items-center gap-2 text-xs">
+            <span class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+              6 GTK Aktif Tersinkron Simpatika / EMIS
+            </span>
+          </div>
+        </div>
+
+        <!-- GTK Cards Grid -->
+        <div id="gtk-directory-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Populated dynamically -->
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- MENU 6: VALIDASI EMIS & EKSPOR LAPORAN                            -->
+      <!-- ================================================================= -->
+      <section id="view-emis" class="view-panel hidden space-y-6">
+        
+        <!-- Panel Pemeriksaan Residu Data (Pra-Sinkronisasi EMIS Kemenag) -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/75">
+            <div>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-teal-700">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                <span>Pra-Sinkronisasi EMIS Kemenag RI</span>
+              </div>
+              <h3 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Pemeriksaan Kualitas &amp; Residu Data Supabase</h3>
+            </div>
+
+            <button onclick="runEmisSyncSimulation()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-teal-600/20 transition-all cursor-pointer self-start sm:self-auto">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Jalankan Sinkronisasi EMIS Kemenag</span>
+            </button>
+          </div>
+
+          <!-- 4 Quality Audit Gauges -->
+          <div id="emis-quality-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Residue Quick Fix List -->
+          <div class="space-y-3 pt-2">
+            <h4 class="font-heading font-bold text-sm text-slate-900">Daftar Residu Data Siswa yang Perlu Ditindaklanjuti</h4>
+            <div id="emis-residue-list" class="space-y-2.5">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Pusat Unduh & Ekspor Laporan Resmi -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-5">
+          <div class="pb-3 border-b border-slate-200/75">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Pelaporan Resmi Madrasah</span>
+            <h3 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Pusat Unduh &amp; Ekspor Laporan Administrasi TU</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            <!-- Report 1 -->
+            <div class="p-5 rounded-2xl bg-white border border-slate-200/85 shadow-2xs flex flex-col justify-between space-y-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="book-open-check" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="font-heading font-bold text-sm sm:text-base text-slate-900">Ekspor Buku Induk Lengkap (.XLSX / .PDF)</h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Rekapitulasi menyeluruh biodata peserta didik aktif, NIK, NISN, orang tua/wali, serta status tautan berkas Cloudflare R2.
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 pt-1">
+                <button onclick="generateOfficialExport('Buku Induk Lengkap (.XLSX)', 'XLSX')" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">
+                  Ekspor .XLSX
+                </button>
+                <button onclick="generateOfficialExport('Buku Induk Lengkap (.PDF)', 'PDF')" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer">
+                  Ekspor .PDF
+                </button>
+              </div>
+            </div>
+
+            <!-- Report 2 -->
+            <div class="p-5 rounded-2xl bg-white border border-slate-200/85 shadow-2xs flex flex-col justify-between space-y-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="font-heading font-bold text-sm sm:text-base text-slate-900">Laporan Keadaan Siswa &amp; Mutasi Bulanan (EMIS)</h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Format standar Kementerian Agama berisi rekap rombel kelas VII–IX, jenis kelamin, serta mutasi masuk/keluar bulan berjalan.
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 pt-1">
+                <button onclick="generateOfficialExport('Laporan Keadaan Siswa & Mutasi Bulanan (Format EMIS)', 'XLSX')" class="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold cursor-pointer">
+                  Unduh Laporan Keadaan Siswa (.XLSX)
+                </button>
+              </div>
+            </div>
+
+            <!-- Report 3 -->
+            <div class="p-5 rounded-2xl bg-white border border-slate-200/85 shadow-2xs flex flex-col justify-between space-y-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="archive" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="font-heading font-bold text-sm sm:text-base text-slate-900">Rekapitulasi Agenda Surat Masuk &amp; Keluar</h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Buku agenda persuratan resmi Semester Ganjil TA 2026/2027 lengkap dengan nomor klasifikasi Kemenag &amp; arsip PDF.
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 pt-1">
+                <button onclick="generateOfficialExport('Rekapitulasi Agenda Surat Masuk & Keluar Semester Ganjil', 'PDF')" class="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold cursor-pointer">
+                  Cetak Buku Agenda Persuratan (.PDF)
+                </button>
+              </div>
+            </div>
+
+            <!-- Report 4 -->
+            <div class="p-5 rounded-2xl bg-white border border-slate-200/85 shadow-2xs flex flex-col justify-between space-y-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="users-round" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="font-heading font-bold text-sm sm:text-base text-slate-900">Daftar Nominatif GTK &amp; Tugas Tambahan</h4>
+                  <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Daftar induk Guru dan Tenaga Kependidikan beserta NIP/NUPTK, status kepegawaian, TMT, dan SK pembagian tugas aktif.
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 pt-1">
+                <button onclick="generateOfficialExport('Daftar Nominatif GTK & Tugas Tambahan TA 2026/2027', 'XLSX')" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold cursor-pointer">
+                  Ekspor Nominatif GTK (.XLSX)
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: DETAIL BUKU INDUK & MANAJEMEN ARSIP CLOUDFLARE R2            -->
+  <!-- ===================================================================== -->
+  <div id="induk-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-3xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[92vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Manajemen Buku Induk &amp; Cloudflare R2</span>
+          <h3 id="induk-modal-student-title" class="font-heading font-bold text-lg sm:text-xl text-slate-900">Muhammad Rizky Pratama</h3>
+        </div>
+        <button onclick="closeModal('induk-detail-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Sub-Tabs -->
+      <div class="flex items-center gap-2 border-b border-slate-200/75 pb-3">
+        <button onclick="switchIndukModalTab('biodata')" data-imtab="biodata" class="imtab-btn px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white cursor-pointer">
+          Tab 1: Biodata &amp; Riwayat Akademik
+        </button>
+        <button onclick="switchIndukModalTab('arsip')" data-imtab="arsip" class="imtab-btn px-4 py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 cursor-pointer">
+          Tab 2: Arsip Dokumen Cloudflare R2
+        </button>
+      </div>
+
+      <!-- Tab 1: Editable Biodata Form -->
+      <form id="induk-modal-tab-biodata" onsubmit="handleSaveIndukBiodata(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor Induk Siswa (NIS)</label>
+            <input type="text" id="edit-stu-nis" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NISN (10 Digit)</label>
+            <input type="text" id="edit-stu-nisn" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NIK Siswa (16 Digit)</label>
+            <input type="text" id="edit-stu-nik" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+            <input type="text" id="edit-stu-name" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tempat, Tanggal Lahir</label>
+            <input type="text" id="edit-stu-ttl" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Ayah Kandung</label>
+            <input type="text" id="edit-stu-father" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Ibu Kandung (Wajib EMIS)</label>
+            <input type="text" id="edit-stu-mother" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Rombel Aktif</label>
+            <select id="edit-stu-rombel" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="VII-A">VII-A</option>
+              <option value="VII-B">VII-B</option>
+              <option value="VII-C">VII-C</option>
+              <option value="VIII-A">VIII-A</option>
+              <option value="VIII-B">VIII-B</option>
+              <option value="IX-A">IX-A</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Status Buku Induk</label>
+            <select id="edit-stu-status" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="Aktif">Aktif</option>
+              <option value="Mutasi Masuk">Mutasi Masuk</option>
+              <option value="Mutasi Keluar">Mutasi Keluar</option>
+              <option value="Lulus">Lulus</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Asal SD / MI</label>
+            <input type="text" id="edit-stu-prevschool" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Alamat Domisili Lengkap</label>
+          <input type="text" id="edit-stu-address" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Riwayat Kenaikan Kelas</label>
+          <input type="text" id="edit-stu-history" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm" />
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200/75">
+          <button type="button" onclick="closeModal('induk-detail-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Tutup</button>
+          <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm cursor-pointer">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Simpan Perubahan ke Supabase</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Tab 2: Arsip Dokumen Cloudflare R2 -->
+      <div id="induk-modal-tab-arsip" class="hidden space-y-4">
+        <div class="p-3.5 rounded-2xl bg-sky-50/80 border border-sky-200/80 text-xs text-sky-900 flex items-center justify-between">
+          <span>Bucket: <strong class="font-mono">sims-madrasah-files</strong> • Enkripsi AES-256</span>
+          <span id="induk-r2-modal-badge" class="font-bold">4/4 Lengkap</span>
+        </div>
+
+        <div id="induk-r2-cards-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: TAMBAH SISWA / MUTASI MASUK KE BUKU INDUK                    -->
+  <!-- ===================================================================== -->
+  <div id="add-student-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div>
+          <h3 class="font-heading font-bold text-lg text-slate-900">+ Tambah Siswa / Mutasi Masuk</h3>
+          <p class="text-xs text-slate-500">Registrasi peserta didik baru langsung ke Buku Induk Supabase</p>
+        </div>
+        <button onclick="closeModal('add-student-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleCreateNewStudent(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+            <input type="text" id="new-stu-name" required placeholder="Contoh: Rayhan Al-Fatih" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Registrasi</label>
+            <select id="new-stu-status" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="Mutasi Masuk">Mutasi Masuk (Pindahan)</option>
+              <option value="Aktif">Siswa Baru Aktif</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NIS Baru</label>
+            <input type="text" id="new-stu-nis" required value="262708099" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NISN (10 Digit)</label>
+            <input type="text" id="new-stu-nisn" required placeholder="012xxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NIK (16 Digit)</label>
+            <input type="text" id="new-stu-nik" required placeholder="3204xxxxxxxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Penempatan Rombel</label>
+            <select id="new-stu-rombel" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="VII-A">VII-A</option>
+              <option value="VII-B">VII-B</option>
+              <option value="VIII-A">VIII-A</option>
+              <option value="VIII-B">VIII-B</option>
+              <option value="IX-A">IX-A</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Sekolah Asal</label>
+            <input type="text" id="new-stu-prevschool" required placeholder="Contoh: MTs Al-Ikhlas Bandung" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Ayah Kandung</label>
+            <input type="text" id="new-stu-father" required placeholder="Nama Ayah" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Ibu Kandung</label>
+            <input type="text" id="new-stu-mother" required placeholder="Nama Ibu" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-slate-200/75">
+          <button type="button" onclick="closeModal('add-student-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">Simpan ke Buku Induk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: CATAT AGENDA SURAT MASUK / KELUAR BARU                       -->
+  <!-- ===================================================================== -->
+  <div id="new-agenda-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-lg rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div>
+          <h3 class="font-heading font-bold text-lg text-slate-900">+ Catat Agenda Surat Baru</h3>
+          <p class="text-xs text-slate-500">Registrasi surat dinas &amp; unggah arsip scan PDF ke Cloudflare R2</p>
+        </div>
+        <button onclick="closeModal('new-agenda-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleSaveNewAgenda(event)" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Surat</label>
+            <select id="ag-type" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="Surat Masuk">Surat Masuk</option>
+              <option value="Surat Keluar">Surat Keluar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Instansi</label>
+            <select id="ag-cat" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm">
+              <option value="Kemenag">Kemenag</option>
+              <option value="Dinas Pendidikan">Dinas Pendidikan</option>
+              <option value="Wali Murid">Wali Murid</option>
+              <option value="Umum">Umum</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor Surat</label>
+            <input type="text" id="ag-number" required placeholder="B-150/MTs.10.05/PP.00.5/11/2026" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 font-mono text-xs" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Surat</label>
+            <input type="text" id="ag-date" required value="16 Nov 2026" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pengirim / Tujuan Surat</label>
+          <input type="text" id="ag-party" required placeholder="Contoh: Kantor Kementerian Agama Kota Bandung" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Perihal / Ringkasan Isi Surat</label>
+          <input type="text" id="ag-subject" required placeholder="Contoh: Undangan Sosialisasi Validasi EMIS Semester Ganjil" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm" />
+        </div>
+
+        <!-- Simulated Scan PDF Upload to R2 -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unggah Hasil Scan PDF Surat ke Cloudflare R2</label>
+          <div onclick="simulateR2Upload('agenda')" class="p-4 rounded-2xl border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/80 hover:bg-emerald-50/40 text-center cursor-pointer transition-all space-y-2">
+            <i data-lucide="cloud-upload" class="w-6 h-6 text-emerald-600 mx-auto"></i>
+            <p id="agenda-r2-label" class="text-xs font-semibold text-slate-700">Klik untuk simulasi unggah scan PDF ke Cloudflare R2</p>
+            <div id="agenda-r2-prog-wrap" class="hidden w-full max-w-xs mx-auto space-y-1">
+              <div class="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div id="agenda-r2-prog-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-150" style="width: 0%"></div>
+              </div>
+              <p id="agenda-r2-prog-pct" class="text-[10px] font-mono text-emerald-700 font-bold">0%</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-2 border-t border-slate-200/75">
+          <button type="button" onclick="closeModal('new-agenda-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">Simpan Agenda Surat</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: PEMERIKSAAN BERKAS PPDB 2027/2028 (CLOUDFLARE R2)            -->
+  <!-- ===================================================================== -->
+  <div id="ppdb-verify-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-2xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-sky-700">Verifikasi PPDB TA 2027/2028 • Cloudflare R2</span>
+          <h3 id="ppdb-modal-name" class="font-heading font-bold text-lg text-slate-900">Calon Peserta Didik</h3>
+        </div>
+        <button onclick="closeModal('ppdb-verify-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="ppdb-modal-body" class="space-y-4">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 5: PRATINJAU DOKUMEN RESMI / CETAK LEMBAR INDUK / SURAT / SK    -->
+  <!-- ===================================================================== -->
+  <div id="official-print-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-2xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <span id="print-modal-top-badge" class="text-xs font-bold uppercase tracking-wider text-emerald-700">Pratinjau Dokumen Resmi Madrasah</span>
+        <button onclick="closeModal('official-print-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Printable Official Document Area -->
+      <div id="printable-official-doc" class="p-6 sm:p-8 rounded-2xl bg-white border-2 border-slate-300 space-y-5 text-slate-900">
+        <!-- Populated dynamically -->
+      </div>
+
+      <div class="flex justify-end gap-2.5">
+        <button onclick="closeModal('official-print-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Tutup</button>
+        <button onclick="triggerBrowserPrint()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm cursor-pointer">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Cetak / Unduh PDF</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER                                          -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT: COMPLETE TU ADMINISTRATION CONTROLLER                     -->
+  <!-- ===================================================================== -->
+  <script>
+    // -----------------------------------------------------------------------
+    // 1. TU STAFF PROFILES (ROLE & ACCESS SIMULATION)
+    // -----------------------------------------------------------------------
+    const TU_STAFF_PROFILES = {
+      ridwan: {
+        key: "ridwan",
+        name: "Bapak Ridwan Kamil, S.AP.",
+        initials: "RK",
+        position: "Kepala Tata Usaha",
+        nip: "198204152009011008",
+        badge: "AKSES PENUH",
+        roleScope: "Mode Kepala Tata Usaha (TTE & Otorisasi Penuh)",
+        desc: "Akses penuh: Buku Induk, TTE/Nomor Surat Resmi, Verifikasi PPDB, GTK & Validasi EMIS.",
+        canSignOfficial: true
+      },
+      nurul: {
+        key: "nurul",
+        name: "Ibu Nurul Hidayah, A.Md.",
+        initials: "NH",
+        position: "Staf Administrasi Kesiswaan & Persuratan",
+        nip: "199408122020122014",
+        badge: "STAF LAYANAN",
+        roleScope: "Mode Staf Kesiswaan & Persuratan (Drafting & Arsip R2)",
+        desc: "Fokus: Buku Induk Siswa, Arsip R2, Layanan Surat Keterangan Siswa & Agenda Surat Masuk/Keluar.",
+        canSignOfficial: false
+      }
+    };
+
+    // -----------------------------------------------------------------------
+    // 2. MASTER STATE: STUDENTS (BUKU INDUK + CLOUDFLARE R2 ARCHIVES)
+    // -----------------------------------------------------------------------
+    let STUDENTS_DB = [
+      {
+        id: 1,
+        nis: "252608014",
+        nisn: "0123456789",
+        nik: "3204121505120004",
+        name: "Muhammad Rizky Pratama",
+        ttl: "Bandung, 15 Mei 2012",
+        gender: "Laki-laki",
+        father: "Hendra Kusuma, S.T.",
+        mother: "Ratna Sari, S.Pd.",
+        address: "Perum Griya Madani Blok B2 No. 11, Cibiru, Kota Bandung",
+        prevSchool: "MI Al-Hidayah Cibiru",
+        rombel: "VIII-A",
+        waliKelas: "Ust. Ahmad Fauzi, S.Pd.I.",
+        status: "Aktif",
+        academicHistory: "2025/2026: Kelas VII-A (Naik) • 2026/2027: Kelas VIII-A",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/252608014-KK.pdf", updated: "14 Jul 2025" },
+          akta: { uploaded: true, key: "buku-induk/2026/252608014-AKTA.pdf", updated: "14 Jul 2025" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/252608014-IJAZAH.pdf", updated: "15 Jul 2025" },
+          foto: { uploaded: true, key: "buku-induk/2026/252608014-FOTO.jpg", updated: "15 Jul 2025" }
+        }
+      },
+      {
+        id: 2,
+        nis: "262707042",
+        nisn: "0139876543",
+        nik: "3204126208130009",
+        name: "Aisyah Zahra Putri",
+        ttl: "Bandung, 22 Agustus 2013",
+        gender: "Perempuan",
+        father: "Drs. H. Sulaiman Hakim",
+        mother: "Siti Mariam, S.Pd.",
+        address: "Komplek Bumi Panyileukan Blok G3 No. 8, Kota Bandung",
+        prevSchool: "SDN 124 Hanura Bandung",
+        rombel: "VII-B",
+        waliKelas: "Usth. Nurul Hidayah, M.Pd.",
+        status: "Aktif",
+        academicHistory: "2026/2027: Kelas VII-B (Siswa Baru)",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/262707042-KK.pdf", updated: "13 Jul 2026" },
+          akta: { uploaded: true, key: "buku-induk/2026/262707042-AKTA.pdf", updated: "13 Jul 2026" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/262707042-IJAZAH.pdf", updated: "14 Jul 2026" },
+          foto: { uploaded: true, key: "buku-induk/2026/262707042-FOTO.jpg", updated: "14 Jul 2026" }
+        }
+      },
+      {
+        id: 3,
+        nis: "262707055",
+        nisn: "0138765432",
+        nik: "3204126209130008",
+        name: "Nabila Khairunnisa",
+        ttl: "Bandung, 22 September 2013",
+        gender: "Perempuan",
+        father: "Hendra Kusuma, S.T.",
+        mother: "Ratna Sari, S.Pd.",
+        address: "Perum Griya Madani Blok B2 No. 11, Cibiru, Kota Bandung",
+        prevSchool: "SDIT Al-Amin Cibiru",
+        rombel: "VII-C",
+        waliKelas: "Usth. Dewi Sartika, M.Pd.",
+        status: "Aktif",
+        academicHistory: "2026/2027: Kelas VII-C (Siswa Baru)",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/262707055-KK.pdf", updated: "13 Jul 2026" },
+          akta: { uploaded: true, key: "buku-induk/2026/262707055-AKTA.pdf", updated: "13 Jul 2026" },
+          ijazah: { uploaded: false, key: "buku-induk/2026/262707055-IJAZAH.pdf", updated: "-" },
+          foto: { uploaded: true, key: "buku-induk/2026/262707055-FOTO.jpg", updated: "14 Jul 2026" }
+        }
+      },
+      {
+        id: 4,
+        nis: "252608029",
+        nisn: "0124455667",
+        nik: "3204120903120002",
+        name: "Fajar Nugroho",
+        ttl: "Sumedang, 09 Maret 2012",
+        gender: "Laki-laki",
+        father: "Bambang Sudrajat",
+        mother: "Endang Lestari",
+        address: "Jl. Raya Cileunyi Wetan No. 45, Kab. Bandung",
+        prevSchool: "SDN Cileunyi 02",
+        rombel: "VIII-B",
+        waliKelas: "Ust. Budi Santoso, M.Pd.",
+        status: "Aktif",
+        academicHistory: "2025/2026: Kelas VII-B (Naik) • 2026/2027: Kelas VIII-B",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/252608029-KK.pdf", updated: "15 Jul 2025" },
+          akta: { uploaded: true, key: "buku-induk/2026/252608029-AKTA.pdf", updated: "15 Jul 2025" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/252608029-IJAZAH.pdf", updated: "16 Jul 2025" },
+          foto: { uploaded: true, key: "buku-induk/2026/252608029-FOTO.jpg", updated: "16 Jul 2025" }
+        }
+      },
+      {
+        id: 5,
+        nis: "242509008",
+        nisn: "0112233445",
+        nik: "3204125111110007",
+        name: "Siti Rahmawati",
+        ttl: "Garut, 11 November 2011",
+        gender: "Perempuan",
+        father: "Ujang Suryana",
+        mother: "Nining Yuningsih",
+        address: "Jl. Manisi No. 27, Kel. Cipadung, Kec. Cibiru, Kota Bandung",
+        prevSchool: "MI Nurul Islam",
+        rombel: "IX-A",
+        waliKelas: "Drs. H. Mahmudin",
+        status: "Aktif",
+        academicHistory: "2024/2025: VII-A • 2025/2026: VIII-A • 2026/2027: IX-A",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/242509008-KK.pdf", updated: "12 Jul 2024" },
+          akta: { uploaded: true, key: "buku-induk/2026/242509008-AKTA.pdf", updated: "12 Jul 2024" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/242509008-IJAZAH.pdf", updated: "12 Jul 2024" },
+          foto: { uploaded: true, key: "buku-induk/2026/242509008-FOTO.jpg", updated: "12 Jul 2024" }
+        }
+      },
+      {
+        id: 6,
+        nis: "262707019",
+        nisn: "0135544332",
+        nik: "320412180213001", // 15 digit untuk simulasi residu validasi NIK EMIS
+        name: "Ahmad Zaki Mubarok",
+        ttl: "Bandung, 18 Februari 2013",
+        gender: "Laki-laki",
+        father: "Deden Mubarok",
+        mother: "Ai Rohimah",
+        address: "Jl. Sindangreret No. 19, Kec. Cibiru, Kota Bandung",
+        prevSchool: "MI Persis 31",
+        rombel: "VII-A",
+        waliKelas: "Usth. Rina Marlina, S.Pd.",
+        status: "Aktif",
+        academicHistory: "2026/2027: Kelas VII-A (Siswa Baru)",
+        r2Docs: {
+          kk: { uploaded: false, key: "buku-induk/2026/262707019-KK.pdf", updated: "-" },
+          akta: { uploaded: true, key: "buku-induk/2026/262707019-AKTA.pdf", updated: "14 Jul 2026" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/262707019-IJAZAH.pdf", updated: "14 Jul 2026" },
+          foto: { uploaded: false, key: "buku-induk/2026/262707019-FOTO.jpg", updated: "-" }
+        }
+      },
+      {
+        id: 7,
+        nis: "252608037",
+        nisn: "0127788990",
+        nik: "3204126507120006",
+        name: "Zahra Aulia Nisa",
+        ttl: "Cimahi, 25 Juli 2012",
+        gender: "Perempuan",
+        father: "Irwan Setiawan",
+        mother: "Wulan Dari",
+        address: "Komplek Cibiru Asri Blok D No. 4, Kota Bandung",
+        prevSchool: "SDN Cipadung 01",
+        rombel: "VIII-A",
+        waliKelas: "Ust. Ahmad Fauzi, S.Pd.I.",
+        status: "Mutasi Masuk",
+        academicHistory: "Mutasi Masuk dari MTsN 2 Kota Bandung (Juli 2026)",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/252608037-KK.pdf", updated: "20 Jul 2026" },
+          akta: { uploaded: true, key: "buku-induk/2026/252608037-AKTA.pdf", updated: "20 Jul 2026" },
+          ijazah: { uploaded: false, key: "buku-induk/2026/252608037-IJAZAH.pdf", updated: "-" },
+          foto: { uploaded: true, key: "buku-induk/2026/252608037-FOTO.jpg", updated: "20 Jul 2026" }
+        }
+      },
+      {
+        id: 8,
+        nis: "242509021",
+        nisn: "0119988776",
+        nik: "3204121210110003",
+        name: "Dimas Arya Saputra",
+        ttl: "Bandung, 12 Oktober 2011",
+        gender: "Laki-laki",
+        father: "Agus Salim",
+        mother: "Yanti Susilawati",
+        address: "Jl. Nagrog No. 88, Kec. Ujungberung, Kota Bandung",
+        prevSchool: "SDN Ujungberung 04",
+        rombel: "IX-A",
+        waliKelas: "Drs. H. Mahmudin",
+        status: "Aktif",
+        academicHistory: "2024/2025: VII-B • 2025/2026: VIII-B • 2026/2027: IX-A",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/242509021-KK.pdf", updated: "11 Jul 2024" },
+          akta: { uploaded: true, key: "buku-induk/2026/242509021-AKTA.pdf", updated: "11 Jul 2024" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/242509021-IJAZAH.pdf", updated: "11 Jul 2024" },
+          foto: { uploaded: true, key: "buku-induk/2026/242509021-FOTO.jpg", updated: "11 Jul 2024" }
+        }
+      },
+      {
+        id: 9,
+        nis: "262707061",
+        nisn: "0136677889",
+        nik: "3204125404130005",
+        name: "Kayla Putri Ramadhani",
+        ttl: "Bandung, 14 April 2013",
+        gender: "Perempuan",
+        father: "Rudi Hartono",
+        mother: "Lina Marlina",
+        address: "Jl. Sukup Baru No. 12, Kec. Ujungberung, Kota Bandung",
+        prevSchool: "MI Al-Falah Ujungberung",
+        rombel: "VII-C",
+        waliKelas: "Usth. Dewi Sartika, M.Pd.",
+        status: "Aktif",
+        academicHistory: "2026/2027: Kelas VII-C (Siswa Baru)",
+        r2Docs: {
+          kk: { uploaded: true, key: "buku-induk/2026/262707061-KK.pdf", updated: "13 Jul 2026" },
+          akta: { uploaded: true, key: "buku-induk/2026/262707061-AKTA.pdf", updated: "13 Jul 2026" },
+          ijazah: { uploaded: true, key: "buku-induk/2026/262707061-IJAZAH.pdf", updated: "13 Jul 2026" },
+          foto: { uploaded: true, key: "buku-induk/2026/262707061-FOTO.jpg", updated: "13 Jul 2026" }
+        }
+      }
+    ];
+
+    // -----------------------------------------------------------------------
+    // 3. SERVICE REQUESTS (CORRECTIONS & OFFICIAL LETTERS FROM PORTAL)
+    // -----------------------------------------------------------------------
+    let SERVICE_REQUESTS = [
+      {
+        id: "REQ-01",
+        kind: "koreksi",
+        title: "Pengajuan Koreksi Ejaan Nama Ibu Kandung",
+        studentId: 1,
+        studentName: "Muhammad Rizky Pratama",
+        rombel: "VIII-A",
+        nis: "252608014",
+        requester: "Bapak Hendra Kusuma, S.T. (Wali Murid)",
+        submittedAt: "Hari Ini, 08:15 WIB",
+        fieldKey: "mother",
+        fieldLabel: "Nama Ibu Kandung",
+        oldValue: "Ratna Sari, S.Pd.",
+        newValue: "Hj. Ratna Sari Dewi, S.Pd.",
+        r2Proof: "persuratan/bukti-koreksi/kk-rizky-2026.pdf",
+        status: "Menunggu Verifikasi TU"
+      },
+      {
+        id: "REQ-02",
+        kind: "surat",
+        letterType: "Surat Keterangan Aktif Sekolah",
+        title: "Permohonan Surat Keterangan Aktif Sekolah (Beasiswa PIP)",
+        studentId: 2,
+        studentName: "Aisyah Zahra Putri",
+        rombel: "VII-B",
+        nis: "262707042",
+        requester: "Aisyah Zahra Putri (Portal Siswa)",
+        submittedAt: "Hari Ini, 07:50 WIB",
+        purpose: "Persyaratan Pencairan Dana Program Indonesia Pintar (PIP) Madrasah Tahap II Tahun 2026",
+        status: "Menunggu Penerbitan Nomor",
+        issuedNumber: null,
+        r2Output: null
+      },
+      {
+        id: "REQ-03",
+        kind: "surat",
+        letterType: "Surat Keterangan Pindah / Mutasi Siswa",
+        title: "Permohonan Surat Keterangan Pindah / Mutasi Keluar",
+        studentId: 4,
+        studentName: "Fajar Nugroho",
+        rombel: "VIII-B",
+        nis: "252608029",
+        requester: "Bapak Bambang Sudrajat (Orang Tua)",
+        submittedAt: "Kemarin, 14:30 WIB",
+        purpose: "Kepindahan tugas orang tua ke Kabupaten Sumedang (Tujuan: MTsN 1 Sumedang)",
+        status: "Menunggu Penerbitan Nomor",
+        issuedNumber: null,
+        r2Output: null
+      },
+      {
+        id: "REQ-04",
+        kind: "koreksi",
+        title: "Pembaruan Alamat Domisili Sesuai Kartu Keluarga Baru",
+        studentId: 3,
+        studentName: "Nabila Khairunnisa",
+        rombel: "VII-C",
+        nis: "262707055",
+        requester: "Bapak Hendra Kusuma, S.T. (Wali Murid)",
+        submittedAt: "14 Nov 2026",
+        fieldKey: "address",
+        fieldLabel: "Alamat Domisili Lengkap",
+        oldValue: "Perum Griya Madani Blok B2 No. 11, Cibiru",
+        newValue: "Perum Griya Madani Blok B2 No. 11 RT 04/RW 09, Kel. Cipadung, Kec. Cibiru, Kota Bandung",
+        r2Proof: "persuratan/bukti-koreksi/kk-nabila-2026.pdf",
+        status: "Menunggu Verifikasi TU"
+      },
+      {
+        id: "REQ-05",
+        kind: "surat",
+        letterType: "Surat Keterangan Kelakuan Baik",
+        title: "Permohonan Surat Keterangan Kelakuan Baik (Lomba KSM)",
+        studentId: 5,
+        studentName: "Siti Rahmawati",
+        rombel: "IX-A",
+        nis: "242509008",
+        requester: "Siti Rahmawati (Portal Siswa)",
+        submittedAt: "13 Nov 2026",
+        purpose: "Syarat Administrasi Seleksi Kompetisi Sains Madrasah (KSM) Tingkat Provinsi Jawa Barat",
+        status: "Menunggu Penerbitan Nomor",
+        issuedNumber: null,
+        r2Output: null
+      }
+    ];
+
+    let nextLetterSequence = 148;
+
+    // -----------------------------------------------------------------------
+    // 4. MAIL AGENDA (SURAT MASUK & SURAT KELUAR)
+    // -----------------------------------------------------------------------
+    let MAIL_AGENDA_LIST = [
+      {
+        agendaNo: "AGD-2026-118",
+        letterNo: "B-2410/Kk.10.19/2/PP.00/11/2026",
+        date: "14 Nov 2026",
+        type: "Surat Masuk",
+        category: "Kemenag",
+        party: "Kantor Kementerian Agama Kota Bandung",
+        subject: "Edaran Pemutakhiran Data EMIS & Validasi NIK Peserta Didik Semester Ganjil 2026/2027",
+        r2File: "persuratan/masuk/2026/kemenag-emis-nov2026.pdf"
+      },
+      {
+        agendaNo: "AGD-2026-117",
+        letterNo: "B-147/MTs.10.05/PP.00.5/11/2026",
+        date: "12 Nov 2026",
+        type: "Surat Keluar",
+        category: "Wali Murid",
+        party: "Seluruh Orang Tua / Wali Siswa Kelas VII, VIII, IX",
+        subject: "Undangan Rapat Pleno Komite Madrasah & Sosialisasi PAS Ganjil TA 2026/2027",
+        r2File: "persuratan/keluar/2026/B-147-undangan-pleno.pdf"
+      },
+      {
+        agendaNo: "AGD-2026-116",
+        letterNo: "421.3/1892-Disdik/2026",
+        date: "10 Nov 2026",
+        type: "Surat Masuk",
+        category: "Dinas Pendidikan",
+        party: "Dinas Pendidikan Kota Bandung",
+        subject: "Pemberitahuan Jadwal Lomba Literasi & Olimpiade Sains Tingkat SMP/MTs",
+        r2File: "persuratan/masuk/2026/disdik-olimpiade-2026.pdf"
+      },
+      {
+        agendaNo: "AGD-2026-115",
+        letterNo: "B-146/MTs.10.05/PP.00.5/11/2026",
+        date: "08 Nov 2026",
+        type: "Surat Keluar",
+        category: "Kemenag",
+        party: "Seksi Pendidikan Madrasah Kemenag Kota Bandung",
+        subject: "Laporan Keadaan Siswa, GTK & Sarana Prasarana Bulan Oktober 2026",
+        r2File: "persuratan/keluar/2026/B-146-laporan-bulanan.pdf"
+      }
+    ];
+
+    // -----------------------------------------------------------------------
+    // 5. PPDB 2027/2028 APPLICANTS
+    // -----------------------------------------------------------------------
+    let PPDB_APPLICANTS = [
+      {
+        regNo: "PPDB-2728-001",
+        name: "Rafi Ahmad Al-Ghifari",
+        prevSchool: "MI Al-Hidayah Cibiru",
+        track: "Jalur Prestasi",
+        nik: "3204121406140001",
+        nisn: "0141122334",
+        father: "H. Lukmanul Hakim",
+        mother: "Siti Aminah",
+        status: "Menunggu Verifikasi",
+        docs: {
+          kk: { uploaded: true, verified: true, file: "ppdb/2027/001-KK.pdf" },
+          akta: { uploaded: true, verified: true, file: "ppdb/2027/001-AKTA.pdf" },
+          rapor: { uploaded: true, verified: false, file: "ppdb/2027/001-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: false, label: "Piagam Juara 1 MHQ", file: "ppdb/2027/001-PIAGAM.pdf" }
+        }
+      },
+      {
+        regNo: "PPDB-2728-002",
+        name: "Anindya Putri Salsabila",
+        prevSchool: "SDN Cipadung 01",
+        track: "Jalur Reguler",
+        nik: "3204125803140005",
+        nisn: "0142233445",
+        father: "Wahyu Hidayat",
+        mother: "Rina Kartika",
+        status: "Diterima - Siap Migrasi",
+        docs: {
+          kk: { uploaded: true, verified: true, file: "ppdb/2027/002-KK.pdf" },
+          akta: { uploaded: true, verified: true, file: "ppdb/2027/002-AKTA.pdf" },
+          rapor: { uploaded: true, verified: true, file: "ppdb/2027/002-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: true, label: "Surat Kelakuan Baik SD", file: "ppdb/2027/002-SKB.pdf" }
+        }
+      },
+      {
+        regNo: "PPDB-2728-003",
+        name: "Muhammad Ilham Maulana",
+        prevSchool: "MI Persis 31 Bandung",
+        track: "Jalur Afirmasi / KIP",
+        nik: "3204121109140008",
+        nisn: "0143344556",
+        father: "Asep Saepudin",
+        mother: "Tati Rohayati",
+        status: "Menunggu Verifikasi",
+        docs: {
+          kk: { uploaded: true, verified: true, file: "ppdb/2027/003-KK.pdf" },
+          akta: { uploaded: true, verified: false, file: "ppdb/2027/003-AKTA.pdf" },
+          rapor: { uploaded: true, verified: false, file: "ppdb/2027/003-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: false, label: "Kartu Indonesia Pintar (KIP)", file: "ppdb/2027/003-KIP.pdf" }
+        }
+      },
+      {
+        regNo: "PPDB-2728-004",
+        name: "Khansa Azzahra",
+        prevSchool: "SDIT Al-Amin Cibiru",
+        track: "Jalur Prestasi",
+        nik: "3204126401140002",
+        nisn: "0144455667",
+        father: "Dr. Faisal Akbar",
+        mother: "Nadia Permata",
+        status: "Diterima - Siap Migrasi",
+        docs: {
+          kk: { uploaded: true, verified: true, file: "ppdb/2027/004-KK.pdf" },
+          akta: { uploaded: true, verified: true, file: "ppdb/2027/004-AKTA.pdf" },
+          rapor: { uploaded: true, verified: true, file: "ppdb/2027/004-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: true, label: "Sertifikat Olimpiade Sains", file: "ppdb/2027/004-PIAGAM.pdf" }
+        }
+      },
+      {
+        regNo: "PPDB-2728-005",
+        name: "Bima Sakti Putra",
+        prevSchool: "SDN Ujungberung 02",
+        track: "Jalur Reguler",
+        nik: "3204120512140009",
+        nisn: "0145566778",
+        father: "Dedi Kurniawan",
+        mother: "Sri Wahyuni",
+        status: "Menunggu Verifikasi",
+        docs: {
+          kk: { uploaded: true, verified: false, file: "ppdb/2027/005-KK.pdf" },
+          akta: { uploaded: false, verified: false, file: "-" },
+          rapor: { uploaded: true, verified: false, file: "ppdb/2027/005-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: false, label: "Pas Foto 3x4", file: "ppdb/2027/005-FOTO.jpg" }
+        }
+      },
+      {
+        regNo: "PPDB-2728-006",
+        name: "Syifa Nabila Putri",
+        prevSchool: "MI Nurul Islam",
+        track: "Jalur Reguler",
+        nik: "3204124907140004",
+        nisn: "0146677889",
+        father: "Hendra Wijaya",
+        mother: "Melati Kusuma",
+        status: "Menunggu Verifikasi",
+        docs: {
+          kk: { uploaded: true, verified: true, file: "ppdb/2027/006-KK.pdf" },
+          akta: { uploaded: true, verified: true, file: "ppdb/2027/006-AKTA.pdf" },
+          rapor: { uploaded: true, verified: false, file: "ppdb/2027/006-RAPOR.pdf" },
+          khusus: { uploaded: true, verified: false, label: "Surat Keterangan Lulus", file: "ppdb/2027/006-SKL.pdf" }
+        }
+      }
+    ];
+
+    // -----------------------------------------------------------------------
+    // 6. GTK DIRECTORY (KEPEGAWAIAN MADRASAH)
+    // -----------------------------------------------------------------------
+    const GTK_DIRECTORY = [
+      {
+        id: "gtk-1",
+        name: "Ust. Ahmad Fauzi, S.Pd.I.",
+        nip: "198605122014111002",
+        status: "PNS Kemenag",
+        tmt: "01 November 2014",
+        mainRole: "Guru Mata Pelajaran Matematika",
+        extraDuties: ["Wali Kelas VIII-A", "Koordinator Guru Piket Senin", "Pembina Olimpiade KSM"],
+        skNo: "014/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK Pengangkatan PNS", "Ijazah S1 Pend. Matematika", "Sertifikat Pendidik (Serdik)"]
+      },
+      {
+        id: "gtk-2",
+        name: "Usth. Siti Aminah, S.E.",
+        nip: "NPK. 789102400188",
+        status: "GTY (Guru Tetap Yayasan)",
+        tmt: "15 Juli 2017",
+        mainRole: "Guru IPS Terpadu",
+        extraDuties: ["Bendahara Komite Madrasah", "Pengelola Tabungan Digital Siswa", "Wali Kelas VII-B"],
+        skNo: "015/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK Pengangkatan GTY", "Ijazah S1 Ekonomi", "SK Tugas Bendahara Komite"]
+      },
+      {
+        id: "gtk-3",
+        name: "Ust. Budi Santoso, M.Pd.",
+        nip: "198411032019031005",
+        status: "PPPK Kemenag",
+        tmt: "01 Maret 2019",
+        mainRole: "Guru Bahasa Inggris",
+        extraDuties: ["Wakil Kepala Bidang Kurikulum", "Wali Kelas VIII-B"],
+        skNo: "012/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK PPPK Kemenag", "Ijazah S2 Pend. Bahasa Inggris", "Sertifikat Pendidik (Serdik)"]
+      },
+      {
+        id: "gtk-4",
+        name: "Drs. H. Mahmudin",
+        nip: "196908171998031004",
+        status: "PNS Kemenag",
+        tmt: "01 Maret 1998",
+        mainRole: "Guru Akidah Akhlak",
+        extraDuties: ["Wali Kelas IX-A", "Ketua Panitia PAS & Ujian Madrasah"],
+        skNo: "013/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK Golongan IV/a", "Ijazah S1 Tarbiyah", "Sertifikat Pendidik (Serdik)"]
+      },
+      {
+        id: "gtk-5",
+        name: "Usth. Rina Marlina, S.Pd.",
+        nip: "NUPTK. 4539768669230012",
+        status: "GTT (Guru Tidak Tetap)",
+        tmt: "10 Juli 2021",
+        mainRole: "Guru IPA Terpadu",
+        extraDuties: ["Wali Kelas VII-A", "Kepala Laboratorium IPA"],
+        skNo: "018/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK Mengajar Yayasan", "Ijazah S1 Pendidikan Biologi"]
+      },
+      {
+        id: "gtk-6",
+        name: "Bapak Ridwan Kamil, S.AP.",
+        nip: "198204152009011008",
+        status: "PNS Kemenag",
+        tmt: "01 Januari 2009",
+        mainRole: "Kepala Tata Usaha Madrasah",
+        extraDuties: ["Operator Utama EMIS & Simpatika", "Verifikator Utama Buku Induk & R2", "Koordinator Persuratan Dinas"],
+        skNo: "010/SK-MTs.NF/VII/2026",
+        r2Docs: ["SK Kepala Tata Usaha", "Ijazah S1 Administrasi Publik", "Sertifikat Diklat Administrasi"]
+      }
+    ];
+
+    // -----------------------------------------------------------------------
+    // 7. REAL-TIME ACTIVITY LOG & NAVIGATION STATE
+    // -----------------------------------------------------------------------
+    let TU_ACTIVITY_LOGS = [
+      {
+        time: "08:45 WIB",
+        actor: "Bapak Ridwan Kamil, S.AP.",
+        action: "Sinkronisasi pra-validasi 486 data siswa ke server EMIS Kemenag berhasil.",
+        tag: "EMIS Sync"
+      },
+      {
+        time: "08:12 WIB",
+        actor: "Ibu Nurul Hidayah, A.Md.",
+        action: "Menerima 1 pengajuan koreksi data KK dari wali murid Muhammad Rizky Pratama (VIII-A).",
+        tag: "Antrean Baru"
+      },
+      {
+        time: "Kemarin, 15:20 WIB",
+        actor: "Bapak Ridwan Kamil, S.AP.",
+        action: "Mengunggah scan PDF surat edaran Kemenag ke bucket sims-madrasah-files.",
+        tag: "Cloudflare R2"
+      }
+    ];
+
+    let activeStaffKey = "ridwan";
+    let activeView = "overview";
+    let activePersuratanTab = "layanan";
+    let activeEditingStudentId = null;
+    let activeIndukModalTab = "biodata";
+    let activePpdbRegNo = null;
+    let uploadedAgendaFile = "";
+
+    const MENU_CONFIG = [
+      { key: "overview", label: "Beranda TU", icon: "layout-dashboard", section: "Utama" },
+      { key: "bukuinduk", label: "Buku Induk Siswa & Arsip R2", icon: "book-open-check", section: "Kesiswaan & Induk" },
+      { key: "persuratan", label: "Persuratan & Layanan", icon: "mail-check", section: "Kesiswaan & Induk" },
+      { key: "ppdb", label: "Verifikasi Berkas PPDB", icon: "user-check", section: "Penerimaan & Kepegawaian" },
+      { key: "gtk", label: "Administrasi GTK", icon: "briefcase", section: "Penerimaan & Kepegawaian" },
+      { key: "emis", label: "Validasi EMIS & Laporan", icon: "database-zap", section: "Pelaporan Kemenag" }
+    ];
+
+    const VIEW_TITLES = {
+      overview: { breadcrumb: "Beranda TU", title: "Ringkasan Administrasi & Antrean Layanan TU" },
+      bukuinduk: { breadcrumb: "Buku Induk & Arsip R2", title: "Buku Induk Digital & Manajemen Arsip Cloudflare R2" },
+      persuratan: { breadcrumb: "Persuratan & Layanan", title: "Layanan Surat Siswa, Koreksi Data & Agenda Surat" },
+      ppdb: { breadcrumb: "Verifikasi Berkas PPDB", title: "Verifikasi Berkas Calon Siswa Baru TA 2027/2028" },
+      gtk: { breadcrumb: "Administrasi GTK", title: "Direktori Kepegawaian GTK & Tugas Tambahan" },
+      emis: { breadcrumb: "Validasi EMIS & Laporan", title: "Validasi Residu EMIS Kemenag & Ekspor Laporan" }
+    };
+
+    // -----------------------------------------------------------------------
+    // 8. INITIALIZATION & STAFF ROLE SWITCHING
+    // -----------------------------------------------------------------------
+    document.addEventListener("DOMContentLoaded", () => {
+      syncStaffSelects();
+      updateStaffHeaderUI();
+      renderSidebarMenu();
+      renderNotifications();
+      renderOverviewView();
+      lucide.createIcons();
+    });
+
+    function getStaff() {
+      return TU_STAFF_PROFILES[activeStaffKey];
+    }
+
+    function syncStaffSelects() {
+      const s1 = document.getElementById("tu-staff-switcher-sidebar");
+      const s2 = document.getElementById("tu-staff-switcher-topbar");
+      if (s1) s1.value = activeStaffKey;
+      if (s2) s2.value = activeStaffKey;
+    }
+
+    function switchTuStaffProfile(key) {
+      if (!TU_STAFF_PROFILES[key]) return;
+      activeStaffKey = key;
+      syncStaffSelects();
+      updateStaffHeaderUI();
+      renderSidebarMenu();
+      switchView(activeView, true);
+
+      const st = getStaff();
+      showToast(`Peran aktif beralih ke ${st.name} (${st.position}).`);
+    }
+
+    function updateStaffHeaderUI() {
+      const st = getStaff();
+      document.getElementById("sidebar-role-tag").textContent = st.badge;
+      document.getElementById("sidebar-role-desc").textContent = st.desc;
+      document.getElementById("topbar-staff-avatar").textContent = st.initials;
+      document.getElementById("topbar-staff-name").textContent = st.name;
+      document.getElementById("topbar-staff-role").textContent = `${st.position} • ${st.badge}`;
+    }
+
+    function renderSidebarMenu() {
+      const nav = document.getElementById("tu-sidebar-nav");
+      const pendingServices = SERVICE_REQUESTS.filter(r => r.status.startsWith("Menunggu")).length;
+      const pendingPpdb = PPDB_APPLICANTS.filter(p => p.status === "Menunggu Verifikasi").length;
+
+      let html = "";
+      let lastSection = "";
+
+      MENU_CONFIG.forEach(item => {
+        if (item.section !== lastSection) {
+          html += `<p class="px-3 ${lastSection ? "pt-4" : "pt-1"} pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">${item.section}</p>`;
+          lastSection = item.section;
+        }
+
+        const isActive = activeView === item.key;
+        const btnClass = isActive
+          ? "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+          : "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer";
+
+        let badge = "";
+        if (item.key === "persuratan" && pendingServices > 0) {
+          badge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"}">${pendingServices}</span>`;
+        } else if (item.key === "ppdb" && pendingPpdb > 0) {
+          badge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-sky-100 text-sky-800"}">${pendingPpdb}</span>`;
+        }
+
+        html += `
+          <button onclick="switchView('${item.key}')" class="${btnClass}">
+            <span class="flex items-center gap-3 min-w-0">
+              <i data-lucide="${item.icon}" class="w-4 h-4 shrink-0"></i>
+              <span class="truncate">${item.label}</span>
+            </span>
+            ${badge}
+          </button>
+        `;
+      });
+
+      nav.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function switchView(viewKey, silent) {
+      activeView = viewKey;
+      document.querySelectorAll(".view-panel").forEach(el => el.classList.add("hidden"));
+      const target = document.getElementById(`view-${viewKey}`);
+      if (target) target.classList.remove("hidden");
+
+      const meta = VIEW_TITLES[viewKey] || VIEW_TITLES.overview;
+      document.getElementById("header-breadcrumb").textContent = meta.breadcrumb;
+      document.getElementById("header-page-title").textContent = meta.title;
+
+      renderSidebarMenu();
+      renderNotifications();
+
+      if (viewKey === "overview") renderOverviewView();
+      if (viewKey === "bukuinduk") renderBukuIndukTable();
+      if (viewKey === "persuratan") renderPersuratanView();
+      if (viewKey === "ppdb") renderPpdbView();
+      if (viewKey === "gtk") renderGtkView();
+      if (viewKey === "emis") renderEmisView();
+
+      if (!silent) {
+        toggleSidebar(false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      lucide.createIcons();
+    }
+
+    function toggleSidebar(open) {
+      const sb = document.getElementById("tu-sidebar");
+      const bd = document.getElementById("sidebar-backdrop");
+      if (open) {
+        sb.classList.remove("-translate-x-full");
+        bd.classList.remove("hidden");
+      } else {
+        sb.classList.add("-translate-x-full");
+        bd.classList.add("hidden");
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 9. NOTIFICATIONS & REAL-TIME TU LOG HELPER
+    // -----------------------------------------------------------------------
+    function toggleTuNotifDropdown() {
+      document.getElementById("tu-notif-dropdown").classList.toggle("hidden");
+      renderNotifications();
+    }
+
+    function renderNotifications() {
+      const pendingServices = SERVICE_REQUESTS.filter(r => r.status.startsWith("Menunggu"));
+      const pendingPpdb = PPDB_APPLICANTS.filter(p => p.status === "Menunggu Verifikasi");
+      const totalQueue = pendingServices.length + pendingPpdb.length;
+
+      const badge = document.getElementById("tu-notif-badge");
+      if (totalQueue > 0) {
+        badge.classList.remove("hidden");
+        badge.textContent = totalQueue;
+      } else {
+        badge.classList.add("hidden");
+      }
+
+      document.getElementById("tu-notif-sub").textContent = `${pendingServices.length} layanan surat/koreksi • ${pendingPpdb.length} berkas PPDB`;
+
+      const list = document.getElementById("tu-notif-list");
+      let itemsHtml = pendingServices.map(req => `
+        <div onclick="switchView('persuratan'); toggleTuNotifDropdown();" class="p-3 rounded-xl bg-amber-50/75 hover:bg-amber-100/70 border border-amber-200/80 cursor-pointer space-y-1 transition-colors">
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="font-bold text-amber-800">${req.kind === "koreksi" ? "Koreksi Data" : "Permohonan Surat"}</span>
+            <span class="text-slate-400">${req.submittedAt}</span>
+          </div>
+          <p class="text-xs font-bold text-slate-900">${req.title}</p>
+          <p class="text-[11px] text-slate-600">${req.studentName} (${req.rombel})</p>
+        </div>
+      `).join("");
+
+      if (pendingPpdb.length > 0) {
+        itemsHtml += `
+          <div onclick="switchView('ppdb'); toggleTuNotifDropdown();" class="p-3 rounded-xl bg-sky-50/75 hover:bg-sky-100/70 border border-sky-200/80 cursor-pointer space-y-1 transition-colors">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="font-bold text-sky-800">PPDB 2027/2028</span>
+              <span class="text-sky-700 font-bold">${pendingPpdb.length} Pendaftar</span>
+            </div>
+            <p class="text-xs font-bold text-slate-900">Berkas R2 Calon Siswa Menunggu Verifikasi</p>
+            <p class="text-[11px] text-slate-600">Klik untuk memeriksa kelayakan KK, Akta &amp; Rapor</p>
+          </div>
+        `;
+      }
+
+      list.innerHTML = itemsHtml || `<p class="text-xs text-slate-500 text-center py-4">Semua antrean layanan telah selesai diproses.</p>`;
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = document.getElementById("tu-notif-btn");
+      const dd = document.getElementById("tu-notif-dropdown");
+      if (btn && dd && !btn.contains(e.target) && !dd.contains(e.target)) {
+        dd.classList.add("hidden");
+      }
+    });
+
+    function addTuActivityLog(action, tag) {
+      const st = getStaff();
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} WIB`;
+      TU_ACTIVITY_LOGS.unshift({
+        time: timeStr,
+        actor: st.name,
+        action,
+        tag
+      });
+      if (activeView === "overview") renderOverviewView();
+    }
+
+    // -----------------------------------------------------------------------
+    // 10. MODULE 1: BERANDA TU
+    // -----------------------------------------------------------------------
+    function renderOverviewView() {
+      const st = getStaff();
+      document.getElementById("ov-role-scope-pill").textContent = st.roleScope;
+      document.getElementById("ov-staff-greeting").textContent = st.name;
+
+      // Dynamic KPI Calculations
+      const activeStudentsCount = 477 + STUDENTS_DB.filter(s => s.status === "Aktif" || s.status === "Mutasi Masuk").length;
+      const completeR2Count = STUDENTS_DB.filter(s => isStudentR2Complete(s)).length;
+      const r2Pct = ((completeR2Count / STUDENTS_DB.length) * 100).toFixed(1);
+
+      const pendingServiceCount = SERVICE_REQUESTS.filter(r => r.status.startsWith("Menunggu")).length;
+      const pendingPpdbCount = PPDB_APPLICANTS.filter(p => p.status === "Menunggu Verifikasi").length;
+
+      const suratMasukCount = 16 + MAIL_AGENDA_LIST.filter(m => m.type === "Surat Masuk").length;
+      const suratKeluarCount = 22 + MAIL_AGENDA_LIST.filter(m => m.type === "Surat Keluar").length;
+
+      document.getElementById("kpi-total-students").textContent = `${activeStudentsCount} Siswa`;
+      document.getElementById("kpi-r2-complete-pct").textContent = `${r2Pct}% Arsip R2 Lengkap (4/4)`;
+
+      document.getElementById("kpi-service-queue").textContent = `${pendingServiceCount} Permohonan`;
+      document.getElementById("kpi-service-queue-sub").textContent = pendingServiceCount > 0
+        ? "Koreksi Induk & Surat Keterangan"
+        : "Seluruh permohonan telah selesai";
+
+      document.getElementById("kpi-ppdb-pending").textContent = `${pendingPpdbCount} Menunggu`;
+      document.getElementById("kpi-mail-total").textContent = `${suratMasukCount + suratKeluarCount} Surat`;
+      document.getElementById("kpi-mail-sub").textContent = `${suratMasukCount} Surat Masuk • ${suratKeluarCount} Surat Keluar`;
+
+      // Priority Queue List
+      const queueContainer = document.getElementById("ov-priority-queue-list");
+      const pendingItems = SERVICE_REQUESTS.filter(r => r.status.startsWith("Menunggu"));
+
+      if (pendingItems.length === 0) {
+        queueContainer.innerHTML = `
+          <div class="p-6 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-1">
+            <p class="font-heading font-bold text-sm text-emerald-900">Alhamdulillah, Antrean Prioritas Hari Ini Selesai!</p>
+            <p class="text-xs text-emerald-700">Seluruh pengajuan koreksi data dan permohonan surat siswa/orang tua telah ditindaklanjuti.</p>
+          </div>
+        `;
+      } else {
+        queueContainer.innerHTML = pendingItems.map(req => {
+          const isKoreksi = req.kind === "koreksi";
+          return `
+            <div class="p-4 rounded-2xl bg-white border border-slate-200/85 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div class="space-y-1.5 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                  <span class="px-2.5 py-0.5 rounded-full font-bold ${isKoreksi ? "bg-amber-50 text-amber-800 border border-amber-200" : "bg-sky-50 text-sky-800 border border-sky-200"}">
+                    ${isKoreksi ? "Koreksi Buku Induk" : req.letterType}
+                  </span>
+                  <span class="text-slate-400 font-mono">${req.submittedAt}</span>
+                </div>
+                <h4 class="font-heading font-bold text-sm text-slate-900 truncate">${req.title}</h4>
+                <p class="text-xs text-slate-600">
+                  Siswa: <strong>${req.studentName}</strong> (${req.rombel}) • Pemohon: ${req.requester}
+                </p>
+              </div>
+
+              <button onclick="processPriorityRequest('${req.id}')" class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors shrink-0 cursor-pointer self-start sm:self-center">
+                <span>Proses Sekarang</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // Real-Time Activity Log
+      document.getElementById("ov-tu-activity-log").innerHTML = TU_ACTIVITY_LOGS.map(log => `
+        <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-200/75 text-xs space-y-1">
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/70">${log.tag}</span>
+            <span class="font-mono text-slate-400">${log.time}</span>
+          </div>
+          <p class="text-slate-800 font-medium leading-snug">${log.action}</p>
+          <p class="text-[10px] text-slate-500">Oleh: ${log.actor}</p>
+        </div>
+      `).join("");
+
+      lucide.createIcons();
+    }
+
+    function processPriorityRequest(reqId) {
+      switchView("persuratan");
+      switchPersuratanTab("layanan");
+      setTimeout(() => {
+        const card = document.getElementById(`service-card-${reqId}`);
+        if (card) {
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          card.classList.add("ring-2", "ring-emerald-500");
+          setTimeout(() => card.classList.remove("ring-2", "ring-emerald-500"), 1800);
+        }
+      }, 120);
+    }
+
+    function jumpToIncompleteR2Students() {
+      switchView("bukuinduk");
+      const r2Sel = document.getElementById("induk-filter-r2");
+      if (r2Sel) {
+        r2Sel.value = "Belum Lengkap";
+        renderBukuIndukTable();
+      }
+      showToast("Menampilkan daftar siswa dengan kelengkapan berkas R2 < 4/4.");
+    }
+
+    // -----------------------------------------------------------------------
+    // 11. MODULE 2: BUKU INDUK SISWA & ARSIP R2
+    // -----------------------------------------------------------------------
+    function isStudentR2Complete(stu) {
+      const d = stu.r2Docs;
+      return d.kk.uploaded && d.akta.uploaded && d.ijazah.uploaded && d.foto.uploaded;
+    }
+
+    function countStudentR2Docs(stu) {
+      const d = stu.r2Docs;
+      return [d.kk.uploaded, d.akta.uploaded, d.ijazah.uploaded, d.foto.uploaded].filter(Boolean).length;
+    }
+
+    function renderBukuIndukTable() {
+      const q = (document.getElementById("induk-search-input")?.value || "").toLowerCase().trim();
+      const rombelFilter = document.getElementById("induk-filter-rombel")?.value || "Semua";
+      const statusFilter = document.getElementById("induk-filter-status")?.value || "Semua";
+      const r2Filter = document.getElementById("induk-filter-r2")?.value || "Semua";
+
+      const filtered = STUDENTS_DB.filter(stu => {
+        const matchQuery = !q ||
+          stu.name.toLowerCase().includes(q) ||
+          stu.nis.toLowerCase().includes(q) ||
+          stu.nisn.toLowerCase().includes(q) ||
+          stu.nik.toLowerCase().includes(q);
+        const matchRombel = rombelFilter === "Semua" || stu.rombel === rombelFilter;
+        const matchStatus = statusFilter === "Semua" || stu.status === statusFilter;
+        const complete = isStudentR2Complete(stu);
+        const matchR2 = r2Filter === "Semua" ||
+          (r2Filter === "Lengkap" && complete) ||
+          (r2Filter === "Belum Lengkap" && !complete);
+
+        return matchQuery && matchRombel && matchStatus && matchR2;
+      });
+
+      document.getElementById("induk-result-counter").textContent = `Menampilkan ${filtered.length} dari ${STUDENTS_DB.length} sampel Buku Induk (Total Populasi: ${477 + STUDENTS_DB.length} Siswa)`;
+
+      const tbody = document.getElementById("buku-induk-tbody");
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-xs text-slate-500">Tidak ditemukan data siswa yang sesuai filter pencarian.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(stu => {
+        const d = stu.r2Docs;
+        const docChip = (label, ok) => `
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border ${ok
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+            : "bg-amber-50 text-amber-800 border-amber-300/80"}">
+            ${ok ? "✓" : "!"} ${label}
+          </span>
+        `;
+
+        let statusBadge = "bg-emerald-50 text-emerald-700 border-emerald-200/80";
+        if (stu.status === "Mutasi Masuk") statusBadge = "bg-sky-50 text-sky-800 border-sky-200/80";
+        if (stu.status === "Mutasi Keluar") statusBadge = "bg-rose-50 text-rose-800 border-rose-200/80";
+
+        return `
+          <tr class="hover:bg-slate-50/85 transition-colors">
+            <td class="py-3.5 px-4">
+              <p class="font-bold text-slate-900">${stu.name}</p>
+              <p class="font-mono text-[11px] text-slate-500 mt-0.5">NIS: ${stu.nis} • NISN: ${stu.nisn}</p>
+              <p class="font-mono text-[10px] ${stu.nik.length !== 16 ? "text-rose-600 font-bold" : "text-slate-400"}">
+                NIK: ${stu.nik} ${stu.nik.length !== 16 ? "(Residu <16 digit)" : ""}
+              </p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-0.5 rounded-lg bg-slate-900 text-white font-heading font-bold text-xs">${stu.rombel}</span>
+              <p class="text-[11px] text-slate-500 mt-1">${stu.waliKelas}</p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full border text-xs font-semibold ${statusBadge}">${stu.status}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex flex-wrap gap-1.5">
+                ${docChip("KK", d.kk.uploaded)}
+                ${docChip("Akta", d.akta.uploaded)}
+                ${docChip("Ijazah", d.ijazah.uploaded)}
+                ${docChip("Foto", d.foto.uploaded)}
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1">${countStudentR2Docs(stu)}/4 Berkas di Cloudflare R2</p>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="inline-flex flex-wrap justify-end gap-2">
+                <button onclick="openIndukDetailModal(${stu.id}, 'biodata')" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/80 text-xs font-semibold transition-colors cursor-pointer">
+                  Detail &amp; Berkas R2
+                </button>
+                <button onclick="printStudentIndukSheet(${stu.id})" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer">
+                  Cetak Lembar Induk
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      lucide.createIcons();
+    }
+
+    function openIndukDetailModal(studentId, defaultTab = "biodata") {
+      const stu = STUDENTS_DB.find(s => s.id === studentId);
+      if (!stu) return;
+
+      activeEditingStudentId = studentId;
+      document.getElementById("induk-modal-student-title").textContent = `${stu.name} (${stu.rombel} • NIS ${stu.nis})`;
+
+      document.getElementById("edit-stu-nis").value = stu.nis;
+      document.getElementById("edit-stu-nisn").value = stu.nisn;
+      document.getElementById("edit-stu-nik").value = stu.nik;
+      document.getElementById("edit-stu-name").value = stu.name;
+      document.getElementById("edit-stu-ttl").value = stu.ttl;
+      document.getElementById("edit-stu-father").value = stu.father;
+      document.getElementById("edit-stu-mother").value = stu.mother;
+      document.getElementById("edit-stu-rombel").value = stu.rombel;
+      document.getElementById("edit-stu-status").value = stu.status;
+      document.getElementById("edit-stu-prevschool").value = stu.prevSchool;
+      document.getElementById("edit-stu-address").value = stu.address;
+      document.getElementById("edit-stu-history").value = stu.academicHistory;
+
+      renderIndukR2Cards(stu);
+      switchIndukModalTab(defaultTab);
+      openModal("induk-detail-modal");
+    }
+
+    function switchIndukModalTab(tab) {
+      activeIndukModalTab = tab;
+      document.querySelectorAll(".imtab-btn").forEach(btn => {
+        const active = btn.getAttribute("data-imtab") === tab;
+        btn.className = active
+          ? "imtab-btn px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white cursor-pointer"
+          : "imtab-btn px-4 py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer";
+      });
+
+      const bioForm = document.getElementById("induk-modal-tab-biodata");
+      const arsipDiv = document.getElementById("induk-modal-tab-arsip");
+      if (tab === "biodata") {
+        bioForm.classList.remove("hidden");
+        arsipDiv.classList.add("hidden");
+      } else {
+        bioForm.classList.add("hidden");
+        arsipDiv.classList.remove("hidden");
+      }
+    }
+
+    function handleSaveIndukBiodata(e) {
+      e.preventDefault();
+      const stu = STUDENTS_DB.find(s => s.id === activeEditingStudentId);
+      if (!stu) return;
+
+      stu.nis = document.getElementById("edit-stu-nis").value.trim();
+      stu.nisn = document.getElementById("edit-stu-nisn").value.trim();
+      stu.nik = document.getElementById("edit-stu-nik").value.trim();
+      stu.name = document.getElementById("edit-stu-name").value.trim();
+      stu.ttl = document.getElementById("edit-stu-ttl").value.trim();
+      stu.father = document.getElementById("edit-stu-father").value.trim();
+      stu.mother = document.getElementById("edit-stu-mother").value.trim();
+      stu.rombel = document.getElementById("edit-stu-rombel").value;
+      stu.status = document.getElementById("edit-stu-status").value;
+      stu.prevSchool = document.getElementById("edit-stu-prevschool").value.trim();
+      stu.address = document.getElementById("edit-stu-address").value.trim();
+      stu.academicHistory = document.getElementById("edit-stu-history").value.trim();
+
+      closeModal("induk-detail-modal");
+      renderBukuIndukTable();
+      if (activeView === "emis") renderEmisView();
+      addTuActivityLog(`Memperbarui biodata Buku Induk siswa ${stu.name} (${stu.nis}) ke Supabase.`, "Buku Induk");
+      showToast(`Perubahan biodata ${stu.name} berhasil disimpan ke Supabase PostgreSQL.`);
+    }
+
+    function renderIndukR2Cards(stu) {
+      document.getElementById("induk-r2-modal-badge").textContent = `${countStudentR2Docs(stu)}/4 Berkas Lengkap`;
+      const docMeta = [
+        { key: "kk", title: "Kartu Keluarga (KK)" },
+        { key: "akta", title: "Akta Kelahiran" },
+        { key: "ijazah", title: "Ijazah / SKL SD/MI" },
+        { key: "foto", title: "Pas Foto Resmi" }
+      ];
+
+      document.getElementById("induk-r2-cards-container").innerHTML = docMeta.map(m => {
+        const info = stu.r2Docs[m.key];
+        return `
+          <div class="p-4 rounded-2xl border ${info.uploaded ? "bg-white border-emerald-200/90" : "bg-amber-50/60 border-amber-300"} space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-heading font-bold text-sm text-slate-900">${m.title}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${info.uploaded ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-100 text-amber-900 border border-amber-300"}">
+                ${info.uploaded ? "✓ Terunggah" : "Belum Ada"}
+              </span>
+            </div>
+
+            <div class="text-[11px] text-slate-500 space-y-0.5">
+              <p class="font-mono text-[10px] text-slate-700 truncate">Key: ${info.key}</p>
+              <p>Pembaruan: <strong>${info.updated}</strong></p>
+            </div>
+
+            <!-- Simulated Upload Progress Bar -->
+            <div id="r2-doc-prog-${m.key}" class="hidden space-y-1">
+              <div class="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div id="r2-doc-bar-${m.key}" class="h-full bg-emerald-600 rounded-full transition-all duration-150" style="width: 0%"></div>
+              </div>
+              <p id="r2-doc-pct-${m.key}" class="text-[10px] font-mono text-emerald-700 font-bold">Mengunggah ke R2... 0%</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onclick="previewR2Object('${m.title} — ${stu.name}', '${info.key}', '${info.uploaded ? "Dokumen digital resmi telah tersimpan terenkripsi pada bucket Cloudflare R2 sims-madrasah-files." : "Berkas belum diunggah ke R2. Silakan gunakan tombol Unggah / Ganti File R2."}')"
+                class="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer"
+              >
+                Pratinjau Dokumen
+              </button>
+              <button
+                type="button"
+                onclick="uploadStudentR2Doc(${stu.id}, '${m.key}', '${m.title}')"
+                class="py-2 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                Unggah / Ganti File R2
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function uploadStudentR2Doc(studentId, docKey, docTitle) {
+      const stu = STUDENTS_DB.find(s => s.id === studentId);
+      if (!stu) return;
+
+      const wrap = document.getElementById(`r2-doc-prog-${docKey}`);
+      const bar = document.getElementById(`r2-doc-bar-${docKey}`);
+      const pct = document.getElementById(`r2-doc-pct-${docKey}`);
+      if (wrap) wrap.classList.remove("hidden");
+
+      let progress = 0;
+      const timer = setInterval(() => {
+        progress += 25;
+        if (progress > 100) progress = 100;
+        if (bar) bar.style.width = `${progress}%`;
+        if (pct) pct.textContent = progress < 100 ? `Mengunggah ke R2... ${progress}%` : "100% Tersimpan di Cloudflare R2";
+
+        if (progress >= 100) {
+          clearInterval(timer);
+          stu.r2Docs[docKey].uploaded = true;
+          stu.r2Docs[docKey].updated = "16 Nov 2026 (Baru)";
+          renderIndukR2Cards(stu);
+          renderBukuIndukTable();
+          addTuActivityLog(`Mengunggah berkas ${docTitle} milik ${stu.name} ke Cloudflare R2.`, "Cloudflare R2");
+          showToast(`Berkas ${docTitle} (${stu.name}) berhasil diunggah ke Cloudflare R2 (Status: Lengkap).`);
+        }
+      }, 110);
+    }
+
+    function openAddStudentModal() {
+      document.getElementById("new-stu-name").value = "";
+      document.getElementById("new-stu-nisn").value = "";
+      document.getElementById("new-stu-nik").value = "";
+      document.getElementById("new-stu-prevschool").value = "";
+      document.getElementById("new-stu-father").value = "";
+      document.getElementById("new-stu-mother").value = "";
+      openModal("add-student-modal");
+    }
+
+    function handleCreateNewStudent(e) {
+      e.preventDefault();
+      const name = document.getElementById("new-stu-name").value.trim();
+      const status = document.getElementById("new-stu-status").value;
+      const nis = document.getElementById("new-stu-nis").value.trim();
+      const nisn = document.getElementById("new-stu-nisn").value.trim();
+      const nik = document.getElementById("new-stu-nik").value.trim();
+      const rombel = document.getElementById("new-stu-rombel").value;
+      const prevSchool = document.getElementById("new-stu-prevschool").value.trim();
+      const father = document.getElementById("new-stu-father").value.trim();
+      const mother = document.getElementById("new-stu-mother").value.trim();
+
+      STUDENTS_DB.unshift({
+        id: Date.now(),
+        nis,
+        nisn,
+        nik,
+        name,
+        ttl: "Bandung, 10 Mei 2013",
+        gender: "Laki-laki",
+        father,
+        mother,
+        address: "Kota Bandung, Jawa Barat",
+        prevSchool,
+        rombel,
+        waliKelas: "Ust. Ahmad Fauzi, S.Pd.I.",
+        status,
+        academicHistory: `2026/2027: Kelas ${rombel} (${status})`,
+        r2Docs: {
+          kk: { uploaded: true, key: `buku-induk/2026/${nis}-KK.pdf`, updated: "16 Nov 2026" },
+          akta: { uploaded: true, key: `buku-induk/2026/${nis}-AKTA.pdf`, updated: "16 Nov 2026" },
+          ijazah: { uploaded: false, key: `buku-induk/2026/${nis}-IJAZAH.pdf`, updated: "-" },
+          foto: { uploaded: true, key: `buku-induk/2026/${nis}-FOTO.jpg`, updated: "16 Nov 2026" }
+        }
+      });
+
+      closeModal("add-student-modal");
+      renderBukuIndukTable();
+      addTuActivityLog(`Menambahkan peserta didik baru (${status}): ${name} ke Rombel ${rombel}.`, "Buku Induk");
+      showToast(`Siswa ${name} berhasil ditambahkan ke Buku Induk MTs Nurul Falah.`);
+    }
+
+    function printStudentIndukSheet(studentId) {
+      const stu = STUDENTS_DB.find(s => s.id === studentId);
+      if (!stu) return;
+
+      document.getElementById("print-modal-top-badge").textContent = "Pratinjau Cetak Lembar Buku Induk Resmi Kemenag";
+      document.getElementById("printable-official-doc").innerHTML = `
+        <!-- Kop Surat Madrasah -->
+        <div class="flex items-center justify-between border-b-4 border-double border-slate-900 pb-4">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-heading font-extrabold text-base">
+              NF
+            </div>
+            <div>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Kementerian Agama Republik Indonesia</p>
+              <h4 class="font-heading font-extrabold text-base sm:text-lg text-slate-900 uppercase">Madrasah Tsanawiyah (MTs) Nurul Falah</h4>
+              <p class="text-[11px] text-slate-500">NSM: 121232730045 • NPSN: 20278114 • Jl. Cibiru Raya No. 42, Kota Bandung</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center space-y-0.5">
+          <h5 class="font-heading font-extrabold text-sm sm:text-base uppercase underline">Lembar Buku Induk Peserta Didik</h5>
+          <p class="text-xs text-slate-600">Tahun Pelajaran 2026/2027 • Semester Ganjil</p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-5 items-start">
+          <!-- Photo Box -->
+          <div class="w-28 h-36 rounded-xl border-2 border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-center p-2 shrink-0">
+            <span class="font-heading font-extrabold text-xl text-emerald-700">${stu.name.split(" ").map(n => n[0]).slice(0, 2).join("")}</span>
+            <span class="text-[10px] text-slate-500 mt-1">Pas Foto 3x4<br/>Arsip R2</span>
+          </div>
+
+          <!-- Biodata Table -->
+          <table class="w-full text-xs border-collapse">
+            <tbody class="divide-y divide-slate-200">
+              <tr><td class="py-1.5 text-slate-500 w-44">Nomor Induk Siswa (NIS)</td><td class="py-1.5 font-mono font-bold">: ${stu.nis}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">NISN / NIK</td><td class="py-1.5 font-mono font-bold">: ${stu.nisn} / ${stu.nik}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Nama Lengkap Siswa</td><td class="py-1.5 font-bold uppercase">: ${stu.name}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Tempat, Tanggal Lahir</td><td class="py-1.5">: ${stu.ttl}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Jenis Kelamin</td><td class="py-1.5">: ${stu.gender}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Rombel / Status Induk</td><td class="py-1.5 font-bold">: Kelas ${stu.rombel} (${stu.status})</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Nama Ayah Kandung</td><td class="py-1.5">: ${stu.father}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Nama Ibu Kandung</td><td class="py-1.5 font-semibold">: ${stu.mother}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Sekolah Asal (SD/MI)</td><td class="py-1.5">: ${stu.prevSchool}</td></tr>
+              <tr><td class="py-1.5 text-slate-500">Alamat Domisili</td><td class="py-1.5">: ${stu.address}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex justify-between items-end text-xs">
+          <div class="text-[10px] text-slate-500">
+            <p>Dicetak dari SIMS MTs Nurul Falah</p>
+            <p class="font-mono">Bucket R2: sims-madrasah-files</p>
+          </div>
+          <div class="text-right">
+            <p>Bandung, 16 November 2026</p>
+            <p class="font-semibold">Kepala Tata Usaha,</p>
+            <p class="font-bold underline mt-8">Bapak Ridwan Kamil, S.AP.</p>
+            <p class="text-[11px] text-slate-500">NIP. 198204152009011008</p>
+          </div>
+        </div>
+      `;
+
+      openModal("official-print-modal");
+    }
+
+    // -----------------------------------------------------------------------
+    // 12. MODULE 3: PERSURATAN & LAYANAN ADMINISTRASI
+    // -----------------------------------------------------------------------
+    function switchPersuratanTab(tab) {
+      activePersuratanTab = tab;
+      document.querySelectorAll(".ptab-btn").forEach(btn => {
+        const active = btn.getAttribute("data-ptab") === tab;
+        btn.className = active
+          ? "ptab-btn px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-2xs transition-all cursor-pointer"
+          : "ptab-btn px-4 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all cursor-pointer";
+      });
+
+      const pLay = document.getElementById("persuratan-panel-layanan");
+      const pAgd = document.getElementById("persuratan-panel-agenda");
+      if (tab === "layanan") {
+        pLay.classList.remove("hidden");
+        pAgd.classList.add("hidden");
+      } else {
+        pLay.classList.add("hidden");
+        pAgd.classList.remove("hidden");
+      }
+    }
+
+    function renderPersuratanView() {
+      switchPersuratanTab(activePersuratanTab);
+      renderServiceRequestsGrid();
+      renderMailAgendaTable();
+    }
+
+    function renderServiceRequestsGrid() {
+      const grid = document.getElementById("service-requests-grid");
+
+      grid.innerHTML = SERVICE_REQUESTS.map(req => {
+        const isPending = req.status.startsWith("Menunggu");
+        const isKoreksi = req.kind === "koreksi";
+
+        let statusBadge = "bg-amber-50 text-amber-800 border-amber-200";
+        if (req.status.includes("Disetujui") || req.status.includes("Diterbitkan")) {
+          statusBadge = "bg-emerald-50 text-emerald-700 border-emerald-200";
+        } else if (req.status.includes("Ditolak")) {
+          statusBadge = "bg-rose-50 text-rose-700 border-rose-200";
+        }
+
+        if (isKoreksi) {
+          return `
+            <div id="service-card-${req.id}" class="glass-surface rounded-2xl p-5 shadow-soft flex flex-col justify-between space-y-4 transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
+                    Koreksi Buku Induk
+                  </span>
+                  <span class="px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${statusBadge}">
+                    ${req.status}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 class="font-heading font-bold text-base text-slate-900">${req.title}</h4>
+                  <p class="text-xs text-slate-500 mt-0.5">${req.studentName} (${req.rombel} • NIS ${req.nis}) • ${req.submittedAt}</p>
+                </div>
+
+                <!-- Side-by-side comparison -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span class="block text-[10px] font-bold uppercase text-slate-400">Data Lama (${req.fieldLabel})</span>
+                    <p class="font-semibold text-slate-700 mt-0.5">${req.oldValue}</p>
+                  </div>
+                  <div class="p-3 rounded-xl bg-emerald-50/75 border border-emerald-200">
+                    <span class="block text-[10px] font-bold uppercase text-emerald-700">Usulan Perubahan Baru</span>
+                    <p class="font-bold text-emerald-950 mt-0.5">${req.newValue}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                <button onclick="previewR2Object('Bukti KK Koreksi Data — ${req.studentName}', '${req.r2Proof}', 'Lampiran Kartu Keluarga yang diunggah wali murid sebagai dasar pembaruan data Buku Induk.')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">
+                  Lihat Bukti R2
+                </button>
+
+                ${isPending
+                  ? `<div class="flex items-center gap-2">
+                       <button onclick="rejectServiceRequest('${req.id}')" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold cursor-pointer">
+                         Tolak
+                       </button>
+                       <button onclick="approveDataCorrection('${req.id}')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs cursor-pointer">
+                         Setujui &amp; Update Buku Induk
+                       </button>
+                     </div>`
+                  : `<span class="text-xs font-bold text-emerald-700">✓ Tersinkron ke Buku Induk</span>`
+                }
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div id="service-card-${req.id}" class="glass-surface rounded-2xl p-5 shadow-soft flex flex-col justify-between space-y-4 transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200 text-[11px] font-bold">
+                    ${req.letterType}
+                  </span>
+                  <span class="px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${statusBadge}">
+                    ${req.status}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 class="font-heading font-bold text-base text-slate-900">${req.title}</h4>
+                  <p class="text-xs text-slate-500 mt-0.5">${req.studentName} (${req.rombel} • NIS ${req.nis}) • ${req.submittedAt}</p>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700">
+                  <span class="font-semibold text-slate-900">Keperluan:</span> ${req.purpose}
+                </div>
+
+                ${req.issuedNumber
+                  ? `<div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between">
+                       <span class="text-emerald-900 font-semibold">No. Surat Resmi:</span>
+                       <strong class="font-mono text-emerald-800">${req.issuedNumber}</strong>
+                     </div>`
+                  : ""
+                }
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                ${isPending
+                  ? `<button onclick="issueOfficialLetter('${req.id}')" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs cursor-pointer">
+                       <i data-lucide="file-signature" class="w-4 h-4"></i>
+                       <span>Terbitkan &amp; Beri Nomor Surat</span>
+                     </button>`
+                  : `<button onclick="previewIssuedOfficialLetter('${req.id}')" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold cursor-pointer">
+                       <i data-lucide="printer" class="w-4 h-4"></i>
+                       <span>Pratinjau Surat Siap Cetak</span>
+                     </button>`
+                }
+              </div>
+            </div>
+          `;
+        }
+      }).join("");
+
+      lucide.createIcons();
+    }
+
+    function approveDataCorrection(reqId) {
+      const req = SERVICE_REQUESTS.find(r => r.id === reqId);
+      if (!req) return;
+
+      const stu = STUDENTS_DB.find(s => s.id === req.studentId);
+      if (stu && req.fieldKey) {
+        stu[req.fieldKey] = req.newValue;
+      }
+
+      req.status = "Disetujui & Diperbarui";
+      renderServiceRequestsGrid();
+      renderSidebarMenu();
+      renderNotifications();
+      addTuActivityLog(`Menyetujui koreksi ${req.fieldLabel} milik ${req.studentName} dan memperbarui Buku Induk.`, "Koreksi Induk");
+      showToast(`Koreksi data ${req.studentName} disetujui dan langsung diperbarui di Buku Induk!`);
+    }
+
+    function rejectServiceRequest(reqId) {
+      const req = SERVICE_REQUESTS.find(r => r.id === reqId);
+      if (!req) return;
+      req.status = "Ditolak (Berkas Kurang Jelas)";
+      renderServiceRequestsGrid();
+      renderSidebarMenu();
+      renderNotifications();
+      showToast(`Permohonan ${req.title} ditandai ditolak.`);
+    }
+
+    function issueOfficialLetter(reqId) {
+      const req = SERVICE_REQUESTS.find(r => r.id === reqId);
+      if (!req) return;
+
+      const officialNo = `B-${nextLetterSequence}/MTs.10.05/PP.00.5/11/2026`;
+      nextLetterSequence += 1;
+
+      const r2File = `persuratan/keluar/2026/${officialNo.replace(/\//g, "-")}.pdf`;
+      req.status = "Diterbitkan & Terarsip R2";
+      req.issuedNumber = officialNo;
+      req.r2Output = r2File;
+
+      // Automatically record into Surat Keluar agenda
+      MAIL_AGENDA_LIST.unshift({
+        agendaNo: `AGD-2026-${119 + MAIL_AGENDA_LIST.length}`,
+        letterNo: officialNo,
+        date: "16 Nov 2026",
+        type: "Surat Keluar",
+        category: "Wali Murid",
+        party: `${req.studentName} (${req.rombel})`,
+        subject: `${req.letterType} — ${req.purpose}`,
+        r2File
+      });
+
+      renderPersuratanView();
+      renderSidebarMenu();
+      renderNotifications();
+      addTuActivityLog(`Menerbitkan nomor surat ${officialNo} (${req.letterType} a.n. ${req.studentName}).`, "Persuratan");
+      showToast(`Nomor surat resmi ${officialNo} berhasil diterbitkan & diarsipkan ke R2!`);
+      previewIssuedOfficialLetter(reqId);
+    }
+
+    function previewIssuedOfficialLetter(reqId) {
+      const req = SERVICE_REQUESTS.find(r => r.id === reqId);
+      if (!req) return;
+      const stu = STUDENTS_DB.find(s => s.id === req.studentId) || {};
+
+      document.getElementById("print-modal-top-badge").textContent = "Pratinjau Surat Keterangan Resmi Siap Cetak";
+      document.getElementById("printable-official-doc").innerHTML = `
+        <div class="flex items-center gap-3.5 border-b-4 border-double border-slate-900 pb-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-heading font-extrabold text-base shrink-0">
+            NF
+          </div>
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Kementerian Agama Republik Indonesia</p>
+            <h4 class="font-heading font-extrabold text-base sm:text-lg text-slate-900 uppercase">Madrasah Tsanawiyah (MTs) Nurul Falah</h4>
+            <p class="text-[11px] text-slate-500">NSM: 121232730045 • Jl. Cibiru Raya No. 42, Kota Bandung • Email: tu@mtsnurulfalah.sch.id</p>
+          </div>
+        </div>
+
+        <div class="text-center space-y-1 pt-1">
+          <h5 class="font-heading font-extrabold text-sm sm:text-base uppercase underline">${req.letterType}</h5>
+          <p class="font-mono text-xs font-bold text-slate-700">Nomor: ${req.issuedNumber}</p>
+        </div>
+
+        <div class="space-y-3 text-xs leading-relaxed">
+          <p>Yang bertanda tangan di bawah ini Kepala Madrasah Tsanawiyah Nurul Falah Kota Bandung menerangkan dengan sesungguhnya bahwa:</p>
+          <table class="w-full max-w-md ml-4">
+            <tbody>
+              <tr><td class="py-1 w-40 text-slate-500">Nama Lengkap</td><td class="py-1 font-bold">: ${req.studentName}</td></tr>
+              <tr><td class="py-1 text-slate-500">NIS / NISN</td><td class="py-1 font-mono font-bold">: ${req.nis} / ${stu.nisn || "0123456789"}</td></tr>
+              <tr><td class="py-1 text-slate-500">Tempat, Tgl Lahir</td><td class="py-1">: ${stu.ttl || "Bandung, 2012"}</td></tr>
+              <tr><td class="py-1 text-slate-500">Kelas / Rombel</td><td class="py-1 font-bold">: ${req.rombel} (Tahun Ajaran 2026/2027)</td></tr>
+              <tr><td class="py-1 text-slate-500">Nama Orang Tua</td><td class="py-1">: ${stu.father || "Wali Murid"}</td></tr>
+            </tbody>
+          </table>
+          <p>Adalah benar tercatat sebagai peserta didik pada MTs Nurul Falah Kota Bandung. Surat keterangan ini diterbitkan untuk keperluan: <strong>${req.purpose}</strong>.</p>
+          <p>Demikian surat keterangan ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.</p>
+        </div>
+
+        <div class="pt-4 flex items-end justify-between gap-4 text-xs">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-14 h-14 text-slate-800 shrink-0" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2" width="60" height="60" rx="8" stroke="currentColor" stroke-width="2" fill="#f8fafc"/>
+              <rect x="10" y="10" width="14" height="14" stroke="currentColor" stroke-width="3"/>
+              <rect x="14" y="14" width="6" height="6" fill="currentColor"/>
+              <rect x="40" y="10" width="14" height="14" stroke="currentColor" stroke-width="3"/>
+              <rect x="44" y="14" width="6" height="6" fill="currentColor"/>
+              <rect x="10" y="40" width="14" height="14" stroke="currentColor" stroke-width="3"/>
+              <rect x="14" y="44" width="6" height="6" fill="currentColor"/>
+              <path d="M30 12H34V20H30V12ZM28 28H36V36H28V28ZM40 30H54V34H40V30ZM30 42H38V52H30V42ZM44 44H52V52H44V44Z" fill="currentColor"/>
+            </svg>
+            <div class="text-[10px] text-slate-500">
+              <p class="font-bold text-slate-800">TTE &amp; Arsip R2 Terverifikasi</p>
+              <p class="font-mono">${req.r2Output}</p>
+            </div>
+          </div>
+
+          <div class="text-right">
+            <p>Bandung, 16 November 2026</p>
+            <p class="font-semibold">a.n. Kepala Madrasah,<br/>Kepala Tata Usaha</p>
+            <p class="font-bold underline mt-7">Bapak Ridwan Kamil, S.AP.</p>
+            <p class="text-[11px] text-slate-500">NIP. 198204152009011008</p>
+          </div>
+        </div>
+      `;
+
+      openModal("official-print-modal");
+    }
+
+    function renderMailAgendaTable() {
+      const jenisFilter = document.getElementById("agenda-filter-jenis")?.value || "Semua";
+      const katFilter = document.getElementById("agenda-filter-kategori")?.value || "Semua";
+
+      const filtered = MAIL_AGENDA_LIST.filter(m => {
+        const mJenis = jenisFilter === "Semua" || m.type === jenisFilter;
+        const mKat = katFilter === "Semua" || m.category === katFilter;
+        return mJenis && mKat;
+      });
+
+      const tbody = document.getElementById("mail-agenda-tbody");
+      tbody.innerHTML = filtered.map(m => {
+        const isMasuk = m.type === "Surat Masuk";
+        return `
+          <tr class="hover:bg-slate-50/80">
+            <td class="py-3.5 px-4">
+              <span class="font-mono text-[11px] font-bold text-emerald-700">${m.agendaNo}</span>
+              <p class="font-mono text-xs font-bold text-slate-900 mt-0.5">${m.letterNo}</p>
+            </td>
+            <td class="py-3.5 px-4 text-xs font-semibold text-slate-700">${m.date}</td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isMasuk ? "bg-sky-50 text-sky-800 border border-sky-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200"}">
+                ${m.type}
+              </span>
+              <span class="block text-[11px] text-slate-500 mt-1">Kategori: ${m.category}</span>
+            </td>
+            <td class="py-3.5 px-4 max-w-md">
+              <p class="font-bold text-xs text-slate-900">${m.subject}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">${isMasuk ? "Dari" : "Kepada"}: ${m.party}</p>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="previewR2Object('Arsip Scan Surat — ${m.letterNo}', '${m.r2File}', 'Perihal: ${m.subject} (${m.party}). Tersimpan permanen pada Cloudflare R2.')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 text-xs font-semibold cursor-pointer">
+                <i data-lucide="file-search" class="w-3.5 h-3.5"></i>
+                <span>Lihat Scan R2</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      lucide.createIcons();
+    }
+
+    function openNewAgendaModal() {
+      uploadedAgendaFile = "";
+      document.getElementById("ag-number").value = `B-${nextLetterSequence}/MTs.10.05/PP.00.5/11/2026`;
+      document.getElementById("ag-party").value = "";
+      document.getElementById("ag-subject").value = "";
+      document.getElementById("agenda-r2-label").textContent = "Klik untuk simulasi unggah scan PDF ke Cloudflare R2";
+      document.getElementById("agenda-r2-prog-wrap").classList.add("hidden");
+      openModal("new-agenda-modal");
+    }
+
+    function handleSaveNewAgenda(e) {
+      e.preventDefault();
+      const type = document.getElementById("ag-type").value;
+      const category = document.getElementById("ag-cat").value;
+      const letterNo = document.getElementById("ag-number").value.trim();
+      const date = document.getElementById("ag-date").value.trim();
+      const party = document.getElementById("ag-party").value.trim();
+      const subject = document.getElementById("ag-subject").value.trim();
+      const r2File = uploadedAgendaFile || `persuratan/scan/${Date.now().toString().slice(-5)}.pdf`;
+
+      MAIL_AGENDA_LIST.unshift({
+        agendaNo: `AGD-2026-${119 + MAIL_AGENDA_LIST.length}`,
+        letterNo,
+        date,
+        type,
+        category,
+        party,
+        subject,
+        r2File
+      });
+
+      if (type === "Surat Keluar") nextLetterSequence += 1;
+      closeModal("new-agenda-modal");
+      renderMailAgendaTable();
+      addTuActivityLog(`Mencatat ${type} (${letterNo}) ke Buku Agenda & Cloudflare R2.`, "Agenda Surat");
+      showToast(`Agenda ${type} (${letterNo}) berhasil disimpan ke database & R2.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 13. MODULE 4: VERIFIKASI BERKAS PPDB 2027/2028
+    // -----------------------------------------------------------------------
+    function renderPpdbView() {
+      const regCount = PPDB_APPLICANTS.filter(p => p.track === "Jalur Reguler").length;
+      const presCount = PPDB_APPLICANTS.filter(p => p.track === "Jalur Prestasi").length;
+      const afirCount = PPDB_APPLICANTS.filter(p => p.track === "Jalur Afirmasi / KIP").length;
+      const readyCount = PPDB_APPLICANTS.filter(p => p.status === "Diterima - Siap Migrasi").length;
+
+      document.getElementById("ppdb-track-reguler").textContent = `${regCount} Pendaftar`;
+      document.getElementById("ppdb-track-prestasi").textContent = `${presCount} Pendaftar`;
+      document.getElementById("ppdb-track-afirmasi").textContent = `${afirCount} Pendaftar`;
+      document.getElementById("ppdb-track-ready").textContent = `${readyCount} Calon Siswa`;
+
+      renderPpdbTable();
+    }
+
+    function renderPpdbTable() {
+      const statusFilter = document.getElementById("ppdb-filter-status")?.value || "Semua";
+      const filtered = PPDB_APPLICANTS.filter(p =>
+        statusFilter === "Semua" ? true : p.status === statusFilter
+      );
+
+      const tbody = document.getElementById("ppdb-applicants-tbody");
+      tbody.innerHTML = filtered.map(p => {
+        const d = p.docs;
+        const badge = (lbl, item) => `
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${item.uploaded
+            ? (item.verified ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-sky-50 text-sky-800 border-sky-200")
+            : "bg-rose-50 text-rose-700 border-rose-200"}">
+            ${item.verified ? "✓" : item.uploaded ? "•" : "×"} ${lbl}
+          </span>
+        `;
+
+        let stStyle = "bg-amber-50 text-amber-800 border-amber-200";
+        if (p.status === "Terverifikasi") stStyle = "bg-teal-50 text-teal-800 border-teal-200";
+        if (p.status === "Perlu Perbaikan") stStyle = "bg-rose-50 text-rose-700 border-rose-200";
+        if (p.status === "Diterima - Siap Migrasi") stStyle = "bg-emerald-50 text-emerald-800 border-emerald-300";
+        if (p.status === "Sudah Dimigrasi") stStyle = "bg-slate-100 text-slate-700 border-slate-300";
+
+        return `
+          <tr class="hover:bg-slate-50/80">
+            <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-900">${p.regNo}</td>
+            <td class="py-3.5 px-4">
+              <p class="font-bold text-slate-900">${p.name}</p>
+              <p class="text-[11px] text-slate-500">Asal: ${p.prevSchool}</p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-800 text-xs font-semibold">${p.track}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex flex-wrap gap-1.5">
+                ${badge("KK", d.kk)}
+                ${badge("Akta", d.akta)}
+                ${badge("Rapor/SKL", d.rapor)}
+                ${badge("Khusus", d.khusus)}
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full border text-xs font-bold ${stStyle}">${p.status}</span>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="openPpdbVerifyModal('${p.regNo}')" class="px-3.5 py-2 rounded-xl ${p.status === "Diterima - Siap Migrasi" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-sky-50 hover:bg-sky-600 text-sky-800 hover:text-white border border-sky-200"} text-xs font-semibold transition-colors cursor-pointer">
+                ${p.status === "Diterima - Siap Migrasi" ? "Periksa & Migrasi Induk" : "Periksa Berkas R2"}
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function openPpdbVerifyModal(regNo) {
+      const p = PPDB_APPLICANTS.find(x => x.regNo === regNo);
+      if (!p) return;
+
+      activePpdbRegNo = regNo;
+      document.getElementById("ppdb-modal-name").textContent = `${p.name} (${p.regNo} • ${p.track})`;
+
+      const docItems = [
+        { key: "kk", title: "Kartu Keluarga (KK)", info: p.docs.kk },
+        { key: "akta", title: "Akta Kelahiran", info: p.docs.akta },
+        { key: "rapor", title: "Rapor SD/MI & SKL", info: p.docs.rapor },
+        { key: "khusus", title: p.docs.khusus.label || "Dokumen Pendukung Jalur", info: p.docs.khusus }
+      ];
+
+      document.getElementById("ppdb-modal-body").innerHTML = `
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 gap-3 text-xs">
+          <div><span class="text-slate-400 block">Asal Sekolah</span><strong>${p.prevSchool}</strong></div>
+          <div><span class="text-slate-400 block">NISN / NIK</span><strong class="font-mono">${p.nisn} / ${p.nik}</strong></div>
+          <div><span class="text-slate-400 block">Nama Ayah</span><strong>${p.father}</strong></div>
+          <div><span class="text-slate-400 block">Nama Ibu</span><strong>${p.mother}</strong></div>
+        </div>
+
+        <div class="space-y-2.5">
+          <p class="text-xs font-bold text-slate-800">Checklist Verifikasi Dokumen Cloudflare R2:</p>
+          ${docItems.map(d => `
+            <div class="p-3 rounded-xl bg-white border border-slate-200/85 flex items-center justify-between gap-3 text-xs">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" ${d.info.verified ? "checked" : ""} onchange="togglePpdbDocCheck('${p.regNo}', '${d.key}', this.checked)" class="w-4 h-4 accent-emerald-600 rounded" />
+                <div>
+                  <span class="font-bold text-slate-900 block">${d.title}</span>
+                  <span class="font-mono text-[10px] text-slate-500">${d.info.uploaded ? d.info.file : "Belum diunggah pendaftar"}</span>
+                </div>
+              </label>
+
+              ${d.info.uploaded
+                ? `<button type="button" onclick="previewR2Object('${d.title} — ${p.name}', '${d.info.file}', 'Dokumen pendaftaran PPDB 2027/2028 pada bucket Cloudflare R2.')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold cursor-pointer">Pratinjau</button>`
+                : `<span class="text-[10px] font-bold text-rose-600">Berkas Kosong</span>`
+              }
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/80">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-semibold text-slate-700">Status:</label>
+            <select onchange="updatePpdbStatus('${p.regNo}', this.value)" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold">
+              <option value="Menunggu Verifikasi" ${p.status === "Menunggu Verifikasi" ? "selected" : ""}>Menunggu Verifikasi</option>
+              <option value="Terverifikasi" ${p.status === "Terverifikasi" ? "selected" : ""}>Terverifikasi</option>
+              <option value="Perlu Perbaikan" ${p.status === "Perlu Perbaikan" ? "selected" : ""}>Perlu Perbaikan</option>
+              <option value="Diterima - Siap Migrasi" ${p.status === "Diterima - Siap Migrasi" ? "selected" : ""}>Diterima - Siap Migrasi</option>
+              <option value="Sudah Dimigrasi" ${p.status === "Sudah Dimigrasi" ? "selected" : ""}>Sudah Dimigrasi</option>
+            </select>
+          </div>
+
+          ${p.status === "Diterima - Siap Migrasi"
+            ? `<button type="button" onclick="migratePpdbToBukuInduk('${p.regNo}')" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer">
+                 <i data-lucide="arrow-right-circle" class="w-4 h-4"></i>
+                 <span>Migrasi Otomatis ke Buku Induk</span>
+               </button>`
+            : `<button type="button" onclick="closeModal('ppdb-verify-modal')" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold cursor-pointer">Selesai</button>`
+          }
+        </div>
+      `;
+
+      openModal("ppdb-verify-modal");
+    }
+
+    function togglePpdbDocCheck(regNo, docKey, checked) {
+      const p = PPDB_APPLICANTS.find(x => x.regNo === regNo);
+      if (p && p.docs[docKey]) {
+        p.docs[docKey].verified = checked;
+        renderPpdbTable();
+      }
+    }
+
+    function updatePpdbStatus(regNo, newStatus) {
+      const p = PPDB_APPLICANTS.find(x => x.regNo === regNo);
+      if (!p) return;
+      p.status = newStatus;
+      renderPpdbView();
+      renderSidebarMenu();
+      renderNotifications();
+      openPpdbVerifyModal(regNo);
+      showToast(`Status verifikasi ${p.name} diperbarui menjadi "${newStatus}".`);
+    }
+
+    function migratePpdbToBukuInduk(regNo) {
+      const p = PPDB_APPLICANTS.find(x => x.regNo === regNo);
+      if (!p || p.status === "Sudah Dimigrasi") return;
+
+      const generatedNis = `2728070${Math.floor(10 + Math.random() * 89)}`;
+      STUDENTS_DB.unshift({
+        id: Date.now(),
+        nis: generatedNis,
+        nisn: p.nisn,
+        nik: p.nik,
+        name: p.name,
+        ttl: "Bandung, 2014",
+        gender: "Laki-laki",
+        father: p.father,
+        mother: p.mother,
+        address: "Kota Bandung (Migrasi Otomatis PPDB 2027/2028)",
+        prevSchool: p.prevSchool,
+        rombel: "VII-A",
+        waliKelas: "Usth. Rina Marlina, S.Pd.",
+        status: "Aktif",
+        academicHistory: `2027/2028: Kelas VII-A (Migrasi PPDB ${p.regNo})`,
+        r2Docs: {
+          kk: { uploaded: p.docs.kk.uploaded, key: p.docs.kk.file, updated: "16 Nov 2026" },
+          akta: { uploaded: p.docs.akta.uploaded, key: p.docs.akta.file, updated: "16 Nov 2026" },
+          ijazah: { uploaded: p.docs.rapor.uploaded, key: p.docs.rapor.file, updated: "16 Nov 2026" },
+          foto: { uploaded: true, key: `buku-induk/2027/${generatedNis}-FOTO.jpg`, updated: "16 Nov 2026" }
+        }
+      });
+
+      p.status = "Sudah Dimigrasi";
+      closeModal("ppdb-verify-modal");
+      renderPpdbView();
+      renderSidebarMenu();
+      addTuActivityLog(`Migrasi otomatis pendaftar PPDB ${p.name} ke Buku Induk dengan NIS ${generatedNis}.`, "Migrasi PPDB");
+      showToast(`Berhasil! ${p.name} resmi dimigrasi ke Buku Induk dengan NIS ${generatedNis}.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 14. MODULE 5: ADMINISTRASI GTK & KEPEGAWAIAN
+    // -----------------------------------------------------------------------
+    function renderGtkView() {
+      const grid = document.getElementById("gtk-directory-grid");
+      grid.innerHTML = GTK_DIRECTORY.map(gtk => {
+        let statusColor = "bg-emerald-50 text-emerald-800 border-emerald-200";
+        if (gtk.status.includes("PPPK")) statusColor = "bg-sky-50 text-sky-800 border-sky-200";
+        if (gtk.status.includes("GTY")) statusColor = "bg-teal-50 text-teal-800 border-teal-200";
+        if (gtk.status.includes("GTT")) statusColor = "bg-amber-50 text-amber-800 border-amber-200";
+
+        return `
+          <div class="glass-surface rounded-2xl p-5 shadow-soft flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <span class="px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${statusColor}">${gtk.status}</span>
+                <span class="font-mono text-[10px] text-slate-400">TMT: ${gtk.tmt}</span>
+              </div>
+
+              <div>
+                <h4 class="font-heading font-bold text-base text-slate-900">${gtk.name}</h4>
+                <p class="font-mono text-xs text-slate-500 mt-0.5">${gtk.nip}</p>
+                <p class="text-xs font-semibold text-emerald-700 mt-1">${gtk.mainRole}</p>
+              </div>
+
+              <div class="space-y-1.5">
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tugas Tambahan TA 2026/2027</span>
+                <div class="flex flex-wrap gap-1.5">
+                  ${gtk.extraDuties.map(d => `<span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold">${d}</span>`).join("")}
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-100 space-y-1">
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Arsip Kepegawaian Cloudflare R2</span>
+                <div class="flex flex-wrap gap-1">
+                  ${gtk.r2Docs.map(doc => `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold">✓ ${doc}</span>`).join("")}
+                </div>
+              </div>
+            </div>
+
+            <button onclick="printGtkAssignmentSk('${gtk.id}')" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Cetak SK Pembagian Tugas / Surat Tugas</span>
+            </button>
+          </div>
+        `;
+      }).join("");
+
+      lucide.createIcons();
+    }
+
+    function printGtkAssignmentSk(gtkId) {
+      const gtk = GTK_DIRECTORY.find(g => g.id === gtkId);
+      if (!gtk) return;
+
+      document.getElementById("print-modal-top-badge").textContent = "Pratinjau Cetak SK Pembagian Tugas GTK";
+      document.getElementById("printable-official-doc").innerHTML = `
+        <div class="flex items-center gap-3.5 border-b-4 border-double border-slate-900 pb-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-heading font-extrabold text-base shrink-0">
+            NF
+          </div>
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Yayasan Pendidikan Islam Nurul Falah • Kemenag RI</p>
+            <h4 class="font-heading font-extrabold text-base sm:text-lg text-slate-900 uppercase">Madrasah Tsanawiyah (MTs) Nurul Falah</h4>
+            <p class="text-[11px] text-slate-500">Jl. Cibiru Raya No. 42, Kota Bandung • NSM: 121232730045</p>
+          </div>
+        </div>
+
+        <div class="text-center space-y-1">
+          <h5 class="font-heading font-extrabold text-sm uppercase">Petikan Surat Keputusan Kepala Madrasah</h5>
+          <p class="font-mono text-xs font-bold">Nomor: ${gtk.skNo}</p>
+          <p class="text-xs font-semibold text-slate-600">Tentang Pembagian Tugas Guru &amp; Tenaga Kependidikan TA 2026/2027</p>
+        </div>
+
+        <div class="space-y-3 text-xs leading-relaxed">
+          <p>Kepala MTs Nurul Falah menetapkan tugas pokok dan tugas tambahan pada Tahun Pelajaran 2026/2027 Semester Ganjil kepada:</p>
+          <table class="w-full border border-slate-300 text-xs">
+            <tbody>
+              <tr class="border-b border-slate-200"><td class="p-2 bg-slate-50 font-semibold w-44">Nama Lengkap</td><td class="p-2 font-bold">${gtk.name}</td></tr>
+              <tr class="border-b border-slate-200"><td class="p-2 bg-slate-50 font-semibold">NIP / NUPTK / NPK</td><td class="p-2 font-mono">${gtk.nip}</td></tr>
+              <tr class="border-b border-slate-200"><td class="p-2 bg-slate-50 font-semibold">Status Kepegawaian</td><td class="p-2">${gtk.status} (TMT: ${gtk.tmt})</td></tr>
+              <tr class="border-b border-slate-200"><td class="p-2 bg-slate-50 font-semibold">Tugas Pokok</td><td class="p-2 font-semibold">${gtk.mainRole}</td></tr>
+              <tr><td class="p-2 bg-slate-50 font-semibold">Tugas Tambahan Aktif</td><td class="p-2 font-bold text-emerald-800">${gtk.extraDuties.join("; ")}</td></tr>
+            </tbody>
+          </table>
+          <p>Surat Keputusan ini berlaku sejak tanggal ditetapkan dengan ketentuan apabila di kemudian hari terdapat kekeliruan akan diadakan perbaikan sebagaimana mestinya.</p>
+        </div>
+
+        <div class="pt-4 flex justify-between items-end text-xs">
+          <div class="text-[10px] text-slate-500">
+            <p>Arsip Kepegawaian SIMS</p>
+            <p class="font-mono">Verified by Kepala TU</p>
+          </div>
+          <div class="text-right">
+            <p>Ditetapkan di: Bandung</p>
+            <p>Pada Tanggal: 16 November 2026</p>
+            <p class="font-semibold mt-1">Kepala MTs Nurul Falah,</p>
+            <p class="font-bold underline mt-7">H. Abdul Malik, M.Pd.I.</p>
+          </div>
+        </div>
+      `;
+
+      openModal("official-print-modal");
+    }
+
+    // -----------------------------------------------------------------------
+    // 15. MODULE 6: VALIDASI EMIS & EKSPOR LAPORAN
+    // -----------------------------------------------------------------------
+    function renderEmisView() {
+      const validNikCount = STUDENTS_DB.filter(s => s.nik.length === 16).length;
+      const validNisnCount = STUDENTS_DB.filter(s => s.nisn.length === 10).length;
+      const validMotherCount = STUDENTS_DB.filter(s => s.mother && s.mother.trim().length > 2).length;
+      const completeR2Count = STUDENTS_DB.filter(s => isStudentR2Complete(s)).length;
+
+      const nikPct = ((validNikCount / STUDENTS_DB.length) * 100).toFixed(1);
+      const nisnPct = ((validNisnCount / STUDENTS_DB.length) * 100).toFixed(1);
+      const motherPct = ((validMotherCount / STUDENTS_DB.length) * 100).toFixed(1);
+      const r2Pct = ((completeR2Count / STUDENTS_DB.length) * 100).toFixed(1);
+
+      document.getElementById("emis-quality-cards").innerHTML = `
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/85 space-y-1.5">
+          <span class="text-xs font-semibold text-slate-500">Validasi 16-Digit NIK</span>
+          <p class="font-heading text-2xl font-extrabold ${validNikCount === STUDENTS_DB.length ? "text-emerald-700" : "text-amber-700"}">${nikPct}% Valid</p>
+          <p class="text-[11px] text-slate-500">${validNikCount} dari ${STUDENTS_DB.length} sampel lolos cek</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/85 space-y-1.5">
+          <span class="text-xs font-semibold text-slate-500">Kelengkapan NISN 10-Digit</span>
+          <p class="font-heading text-2xl font-extrabold text-emerald-700">${nisnPct}% Valid</p>
+          <p class="text-[11px] text-slate-500">Tersinkron Pusdatin Kemendikbud</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/85 space-y-1.5">
+          <span class="text-xs font-semibold text-slate-500">Nama Ibu Kandung</span>
+          <p class="font-heading text-2xl font-extrabold text-emerald-700">${motherPct}% Terisi</p>
+          <p class="text-[11px] text-slate-500">Wajib untuk Berita Acara EMIS</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/85 space-y-1.5">
+          <span class="text-xs font-semibold text-slate-500">Arsip Digital R2</span>
+          <p class="font-heading text-2xl font-extrabold text-teal-700">${r2Pct}% Terunggah</p>
+          <p class="text-[11px] text-slate-500">Bucket sims-madrasah-files</p>
+        </div>
+      `;
+
+      // Residue list
+      const residueStudents = STUDENTS_DB.filter(s => s.nik.length !== 16 || !isStudentR2Complete(s));
+      const resContainer = document.getElementById("emis-residue-list");
+
+      if (residueStudents.length === 0) {
+        resContainer.innerHTML = `
+          <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800">
+            ✓ Zero Residu! Seluruh data NIK, NISN, Nama Ibu Kandung, dan Arsip R2 sudah 100% siap sinkronisasi EMIS.
+          </div>
+        `;
+      } else {
+        resContainer.innerHTML = residueStudents.map(s => {
+          const issues = [];
+          if (s.nik.length !== 16) issues.push(`NIK hanya ${s.nik.length} digit (wajib 16 digit)`);
+          if (!isStudentR2Complete(s)) issues.push(`Berkas R2 baru ${countStudentR2Docs(s)}/4 dokumen`);
+
+          return `
+            <div class="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div>
+                <p class="font-bold text-slate-900">${s.name} (${s.rombel} • NIS ${s.nis})</p>
+                <p class="text-amber-900 mt-0.5">Residu ditemukan: <strong>${issues.join(" • ")}</strong></p>
+              </div>
+              <button onclick="openIndukDetailModal(${s.id}, '${s.nik.length !== 16 ? "biodata" : "arsip"}')" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold cursor-pointer self-start sm:self-auto shrink-0">
+                Perbaiki Sekarang
+              </button>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function runEmisSyncSimulation() {
+      addTuActivityLog("Menjalankan sinkronisasi batch data siswa & GTK ke EMIS Kemenag RI.", "EMIS Kemenag");
+      showToast("Sinkronisasi EMIS Kemenag berhasil! Berita Acara Pendataan siap diunduh.");
+    }
+
+    function generateOfficialExport(reportName, ext) {
+      addTuActivityLog(`Mengekspor laporan "${reportName}" (${ext}).`, "Ekspor Laporan");
+      showToast(`File ${reportName} (${ext}) berhasil dibuat dan siap diunduh.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 16. SHARED UTILITIES (R2 PREVIEW, UPLOAD ANIMATION, MODALS, TOAST)
+    // -----------------------------------------------------------------------
+    function previewR2Object(title, objectKey, description) {
+      document.getElementById("print-modal-top-badge").textContent = "Viewer Dokumen Cloudflare R2";
+      document.getElementById("printable-official-doc").innerHTML = `
+        <div class="flex items-center gap-3.5 border-b border-slate-200 pb-4">
+          <div class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0">
+            <i data-lucide="file-check-2" class="w-6 h-6"></i>
+          </div>
+          <div class="min-w-0">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-700">Cloudflare R2 Object Storage</span>
+            <h4 class="font-heading font-bold text-base text-slate-900 truncate">${title}</h4>
+            <p class="font-mono text-xs text-slate-500 truncate">r2://sims-madrasah-files/${objectKey}</p>
+          </div>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3 text-xs text-slate-700">
+          <p class="leading-relaxed">${description}</p>
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/80 text-[11px]">
+            <div><span class="text-slate-400 block">Status Enkripsi</span><strong>AES-256 Server-Side</strong></div>
+            <div><span class="text-slate-400 block">Integritas File</span><strong class="text-emerald-700">✓ Checksum SHA-256 Valid</strong></div>
+          </div>
+        </div>
+      `;
+      openModal("official-print-modal");
+    }
+
+    function simulateR2Upload(prefix) {
+      const label = document.getElementById(`${prefix}-r2-label`);
+      const wrap = document.getElementById(`${prefix}-r2-prog-wrap`);
+      const bar = document.getElementById(`${prefix}-r2-prog-bar`);
+      const pct = document.getElementById(`${prefix}-r2-prog-pct`);
+
+      wrap.classList.remove("hidden");
+      let val = 0;
+      const timer = setInterval(() => {
+        val += 25;
+        if (val > 100) val = 100;
+        bar.style.width = `${val}%`;
+        pct.textContent = val < 100 ? `Mengunggah... ${val}%` : "Selesai • 100%";
+
+        if (val >= 100) {
+          clearInterval(timer);
+          const fName = `persuratan/scan/scan-${Date.now().toString().slice(-4)}.pdf`;
+          if (prefix === "agenda") uploadedAgendaFile = fName;
+          label.innerHTML = `<span class="text-emerald-700">✓ Berhasil diunggah ke R2: ${fName}</span>`;
+          showToast("Scan PDF surat berhasil diunggah ke Cloudflare R2.");
+        }
+      }, 110);
+    }
+
+    function triggerBrowserPrint() {
+      showToast("Menyiapkan dialog cetak dokumen resmi...");
+      setTimeout(() => window.print(), 250);
+    }
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove("hidden");
+      el.classList.add("flex");
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add("hidden");
+      el.classList.remove("flex");
+    }
+
+    function showToast(message) {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = "pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-medium shadow-xl border border-slate-700/80 transition-all duration-300";
+      toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(6px)";
+        setTimeout(() => toast.remove(), 250);
+      }, 3400);
+    }
+
+    // Close modals with Escape key or backdrop click
+    const MODAL_IDS = [
+      "induk-detail-modal",
+      "add-student-modal",
+      "new-agenda-modal",
+      "ppdb-verify-modal",
+      "official-print-modal"
+    ];
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") MODAL_IDS.forEach(closeModal);
+    });
+    MODAL_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("click", (e) => {
+          if (e.target === el) closeModal(id);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,2801 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Admin SIMS — MTs Nurul Falah</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          },
+          boxShadow: {
+            'glass': '0 10px 30px -10px rgba(15, 23, 42, 0.06), 0 4px 12px -4px rgba(15, 23, 42, 0.03)',
+            'soft': '0 2px 12px -2px rgba(15, 23, 42, 0.04)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+
+    /* Glassmorphism Utilities */
+    .glass-surface {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .glass-sidebar {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .glass-modal {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Smooth View Transition */
+    .view-panel {
+      animation: panelFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes panelFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Custom Thin Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-emerald-100 selection:text-emerald-900">
+
+  <!-- Ambient Soft Gradient Background -->
+  <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+    <div class="absolute -top-28 left-64 w-[32rem] h-[32rem] rounded-full bg-emerald-100/45 blur-3xl"></div>
+    <div class="absolute top-40 right-10 w-[28rem] h-[28rem] rounded-full bg-teal-100/40 blur-3xl"></div>
+    <div class="absolute bottom-0 left-1/3 w-[30rem] h-[30rem] rounded-full bg-slate-200/40 blur-3xl"></div>
+  </div>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
+
+  <!-- ===================================================================== -->
+  <!-- SIDEBAR NAVIGATION (FIXED DESKTOP / DRAWER MOBILE)                    -->
+  <!-- ===================================================================== -->
+  <aside id="admin-sidebar" class="fixed top-0 left-0 z-50 h-screen w-72 glass-sidebar border-r border-slate-200/80 flex flex-col justify-between transition-transform duration-300 -translate-x-full lg:translate-x-0">
+    
+    <!-- Top Section: Brand + Active Academic Period + Nav Links -->
+    <div class="flex flex-col flex-1 overflow-y-auto">
+      
+      <!-- Brand Header -->
+      <div class="px-6 h-20 flex items-center justify-between border-b border-slate-200/75 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
+            <i data-lucide="book-open-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="block font-heading font-bold text-base text-slate-900 leading-tight">MTs Nurul Falah</span>
+            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 tracking-wide">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              SIMS Admin Panel
+            </span>
+          </div>
+        </div>
+
+        <button onclick="toggleSidebar(false)" aria-label="Tutup Menu" class="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Academic Year & Operational Date Card -->
+      <div class="px-4 pt-5 pb-2">
+        <div class="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/80 border border-emerald-200/70 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Periode Aktif</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-semibold">Aktif</span>
+          </div>
+          <p class="font-heading font-bold text-xs text-slate-900">2026/2027 — Semester Ganjil</p>
+          <div class="pt-1 border-t border-emerald-200/60 flex items-center gap-1.5 text-[11px] text-emerald-800 font-medium">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i>
+            <span>Sabtu, 14 November 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="px-4 py-3 space-y-1 flex-1" aria-label="Menu Utama Admin">
+        <p class="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Modul Operasional</p>
+
+        <button onclick="switchView('overview')" data-menu="overview" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Ringkasan Operasional</span>
+          </span>
+        </button>
+
+        <button onclick="switchView('gtk')" data-menu="gtk" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="user-cog" class="w-4 h-4"></i>
+            <span>Guru &amp; Tugas Tambahan</span>
+          </span>
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">RBAC</span>
+        </button>
+
+        <button onclick="switchView('jadwal')" data-menu="jadwal" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="calendar-sync" class="w-4 h-4"></i>
+            <span>Jadwal &amp; Pengganti</span>
+          </span>
+          <span id="sidebar-inval-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">2</span>
+        </button>
+
+        <button onclick="switchView('buku-induk')" data-menu="buku-induk" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="book-user" class="w-4 h-4"></i>
+            <span>Buku Induk Siswa</span>
+          </span>
+        </button>
+
+        <button onclick="switchView('ppdb')" data-menu="ppdb" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+            <span>PPDB Online</span>
+          </span>
+          <span id="sidebar-ppdb-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Baru</span>
+        </button>
+
+        <p class="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Publikasi &amp; Portal</p>
+
+        <button onclick="switchView('cms')" data-menu="cms" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer">
+          <span class="flex items-center gap-3">
+            <i data-lucide="newspaper" class="w-4 h-4"></i>
+            <span>CMS Halaman Publik</span>
+          </span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Bottom Infrastructure Status Indicator -->
+    <div class="p-4 border-t border-slate-200/75 bg-slate-50/70 shrink-0">
+      <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
+        <span class="flex items-center gap-1.5 font-medium text-slate-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Supabase &amp; R2 Terhubung
+        </span>
+        <span class="font-mono text-[10px] text-slate-400">v1.4</span>
+      </div>
+      <p class="text-[10px] text-slate-400 leading-relaxed">
+        Sinkronisasi otomatis ke portal publik madrasah.
+      </p>
+    </div>
+  </aside>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN CONTENT SHELL                                                    -->
+  <!-- ===================================================================== -->
+  <div class="lg:pl-72 min-h-screen flex flex-col">
+
+    <!-- TOP STICKY ADMIN HEADER -->
+    <header class="sticky top-0 z-30 h-20 glass-surface border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+      
+      <!-- Left: Hamburger + Dynamic Page Title -->
+      <div class="flex items-center gap-3 min-w-0">
+        <button onclick="toggleSidebar(true)" aria-label="Buka Navigasi" class="lg:hidden p-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span>SIMS Admin</span>
+            <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            <span id="header-breadcrumb" class="text-emerald-700 font-semibold truncate">Ringkasan Operasional</span>
+          </div>
+          <h1 id="header-page-title" class="font-heading font-bold text-lg sm:text-xl text-slate-900 truncate">
+            Ringkasan Operasional Madrasah
+          </h1>
+        </div>
+      </div>
+
+      <!-- Right: Public Portal Quick Preview + Active Admin Profile -->
+      <div class="flex items-center gap-3 shrink-0">
+        <button onclick="openPublicPreviewModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200/90 hover:border-emerald-200 text-xs font-semibold shadow-2xs transition-all cursor-pointer">
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-emerald-600"></i>
+          <span class="hidden sm:inline">Pratinjau Halaman Publik</span>
+          <span class="sm:hidden">Publik</span>
+        </button>
+
+        <div class="h-7 w-px bg-slate-200 hidden md:block"></div>
+
+        <!-- Admin User Pill -->
+        <div class="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-2xl bg-white/90 border border-slate-200/80 shadow-2xs">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-heading font-bold text-xs flex items-center justify-center shrink-0">
+            AF
+          </div>
+          <div class="hidden md:block text-left">
+            <p class="text-xs font-bold text-slate-900 leading-tight">Ahmad Fauzi, S.Pd.</p>
+            <p class="text-[11px] text-emerald-700 font-medium leading-tight">Operator / Super Admin</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- MAIN VIEWPORT CONTAINER                                             -->
+    <!-- =================================================================== -->
+    <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+
+      <!-- ================================================================= -->
+      <!-- VIEW 1: RINGKASAN OPERASIONAL (OVERVIEW)                          -->
+      <!-- ================================================================= -->
+      <section id="view-overview" class="view-panel space-y-7">
+        
+        <!-- 4 Modular KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          
+          <!-- KPI 1: Total Siswa Aktif -->
+          <div class="glass-surface rounded-2xl p-5 shadow-soft hover:border-emerald-200 transition-all">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Siswa Aktif</p>
+                <p id="kpi-total-siswa" class="font-heading text-3xl font-extrabold text-slate-900 mt-2">486</p>
+                <p class="text-xs text-emerald-700 font-medium mt-1.5 flex items-center gap-1">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                  <span>Tersebar di 15 Rombel</span>
+                </p>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="users" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI 2: Kehadiran Guru Hari Ini -->
+          <div class="glass-surface rounded-2xl p-5 shadow-soft hover:border-teal-200 transition-all">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Kehadiran Guru Hari Ini</p>
+                <p class="font-heading text-3xl font-extrabold text-slate-900 mt-2">
+                  34<span class="text-lg font-bold text-slate-400">/36</span>
+                </p>
+                <p class="text-xs text-amber-700 font-medium mt-1.5 flex items-center gap-1">
+                  <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                  <span>Hadir • 2 Berhalangan</span>
+                </p>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                <i data-lucide="user-check" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI 3: Jam Kosong / Inval -->
+          <div class="glass-surface rounded-2xl p-5 shadow-soft hover:border-amber-200 transition-all">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jam Kosong / Inval</p>
+                <p class="font-heading text-3xl font-extrabold text-slate-900 mt-2">
+                  3 <span class="text-base font-bold text-slate-500">Jadwal</span>
+                </p>
+                <p id="kpi-inval-status" class="text-xs text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+                  <i data-lucide="clock-alert" class="w-3.5 h-3.5"></i>
+                  <span>2 Perlu Guru Pengganti</span>
+                </p>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI 4: Pendaftar PPDB 2026/2027 -->
+          <div class="glass-surface rounded-2xl p-5 shadow-soft hover:border-sky-200 transition-all">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pendaftar PPDB 2026/2027</p>
+                <p id="kpi-total-ppdb" class="font-heading text-3xl font-extrabold text-slate-900 mt-2">128</p>
+                <p class="text-xs text-sky-700 font-medium mt-1.5 flex items-center gap-1">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                  <span>Calon Siswa Gelombang I</span>
+                </p>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Panel Peringatan Cepat Hari Ini (2 Columns) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Left (7 cols): Daftar Guru Izin/Sakit Hari Ini + Direct Action -->
+          <div class="lg:col-span-7 glass-surface rounded-2xl p-6 shadow-soft flex flex-col justify-between">
+            <div>
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200/70">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <i data-lucide="bell-ring" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h2 class="font-heading font-bold text-base text-slate-900">Peringatan Jadwal &amp; Guru Berhalangan</h2>
+                    <p class="text-xs text-slate-500">Sabtu, 14 November 2026 • Tindakan cepat penunjukan inval</p>
+                  </div>
+                </div>
+                <button onclick="switchView('jadwal')" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline underline-offset-2 self-start sm:self-auto cursor-pointer">
+                  Semua Jadwal Inval →
+                </button>
+              </div>
+
+              <!-- Dynamic Alert List -->
+              <div id="overview-absent-list" class="mt-4 space-y-3">
+                <!-- Rendered dynamically via JS -->
+              </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Notifikasi otomatis terkirim ke Guru Piket &amp; Guru Pengganti</span>
+              <span class="font-semibold text-emerald-700">Real-Time Sync</span>
+            </div>
+          </div>
+
+          <!-- Right (5 cols): Status Guru Piket Hari Ini + Override Action -->
+          <div class="lg:col-span-5 glass-surface rounded-2xl p-6 shadow-soft flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-4 border-b border-slate-200/70">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h2 class="font-heading font-bold text-base text-slate-900">Guru Piket Bertugas Hari Ini</h2>
+                    <p class="text-xs text-slate-500">Pemegang akses dashboard piket Sabtu</p>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-semibold">
+                  Sabtu
+                </span>
+              </div>
+
+              <!-- Dynamic Duty Teachers Today -->
+              <div id="overview-duty-list" class="mt-4 space-y-3">
+                <!-- Rendered dynamically via JS -->
+              </div>
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-slate-100">
+              <button onclick="switchView('jadwal', 'piket')" class="w-full py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/80 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer">
+                <i data-lucide="repeat" class="w-3.5 h-3.5 text-amber-700"></i>
+                <span>Override Piket Hari Ini</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bottom Grid: Rekap Kehadiran Mingguan (Bar Chart) & Log Aktivitas Sistem -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Interactive Weekly Attendance Chart (6 cols) -->
+          <div class="lg:col-span-6 glass-surface rounded-2xl p-6 shadow-soft">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+              <div>
+                <h2 class="font-heading font-bold text-base text-slate-900">Rekap Kehadiran Mingguan</h2>
+                <p class="text-xs text-slate-500">Persentase presensi Guru &amp; Siswa (9 – 14 November 2026)</p>
+              </div>
+              <div class="flex items-center gap-3 text-xs">
+                <span class="flex items-center gap-1.5 text-slate-600 font-medium">
+                  <span class="w-2.5 h-2.5 rounded-xs bg-emerald-500"></span> Guru
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-600 font-medium">
+                  <span class="w-2.5 h-2.5 rounded-xs bg-teal-300"></span> Siswa
+                </span>
+              </div>
+            </div>
+
+            <!-- Bar Chart Container -->
+            <div class="grid grid-cols-6 gap-3 pt-4 pb-2 px-2 h-52 items-end border-b border-slate-200/80" id="weekly-chart-bars">
+              <!-- Populated via JS -->
+            </div>
+
+            <!-- Interactive Hover/Click Detail Strip -->
+            <div id="weekly-chart-detail" class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between text-xs text-slate-600">
+              <span>Klik atau arahkan kursor pada batang hari untuk melihat detail angka kehadiran.</span>
+              <span class="font-semibold text-emerald-700">Rata-rata: 96.4%</span>
+            </div>
+          </div>
+
+          <!-- System Activity Log (6 cols) -->
+          <div class="lg:col-span-6 glass-surface rounded-2xl p-6 shadow-soft flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="font-heading font-bold text-base text-slate-900">Log Aktivitas Sistem Terbaru</h2>
+                <p class="text-xs text-slate-500">Sinkronisasi Supabase PostgreSQL &amp; Cloudflare R2</p>
+              </div>
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
+                <i data-lucide="activity" class="w-3 h-3 text-emerald-600"></i>
+                Live Audit
+              </span>
+            </div>
+
+            <div id="system-activity-log" class="space-y-3 overflow-y-auto max-h-64 pr-1">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 2: MANAJEMEN GURU & TUGAS TAMBAHAN (DYNAMIC RBAC)            -->
+      <!-- ================================================================= -->
+      <section id="view-gtk" class="view-panel hidden space-y-6">
+        
+        <!-- Top Action & Explanation Banner -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[11px] font-semibold">
+              <i data-lucide="key-round" class="w-3 h-3"></i>
+              <span>Dynamic Role-Based Access Control (RBAC)</span>
+            </div>
+            <h2 class="font-heading font-bold text-xl text-slate-900">Direktori GTK &amp; Plotting Tugas Tambahan</h2>
+            <p class="text-xs sm:text-sm text-slate-500">
+              Menetapkan tugas tambahan akan otomatis membuka modul dashboard khusus pada akun guru yang bersangkutan.
+            </p>
+          </div>
+
+          <button onclick="openRoleModal()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm shadow-emerald-600/20 transition-all shrink-0 cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Plotting Tugas Tambahan</span>
+          </button>
+        </div>
+
+        <!-- Search & Filter Pills -->
+        <div class="glass-surface rounded-2xl p-5 shadow-soft space-y-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            <!-- Filter Pills -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <button onclick="setGtkRoleFilter('Semua')" data-gtk-filter="Semua" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer">Semua GTK</button>
+              <button onclick="setGtkRoleFilter('Wali Kelas')" data-gtk-filter="Wali Kelas" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Wali Kelas</button>
+              <button onclick="setGtkRoleFilter('Guru Piket')" data-gtk-filter="Guru Piket" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Guru Piket</button>
+              <button onclick="setGtkRoleFilter('Bendahara Komite')" data-gtk-filter="Bendahara Komite" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Bendahara Komite</button>
+              <button onclick="setGtkRoleFilter('Pengelola Tabungan')" data-gtk-filter="Pengelola Tabungan" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Pengelola Tabungan</button>
+              <button onclick="setGtkRoleFilter('Panitia PPDB')" data-gtk-filter="Panitia PPDB" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Panitia PPDB</button>
+              <button onclick="setGtkRoleFilter('Guru Wali/BK')" data-gtk-filter="Guru Wali/BK" class="gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">Guru Wali/BK</button>
+            </div>
+
+            <!-- Search Box -->
+            <div class="relative w-full lg:w-72 shrink-0">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input
+                type="text"
+                id="gtk-search"
+                oninput="renderGtkTable()"
+                placeholder="Cari nama guru atau NIP..."
+                class="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          <!-- GTK Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">Nama Pendidik / GTK</th>
+                  <th class="py-3.5 px-4">NIP / NUPTK</th>
+                  <th class="py-3.5 px-4">Mapel Utama</th>
+                  <th class="py-3.5 px-4">Tugas Tambahan Aktif (TA 2026/2027)</th>
+                  <th class="py-3.5 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="gtk-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 3: JADWAL & PENUNJUKAN PENGGANTI (FITUR KUNCI)               -->
+      <!-- ================================================================= -->
+      <section id="view-jadwal" class="view-panel hidden space-y-6">
+        
+        <!-- Sub-navigation Tabs -->
+        <div class="glass-surface rounded-2xl p-4 sm:p-5 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="setJadwalSubTab('all')" data-jadwal-tab="all" class="jadwal-tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer">
+              Semua Panel Pengganti
+            </button>
+            <button onclick="setJadwalSubTab('inval')" data-jadwal-tab="inval" class="jadwal-tab-btn px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">
+              Penunjukan Guru Pengganti (Inval)
+            </button>
+            <button onclick="setJadwalSubTab('piket')" data-jadwal-tab="piket" class="jadwal-tab-btn px-4 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer">
+              Override Guru Piket Harian
+            </button>
+          </div>
+
+          <div class="text-xs text-slate-500 flex items-center gap-2">
+            <i data-lucide="info" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span>Berlaku untuk operasional: <strong class="text-slate-800">Sabtu, 14 November 2026</strong></span>
+          </div>
+        </div>
+
+        <!-- SECTION A: PENUNJUKAN GURU PENGGANTI (INVAL MENGAJAR) -->
+        <div id="panel-inval-mengajar" class="glass-surface rounded-2xl p-6 shadow-soft space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200/70">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Kontinuitas Pembelajaran</span>
+              <h2 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Penunjukan Guru Pengganti (Inval Mengajar)</h2>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Sistem otomatis mendeteksi jadwal guru berhalangan hari ini dan merekomendasikan guru yang sedang tidak ada jam mengajar.
+              </p>
+            </div>
+            <span id="inval-summary-pill" class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-semibold self-start sm:self-auto">
+              2 Jadwal Menunggu Pengganti
+            </span>
+          </div>
+
+          <!-- Inval Schedule Cards Grid -->
+          <div id="inval-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <!-- SECTION B: OVERRIDE GURU PIKET HARIAN -->
+        <div id="panel-override-piket" class="glass-surface rounded-2xl p-6 shadow-soft space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200/70">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-amber-600">Delegasi Harian Spesifik</span>
+              <h2 class="font-heading font-bold text-lg text-slate-900 mt-0.5">Override Guru Piket Harian</h2>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Ganti petugas guru piket khusus untuk tanggal <strong>14 November 2026</strong> tanpa mengubah jadwal piket permanen mingguan.
+              </p>
+            </div>
+            <span class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-medium self-start sm:self-auto">
+              Jadwal Permanen: Setiap Sabtu
+            </span>
+          </div>
+
+          <div id="piket-override-container" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 4: BUKU INDUK SISWA DIGITAL                                  -->
+      <!-- ================================================================= -->
+      <section id="view-buku-induk" class="view-panel hidden space-y-6">
+        
+        <!-- Header & Add Student CTA -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="font-heading font-bold text-xl text-slate-900">Buku Induk Siswa &amp; Arsip Cloudflare R2</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              Data historis permanen peserta didik beserta verifikasi dokumen digital (KK, Akta Kelahiran, Ijazah MI/SD).
+            </p>
+          </div>
+          <button onclick="openAddStudentModal()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm shadow-emerald-600/20 transition-all shrink-0 cursor-pointer">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>+ Tambah Siswa Baru</span>
+          </button>
+        </div>
+
+        <!-- Filters & Table Card -->
+        <div class="glass-surface rounded-2xl p-5 shadow-soft space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+            <!-- Search -->
+            <div class="lg:col-span-5 relative">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input
+                type="text"
+                id="student-search"
+                oninput="renderStudentsTable()"
+                placeholder="Cari Nama Siswa, NIS, atau NISN..."
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+              />
+            </div>
+
+            <!-- Filter Rombel -->
+            <div class="lg:col-span-4">
+              <select id="student-rombel-filter" onchange="renderStudentsTable()" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                <option value="Semua">Semua Rombel / Kelas</option>
+                <option value="VII-A">Kelas VII-A</option>
+                <option value="VII-B">Kelas VII-B</option>
+                <option value="VIII-A">Kelas VIII-A</option>
+                <option value="VIII-B">Kelas VIII-B</option>
+                <option value="IX-A">Kelas IX-A</option>
+                <option value="IX-B">Kelas IX-B</option>
+              </select>
+            </div>
+
+            <!-- Filter Status -->
+            <div class="lg:col-span-3">
+              <select id="student-status-filter" onchange="renderStudentsTable()" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500">
+                <option value="Semua">Semua Status Siswa</option>
+                <option value="Aktif">Status: Aktif</option>
+                <option value="Lulus">Status: Lulus</option>
+                <option value="Mutasi">Status: Mutasi</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">NIS / NISN</th>
+                  <th class="py-3.5 px-4">Nama Lengkap</th>
+                  <th class="py-3.5 px-4">Rombel</th>
+                  <th class="py-3.5 px-4">Kelengkapan Berkas R2</th>
+                  <th class="py-3.5 px-4">Status</th>
+                  <th class="py-3.5 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="students-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 5: VERIFIKASI PPDB ONLINE                                    -->
+      <!-- ================================================================= -->
+      <section id="view-ppdb" class="view-panel hidden space-y-6">
+        
+        <!-- Quota & Track Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-emerald-500">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Jalur Zonasi / Reguler</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">Kuota: 80</span>
+            </div>
+            <p class="font-heading text-2xl font-extrabold text-slate-900 mt-2">68 Pendaftar</p>
+            <div class="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
+              <div class="bg-emerald-500 h-full rounded-full" style="width: 85%"></div>
+            </div>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-teal-500">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-teal-700">Jalur Prestasi (Tahfidz &amp; KSM)</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">Kuota: 50</span>
+            </div>
+            <p class="font-heading text-2xl font-extrabold text-slate-900 mt-2">41 Pendaftar</p>
+            <div class="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
+              <div class="bg-teal-500 h-full rounded-full" style="width: 82%"></div>
+            </div>
+          </div>
+
+          <div class="glass-surface rounded-2xl p-5 shadow-soft border-l-4 border-l-amber-500">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Jalur Afirmasi / KIP</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">Kuota: 30</span>
+            </div>
+            <p class="font-heading text-2xl font-extrabold text-slate-900 mt-2">19 Pendaftar</p>
+            <div class="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
+              <div class="bg-amber-500 h-full rounded-full" style="width: 63%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Applicants Verification & One-Click Migration Table -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="font-heading font-bold text-lg text-slate-900">Antrean Verifikasi Berkas &amp; Migrasi Buku Induk</h2>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Periksa berkas Cloudflare R2 calon siswa, terima kelulusan, dan migrasikan otomatis ke Buku Induk Siswa.
+              </p>
+            </div>
+
+            <select id="ppdb-status-filter" onchange="renderPpdbTable()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+              <option value="Semua">Semua Status Seleksi</option>
+              <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+              <option value="Terverifikasi">Terverifikasi</option>
+              <option value="Diterima">Diterima (Siap Migrasi)</option>
+              <option value="Sudah Dimigrasi">Sudah Dimigrasi ke Buku Induk</option>
+            </select>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">No. Daftar &amp; NISN</th>
+                  <th class="py-3.5 px-4">Calon Peserta Didik</th>
+                  <th class="py-3.5 px-4">Jalur</th>
+                  <th class="py-3.5 px-4">Berkas R2</th>
+                  <th class="py-3.5 px-4">Status Seleksi</th>
+                  <th class="py-3.5 px-4 text-right">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody id="ppdb-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VIEW 6: CMS HALAMAN PUBLIK                                        -->
+      <!-- ================================================================= -->
+      <section id="view-cms" class="view-panel hidden space-y-6">
+        
+        <!-- Header & Create Article CTA -->
+        <div class="glass-surface rounded-2xl p-6 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="font-heading font-bold text-xl text-slate-900">Manajemen Konten Halaman Publik (CMS)</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              Kelola berita, prestasi siswa, dan pengumuman resmi madrasah dengan penyimpanan thumbnail di Cloudflare R2.
+            </p>
+          </div>
+          <button onclick="openCreatePostModal()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm shadow-emerald-600/20 transition-all shrink-0 cursor-pointer">
+            <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+            <span>+ Buat Berita Baru</span>
+          </button>
+        </div>
+
+        <!-- CMS Posts Table -->
+        <div class="glass-surface rounded-2xl p-5 shadow-soft">
+          <div class="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3.5 px-4">Judul Berita / Pengumuman</th>
+                  <th class="py-3.5 px-4">Kategori</th>
+                  <th class="py-3.5 px-4">Tanggal &amp; Penulis</th>
+                  <th class="py-3.5 px-4">Thumbnail R2</th>
+                  <th class="py-3.5 px-4">Status</th>
+                  <th class="py-3.5 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="cms-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: KELOLA TUGAS TAMBAHAN GTK (DYNAMIC RBAC)                     -->
+  <!-- ===================================================================== -->
+  <div id="role-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="user-cog" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Kelola Tugas Tambahan GTK</h3>
+            <p class="text-xs text-slate-500">Tahun Ajaran 2026/2027 • Perubahan langsung aktif</p>
+          </div>
+        </div>
+        <button onclick="closeModal('role-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Select Teacher -->
+      <div>
+        <label for="role-teacher-select" class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Pendidik / GTK</label>
+        <select id="role-teacher-select" onchange="onRoleTeacherChanged()" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <!-- Current Active Roles List -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+        <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Tugas Tambahan Saat Ini</span>
+        <div id="role-modal-current-list" class="flex flex-wrap gap-2">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Add New Additional Role Form -->
+      <form onsubmit="handleAddAdditionalRole(event)" class="space-y-4 pt-2 border-t border-slate-200/70">
+        <p class="text-xs font-bold text-slate-800">+ Tambah Tugas Tambahan Baru</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="new-role-type" class="block text-xs font-semibold text-slate-700 mb-1.5">Jenis Tugas Tambahan</label>
+            <select id="new-role-type" onchange="handleRoleTypeCondition()" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+              <option value="Wali Kelas">Wali Kelas</option>
+              <option value="Guru Piket">Guru Piket</option>
+              <option value="Bendahara Komite">Bendahara Komite</option>
+              <option value="Pengelola Tabungan">Pengelola Tabungan</option>
+              <option value="Panitia PPDB">Panitia PPDB</option>
+              <option value="Guru Wali/BK">Guru Wali/BK</option>
+              <option value="Waka Kurikulum">Waka Kurikulum</option>
+              <option value="Waka Kesiswaan">Waka Kesiswaan</option>
+            </select>
+          </div>
+
+          <!-- Conditional Dropdown: Class (for Wali Kelas) -->
+          <div id="conditional-class-box">
+            <label for="new-role-class" class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Kelas Binaan</label>
+            <select id="new-role-class" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+              <option value="VII-A">Kelas VII-A</option>
+              <option value="VII-B">Kelas VII-B</option>
+              <option value="VII-C">Kelas VII-C</option>
+              <option value="VIII-A">Kelas VIII-A</option>
+              <option value="VIII-B">Kelas VIII-B</option>
+              <option value="VIII-C">Kelas VIII-C</option>
+              <option value="IX-A">Kelas IX-A</option>
+              <option value="IX-B">Kelas IX-B</option>
+              <option value="IX-C">Kelas IX-C</option>
+            </select>
+          </div>
+
+          <!-- Conditional Dropdown: Day (for Guru Piket) -->
+          <div id="conditional-day-box" class="hidden">
+            <label for="new-role-day" class="block text-xs font-semibold text-slate-700 mb-1.5">Hari Tugas Piket</label>
+            <select id="new-role-day" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+              <option value="Senin">Senin</option>
+              <option value="Selasa">Selasa</option>
+              <option value="Rabu">Rabu</option>
+              <option value="Kamis">Kamis</option>
+              <option value="Jumat">Jumat</option>
+              <option value="Sabtu">Sabtu</option>
+            </select>
+          </div>
+
+          <!-- Default SK Note (for other roles) -->
+          <div id="conditional-sk-box" class="hidden">
+            <label for="new-role-sk" class="block text-xs font-semibold text-slate-700 mb-1.5">Nomor SK / Keterangan</label>
+            <input type="text" id="new-role-sk" placeholder="Contoh: SK-045/MTs.NF/2026" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('role-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">
+            Tutup
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm shadow-emerald-600/20 cursor-pointer">
+            Simpan Tugas Tambahan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: PENUNJUKAN GURU PENGGANTI (SMART SUBSTITUTION MODAL)         -->
+  <!-- ===================================================================== -->
+  <div id="substitute-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-2xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="user-plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Tunjuk Guru Pengganti (Inval)</h3>
+            <p class="text-xs text-slate-500">Rekomendasi guru yang tidak memiliki jam mengajar pada slot waktu ini</p>
+          </div>
+        </div>
+        <button onclick="closeModal('substitute-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Affected Class Info Banner -->
+      <div id="sub-modal-context" class="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-xs space-y-1">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Available Teachers List -->
+      <div class="space-y-2.5">
+        <label class="block text-xs font-bold text-slate-800">Pilih Guru Tersedia (Tidak Ada Jam Mengajar):</label>
+        <div id="sub-modal-candidates" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Optional Teaching Instruction Note -->
+      <div>
+        <label for="sub-modal-note" class="block text-xs font-semibold text-slate-700 mb-1.5">Catatan / Tugas Kelas untuk Guru Pengganti (Opsional)</label>
+        <input type="text" id="sub-modal-note" placeholder="Contoh: Lanjutkan latihan soal LKS halaman 42 dan catat presensi..." class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800" />
+      </div>
+
+      <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/70">
+        <button type="button" onclick="closeModal('substitute-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">
+          Batal
+        </button>
+        <button type="button" onclick="confirmSubstituteTeacher()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm shadow-emerald-600/20 cursor-pointer">
+          Simpan Penunjukan Pengganti
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: OVERRIDE GURU PIKET HARIAN                                   -->
+  <!-- ===================================================================== -->
+  <div id="piket-override-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-lg rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="repeat" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Tunjuk Piket Pengganti Hari Ini</h3>
+            <p class="text-xs text-slate-500">Khusus Sabtu, 14 November 2026 (Jadwal permanen tidak berubah)</p>
+          </div>
+        </div>
+        <button onclick="closeModal('piket-override-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="piket-override-context" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700">
+        <!-- Populated dynamically -->
+      </div>
+
+      <form onsubmit="confirmPiketOverride(event)" class="space-y-4">
+        <div>
+          <label for="piket-replacement-select" class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Guru Piket Pengganti</label>
+          <select id="piket-replacement-select" required class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-800">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div>
+          <label for="piket-override-reason" class="block text-xs font-semibold text-slate-700 mb-1.5">Alasan Penggantian</label>
+          <select id="piket-override-reason" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-800">
+            <option value="Dinas Luar / Rapat Kemenag">Dinas Luar / Rapat Kemenag</option>
+            <option value="Sakit / Surat Keterangan Dokter">Sakit / Surat Keterangan Dokter</option>
+            <option value="Izin Keperluan Keluarga">Izin Keperluan Keluarga</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('piket-override-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">
+            Batal
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm cursor-pointer">
+            Tetapkan Piket Pengganti
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: DETAIL BUKU INDUK & DOKUMEN CLOUDFLARE R2                    -->
+  <!-- ===================================================================== -->
+  <div id="student-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-2xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="book-user" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Detail Buku Induk &amp; Arsip R2</h3>
+            <p class="text-xs text-slate-500">Data permanen peserta didik &amp; penyimpanan dokumen cloud</p>
+          </div>
+        </div>
+        <button onclick="closeModal('student-detail-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="student-detail-body" class="space-y-5">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 5: TAMBAH SISWA BARU KE BUKU INDUK                              -->
+  <!-- ===================================================================== -->
+  <div id="add-student-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-lg rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <h3 class="font-heading font-bold text-lg text-slate-900">Tambah Peserta Didik ke Buku Induk</h3>
+        <button onclick="closeModal('add-student-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleAddStudentSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+          <input type="text" id="new-stu-name" required placeholder="Contoh: Aisyah Humaira Azzahra" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NIS Madrasah</label>
+            <input type="text" id="new-stu-nis" required placeholder="262707045" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">NISN (10 Digit)</label>
+            <input type="text" id="new-stu-nisn" required maxlength="10" placeholder="0134567892" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Rombel / Kelas</label>
+            <select id="new-stu-rombel" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm">
+              <option value="VII-A">VII-A</option>
+              <option value="VII-B">VII-B</option>
+              <option value="VIII-A">VIII-A</option>
+              <option value="VIII-B">VIII-B</option>
+              <option value="IX-A">IX-A</option>
+              <option value="IX-B">IX-B</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
+            <select id="new-stu-gender" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm">
+              <option value="P">Perempuan</option>
+              <option value="L">Laki-laki</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Orang Tua / Wali</label>
+          <input type="text" id="new-stu-parent" required placeholder="Contoh: H. Mahmudin" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm" />
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+          <span class="block text-xs font-bold text-slate-700">Status Berkas Awal di Cloudflare R2:</span>
+          <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+            <input type="checkbox" id="new-stu-doc-kk" checked class="rounded text-emerald-600" />
+            <span>Scan Kartu Keluarga (KK) terunggah</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+            <input type="checkbox" id="new-stu-doc-akta" checked class="rounded text-emerald-600" />
+            <span>Scan Akta Kelahiran terunggah</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+            <input type="checkbox" id="new-stu-doc-ijazah" class="rounded text-emerald-600" />
+            <span>Scan Ijazah / SKL MI/SD terunggah</span>
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('add-student-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">Simpan ke Buku Induk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 6: PERIKSA BERKAS R2 PENDAFTAR PPDB                             -->
+  <!-- ===================================================================== -->
+  <div id="ppdb-doc-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
+            <i data-lucide="file-check-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Verifikasi Berkas Digital PPDB (R2)</h3>
+            <p class="text-xs text-slate-500">Pratinjau dokumen persyaratan unggahan calon peserta didik</p>
+          </div>
+        </div>
+        <button onclick="closeModal('ppdb-doc-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="ppdb-doc-body" class="space-y-4">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 7: BUAT BERITA BARU (CMS HALAMAN PUBLIK)                        -->
+  <!-- ===================================================================== -->
+  <div id="cms-create-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <h3 class="font-heading font-bold text-lg text-slate-900">Buat Berita / Pengumuman Publik</h3>
+        <button onclick="closeModal('cms-create-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleCreateCmsPost(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Judul Berita / Pengumuman</label>
+          <input type="text" id="cms-new-title" required placeholder="Contoh: Jadwal Pembagian Rapor Semester Ganjil TA 2026/2027" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+            <select id="cms-new-category" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm">
+              <option value="Pengumuman">Pengumuman</option>
+              <option value="Prestasi Siswa">Prestasi Siswa</option>
+              <option value="Kegiatan Madrasah">Kegiatan Madrasah</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Status Publikasi</label>
+            <select id="cms-new-status" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm">
+              <option value="Published">Published (Tayang Langsung)</option>
+              <option value="Draft">Draft (Simpan Konsep)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Simulated Cloudflare R2 Thumbnail Upload -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Gambar Thumbnail (Cloudflare R2 Presigned Upload)</label>
+          <div id="cms-r2-dropzone" onclick="simulateR2ThumbnailUpload()" class="p-4 rounded-2xl border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/70 hover:bg-emerald-50/40 text-center cursor-pointer transition-all">
+            <i data-lucide="cloud-upload" class="w-6 h-6 text-emerald-600 mx-auto mb-1.5"></i>
+            <p id="cms-r2-upload-text" class="text-xs font-semibold text-slate-700">Klik untuk simulasi unggah thumbnail ke bucket R2</p>
+            <p id="cms-r2-upload-sub" class="text-[11px] text-slate-400 mt-0.5">Format: WebP / JPG / PNG • Maks 2 MB</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ringkasan Konten</label>
+          <textarea id="cms-new-excerpt" rows="3" required placeholder="Tuliskan ringkasan berita atau pengumuman yang akan tampil di portal publik..." class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-sm"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('cms-create-modal')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">Simpan Konten CMS</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 8: PRATINJAU SINKRONISASI PORTAL PUBLIK                          -->
+  <!-- ===================================================================== -->
+  <div id="public-preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs" role="dialog" aria-modal="true">
+    <div class="glass-modal w-full max-w-2xl rounded-3xl shadow-2xl border border-white p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+            <i data-lucide="globe" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-heading font-bold text-lg text-slate-900">Pratinjau Live Data Halaman Publik</h3>
+            <p class="text-xs text-slate-500">Perubahan di Dashboard Admin langsung tersinkron ke Portal Publik</p>
+          </div>
+        </div>
+        <button onclick="closeModal('public-preview-modal')" class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="public-preview-content" class="space-y-4">
+        <!-- Populated dynamically with live Piket Today & Published CMS Posts -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER (BOTTOM RIGHT)                           -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT: COMPLETE INTERACTIVE STATE & CONTROLLERS                  -->
+  <!-- ===================================================================== -->
+  <script>
+    // -----------------------------------------------------------------------
+    // 1. INITIAL APPLICATION STATE
+    // -----------------------------------------------------------------------
+    let activeView = 'overview';
+    let gtkRoleFilter = 'Semua';
+    let selectedRoleTeacherId = 1;
+    let selectedInvalId = null;
+    let selectedCandidateTeacherId = null;
+    let selectedPiketSlotId = null;
+    let uploadedCmsThumbUrl = '';
+
+    // Master GTK List with Dynamic Additional Roles
+    let GTK_LIST = [
+      {
+        id: 1,
+        name: "Dra. Siti Aminah",
+        nip: "197804122005012008",
+        subject: "Matematika",
+        roles: [
+          { id: 101, type: "Waka Kurikulum", detail: "SK-012/MTs.NF/2026" },
+          { id: 102, type: "Guru Piket", detail: "Sabtu" }
+        ]
+      },
+      {
+        id: 2,
+        name: "Budi Santoso, M.Pd.",
+        nip: "198209152008011004",
+        subject: "IPA Terpadu",
+        roles: [
+          { id: 103, type: "Guru Piket", detail: "Sabtu" },
+          { id: 104, type: "Wali Kelas", detail: "IX-A" }
+        ]
+      },
+      {
+        id: 3,
+        name: "Ust. Hendra Wijaya, S.Pd.",
+        nip: "198611202011011009",
+        subject: "Matematika",
+        roles: [
+          { id: 105, type: "Wali Kelas", detail: "VIII-A" }
+        ]
+      },
+      {
+        id: 4,
+        name: "Nurul Hidayah, S.Ag.",
+        nip: "198503082010012014",
+        subject: "Fiqih & Akidah",
+        roles: [
+          { id: 106, type: "Panitia PPDB", detail: "Koordinator Verifikasi" }
+        ]
+      },
+      {
+        id: 5,
+        name: "Fitriani Rahmawati, S.E.",
+        nip: "199006142015032006",
+        subject: "Ilmu Pengetahuan Sosial",
+        roles: [
+          { id: 107, type: "Bendahara Komite", detail: "SK-019/MTs.NF/2026" },
+          { id: 108, type: "Wali Kelas", detail: "VII-A" }
+        ]
+      },
+      {
+        id: 6,
+        name: "M. Iqbal Maulana, S.Pd.",
+        nip: "199201182019031007",
+        subject: "Bahasa Arab",
+        roles: [
+          { id: 109, type: "Pengelola Tabungan", detail: "Admin Tabungan Siswa" },
+          { id: 110, type: "Guru Piket", detail: "Senin" }
+        ]
+      },
+      {
+        id: 7,
+        name: "Dewi Sartika Putri, S.Psi.",
+        nip: "199104172018012002",
+        subject: "Bimbingan & Konseling",
+        roles: [
+          { id: 111, type: "Guru Wali/BK", detail: "Koordinator BK" },
+          { id: 112, type: "Panitia PPDB", detail: "Pewawancara" }
+        ]
+      },
+      {
+        id: 8,
+        name: "Rizky Pratama, S.Pd.",
+        nip: "199408252020121003",
+        subject: "Bahasa Inggris",
+        roles: [
+          { id: 113, type: "Wali Kelas", detail: "VII-B" }
+        ]
+      }
+    ];
+
+    // Today's Absent / Inval Schedule List (Sabtu, 14 Nov 2026)
+    let INVAL_SCHEDULES = [
+      {
+        id: 1,
+        absentTeacher: "Ust. Hendra Wijaya, S.Pd.",
+        subject: "Matematika",
+        classroom: "VIII-A",
+        timeSlot: "Jam ke 1–2 (07.30 – 08.50)",
+        reason: "Sakit",
+        status: "pending", // 'pending' | 'assigned'
+        substituteTeacher: null,
+        note: "",
+        candidates: [
+          { id: 1, name: "Dra. Siti Aminah", subject: "Matematika", match: "Rumpun Mapel Cocok • Jam Kosong", load: "14 JP/minggu" },
+          { id: 6, name: "M. Iqbal Maulana, S.Pd.", subject: "Bahasa Arab", match: "Tersedia / Tidak Ada Jam Mengajar", load: "16 JP/minggu" },
+          { id: 7, name: "Dewi Sartika Putri, S.Psi.", subject: "Bimbingan & Konseling", match: "Tersedia / Standby BK", load: "12 JP/minggu" }
+        ]
+      },
+      {
+        id: 2,
+        absentTeacher: "Nurul Hidayah, S.Ag.",
+        subject: "Fiqih",
+        classroom: "IX-B",
+        timeSlot: "Jam ke 3–4 (09.10 – 10.30)",
+        reason: "Dinas Luar",
+        status: "pending",
+        substituteTeacher: null,
+        note: "",
+        candidates: [
+          { id: 6, name: "M. Iqbal Maulana, S.Pd.", subject: "Bahasa Arab", match: "Rumpun PAI & Bahasa Arab • Jam Kosong", load: "16 JP/minggu" },
+          { id: 5, name: "Fitriani Rahmawati, S.E.", subject: "Ilmu Pengetahuan Sosial", match: "Tersedia / Tidak Ada Jam Mengajar", load: "18 JP/minggu" },
+          { id: 8, name: "Rizky Pratama, S.Pd.", subject: "Bahasa Inggris", match: "Tersedia / Tidak Ada Jam Mengajar", load: "18 JP/minggu" }
+        ]
+      },
+      {
+        id: 3,
+        absentTeacher: "Rizky Pratama, S.Pd.",
+        subject: "Bahasa Inggris",
+        classroom: "VII-B",
+        timeSlot: "Jam ke 5–6 (10.45 – 12.05)",
+        reason: "Izin Keluarga",
+        status: "assigned",
+        substituteTeacher: "Fitriani Rahmawati, S.E.",
+        note: "Mengerjakan latihan membaca teks deskriptif Unit 3.",
+        candidates: [
+          { id: 5, name: "Fitriani Rahmawati, S.E.", subject: "Ilmu Pengetahuan Sosial", match: "Tersedia / Tidak Ada Jam Mengajar", load: "18 JP/minggu" },
+          { id: 7, name: "Dewi Sartika Putri, S.Psi.", subject: "Bimbingan & Konseling", match: "Tersedia / Standby BK", load: "12 JP/minggu" }
+        ]
+      }
+    ];
+
+    // Today's Duty Roster (Guru Piket Sabtu, 14 Nov 2026)
+    let TODAY_PIKET_SLOTS = [
+      {
+        slotId: 1,
+        shiftLabel: "Petugas Piket 1 (Pagi – Siang)",
+        permanentTeacher: "Dra. Siti Aminah",
+        overrideTeacher: null,
+        overrideReason: null
+      },
+      {
+        slotId: 2,
+        shiftLabel: "Petugas Piket 2 (Pagi – Siang)",
+        permanentTeacher: "Budi Santoso, M.Pd.",
+        overrideTeacher: null,
+        overrideReason: null
+      }
+    ];
+
+    // Buku Induk Siswa List
+    let STUDENTS_LIST = [
+      {
+        id: 1,
+        nis: "242507014",
+        nisn: "0123456789",
+        name: "Muhammad Rayhan Al-Fatih",
+        gender: "L",
+        rombel: "IX-A",
+        waliKelas: "Budi Santoso, M.Pd.",
+        parentName: "H. Ridwan Kamiluddin",
+        status: "Aktif",
+        docs: { kk: true, akta: true, ijazah: true }
+      },
+      {
+        id: 2,
+        nis: "242507089",
+        nisn: "0129876543",
+        name: "Zahra Aulia Putri",
+        gender: "P",
+        rombel: "IX-A",
+        waliKelas: "Budi Santoso, M.Pd.",
+        parentName: "Drs. Wahyu Hidayat",
+        status: "Aktif",
+        docs: { kk: true, akta: true, ijazah: true }
+      },
+      {
+        id: 3,
+        nis: "252607021",
+        nisn: "0134455667",
+        name: "Ahmad Zaki Mubarok",
+        gender: "L",
+        rombel: "VIII-A",
+        waliKelas: "Ust. Hendra Wijaya, S.Pd.",
+        parentName: "Ust. Abdurrahman",
+        status: "Aktif",
+        docs: { kk: true, akta: true, ijazah: false }
+      },
+      {
+        id: 4,
+        nis: "262707004",
+        nisn: "0147788990",
+        name: "Nabila Khairunnisa",
+        gender: "P",
+        rombel: "VII-A",
+        waliKelas: "Fitriani Rahmawati, S.E.",
+        parentName: "Suryadi, S.T.",
+        status: "Aktif",
+        docs: { kk: true, akta: false, ijazah: true }
+      },
+      {
+        id: 5,
+        nis: "232407052",
+        nisn: "0112233445",
+        name: "Fajar Sidik Permana",
+        gender: "L",
+        rombel: "IX-B",
+        waliKelas: "Nurul Hidayah, S.Ag.",
+        parentName: "Dedi Supriadi",
+        status: "Mutasi",
+        docs: { kk: true, akta: true, ijazah: true }
+      }
+    ];
+
+    // PPDB Applicants List
+    let PPDB_APPLICANTS = [
+      {
+        id: 501,
+        regNo: "PPDB-2627-0128",
+        nisn: "0148899001",
+        name: "Siti Fatimah Az-Zahra",
+        gender: "P",
+        originSchool: "MI Al-Ikhlas Cileunyi",
+        track: "Prestasi (Tahfidz)",
+        parentName: "H. Ahmad Syafi'i",
+        docsStatus: "Lengkap (4/4 File R2)",
+        status: "Diterima", // 'Menunggu Verifikasi' | 'Terverifikasi' | 'Diterima' | 'Sudah Dimigrasi'
+        migratedNis: null
+      },
+      {
+        id: 502,
+        regNo: "PPDB-2627-0127",
+        nisn: "0148899002",
+        name: "Muhammad Hafidz Al-Ghifari",
+        gender: "L",
+        originSchool: "SDN Mekarjaya 02",
+        track: "Zonasi / Reguler",
+        parentName: "Rahmat Hidayat",
+        docsStatus: "Lengkap (3/3 File R2)",
+        status: "Terverifikasi",
+        migratedNis: null
+      },
+      {
+        id: 503,
+        regNo: "PPDB-2627-0126",
+        nisn: "0148899003",
+        name: "Khansa Aulia Rahma",
+        gender: "P",
+        originSchool: "MI Nurul Huda",
+        track: "Afirmasi / KIP",
+        parentName: "Siti Maryam",
+        docsStatus: "Perlu Cek (3/3 File R2)",
+        status: "Menunggu Verifikasi",
+        migratedNis: null
+      },
+      {
+        id: 504,
+        regNo: "PPDB-2627-0125",
+        nisn: "0148899004",
+        name: "Rafi Akbar Ramadhan",
+        gender: "L",
+        originSchool: "SDIT Cendekia",
+        track: "Prestasi (KSM)",
+        parentName: "Ir. Bambang Pamungkas",
+        docsStatus: "Lengkap (4/4 File R2)",
+        status: "Diterima",
+        migratedNis: null
+      }
+    ];
+
+    // CMS Public Posts List
+    let CMS_POSTS = [
+      {
+        id: 1,
+        title: "Pembukaan PPDB MTs Nurul Falah Tahun Ajaran 2026/2027",
+        category: "Pengumuman",
+        date: "12 Nov 2026",
+        author: "Ahmad Fauzi, S.Pd.",
+        thumb: "ppdb-banner-2026.webp",
+        status: "Published",
+        excerpt: "Pendaftaran gelombang pertama resmi dibuka melalui jalur prestasi tahfidz, KSM, afirmasi, dan zonasi."
+      },
+      {
+        id: 2,
+        title: "Kontingen MTs Nurul Falah Raih Medali Emas KSM Tingkat Provinsi",
+        category: "Prestasi Siswa",
+        date: "08 Nov 2026",
+        author: "Dra. Siti Aminah",
+        thumb: "ksm-emas-2026.webp",
+        status: "Published",
+        excerpt: "Ananda Zahra Aulia Putri meraih juara 1 Matematika Terintegrasi dan melaju ke tingkat nasional."
+      },
+      {
+        id: 3,
+        title: "Edaran Persiapan Asesmen Sumatif Akhir Semester (ASAS) Ganjil",
+        category: "Pengumuman",
+        date: "14 Nov 2026",
+        author: "Ahmad Fauzi, S.Pd.",
+        thumb: "asas-ganjil-2026.webp",
+        status: "Draft",
+        excerpt: "Jadwal ujian praktik ibadah, setoran tahfidz, dan ujian tulis berbasis komputer."
+      }
+    ];
+
+    // Weekly Attendance Data
+    const WEEKLY_ATTENDANCE = [
+      { day: "Senin", guru: 97, siswa: 96, detail: "Guru: 35/36 Hadir • Siswa: 468/486 Hadir" },
+      { day: "Selasa", guru: 100, siswa: 98, detail: "Guru: 36/36 Hadir • Siswa: 476/486 Hadir" },
+      { day: "Rabu", guru: 94, siswa: 95, detail: "Guru: 34/36 Hadir • Siswa: 462/486 Hadir" },
+      { day: "Kamis", guru: 97, siswa: 97, detail: "Guru: 35/36 Hadir • Siswa: 471/486 Hadir" },
+      { day: "Jumat", guru: 97, siswa: 96, detail: "Guru: 35/36 Hadir • Siswa: 466/486 Hadir" },
+      { day: "Sabtu", guru: 94, siswa: 95, detail: "Hari Ini: 34/36 Guru Hadir • 463/486 Siswa Hadir" }
+    ];
+
+    // Activity Audit Log
+    let ACTIVITY_LOGS = [
+      {
+        time: "07.18 WIB",
+        actor: "Fitriani Rahmawati, S.E.",
+        action: "Menerima penunjukan Guru Pengganti kelas VII-B (Mapel B. Inggris).",
+        badge: "Supabase Sync",
+        color: "emerald"
+      },
+      {
+        time: "07.05 WIB",
+        actor: "Ust. Hendra Wijaya, S.Pd.",
+        action: "Mengajukan izin Sakit + unggah surat dokter ke Cloudflare R2.",
+        badge: "Cloudflare R2",
+        color: "amber"
+      },
+      {
+        time: "Kemarin, 15.40",
+        actor: "Nurul Hidayah, S.Ag.",
+        action: "Memverifikasi 4 berkas dokumen PPDB di bucket sims-madrasah-files.",
+        badge: "PPDB R2",
+        color: "sky"
+      },
+      {
+        time: "Kemarin, 13.15",
+        actor: "Ahmad Fauzi, S.Pd.",
+        action: "Memperbarui data Buku Induk Kelas IX-A dan sinkronisasi NISN.",
+        badge: "Buku Induk",
+        color: "teal"
+      }
+    ];
+
+    // -----------------------------------------------------------------------
+    // 2. INITIALIZATION
+    // -----------------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      updateSidebarActiveState('overview');
+      renderOverview();
+      renderGtkView();
+      renderJadwalView();
+      renderStudentsTable();
+      renderPpdbTable();
+      renderCmsTable();
+      lucide.createIcons();
+    });
+
+    // -----------------------------------------------------------------------
+    // 3. NAVIGATION & SIDEBAR CONTROLLERS
+    // -----------------------------------------------------------------------
+    const VIEW_METADATA = {
+      'overview': { breadcrumb: 'Ringkasan Operasional', title: 'Ringkasan Operasional Madrasah' },
+      'gtk': { breadcrumb: 'Guru & Tugas Tambahan', title: 'Manajemen GTK & Dynamic RBAC' },
+      'jadwal': { breadcrumb: 'Jadwal & Pengganti', title: 'Penjadwalan, Inval & Override Piket' },
+      'buku-induk': { breadcrumb: 'Buku Induk Siswa', title: 'Buku Induk Siswa & Arsip R2' },
+      'ppdb': { breadcrumb: 'PPDB Online', title: 'Verifikasi & Migrasi PPDB Online' },
+      'cms': { breadcrumb: 'CMS Halaman Publik', title: 'CMS Konten Halaman Publik' }
+    };
+
+    function switchView(viewKey, subTab) {
+      activeView = viewKey;
+
+      // Toggle section visibility
+      document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`view-${viewKey}`);
+      if (target) target.classList.remove('hidden');
+
+      // Update Header Title & Breadcrumb
+      const meta = VIEW_METADATA[viewKey] || VIEW_METADATA['overview'];
+      document.getElementById('header-breadcrumb').textContent = meta.breadcrumb;
+      document.getElementById('header-page-title').textContent = meta.title;
+
+      updateSidebarActiveState(viewKey);
+
+      if (viewKey === 'jadwal' && subTab) {
+        setJadwalSubTab(subTab);
+      }
+
+      // Close mobile drawer if open
+      toggleSidebar(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      lucide.createIcons();
+    }
+
+    function updateSidebarActiveState(currentKey) {
+      document.querySelectorAll('.sidebar-link').forEach(btn => {
+        const isCurrent = btn.getAttribute('data-menu') === currentKey;
+        if (isCurrent) {
+          btn.className = 'sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all cursor-pointer';
+        } else {
+          btn.className = 'sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer';
+        }
+      });
+    }
+
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('admin-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (open) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. VIEW 1: OVERVIEW RENDERER
+    // -----------------------------------------------------------------------
+    function renderOverview() {
+      // Update KPI Counters
+      const pendingInvalCount = INVAL_SCHEDULES.filter(s => s.status === 'pending').length;
+      const kpiInvalEl = document.getElementById('kpi-inval-status');
+      const sidebarInvalBadge = document.getElementById('sidebar-inval-badge');
+
+      if (pendingInvalCount > 0) {
+        kpiInvalEl.className = 'text-xs text-rose-600 font-semibold mt-1.5 flex items-center gap-1';
+        kpiInvalEl.innerHTML = `<i data-lucide="clock-alert" class="w-3.5 h-3.5"></i><span>${pendingInvalCount} Perlu Guru Pengganti</span>`;
+        sidebarInvalBadge.textContent = pendingInvalCount;
+        sidebarInvalBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
+      } else {
+        kpiInvalEl.className = 'text-xs text-emerald-700 font-semibold mt-1.5 flex items-center gap-1';
+        kpiInvalEl.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>Semua Jam Terisi Pengganti</span>`;
+        sidebarInvalBadge.textContent = '✓';
+        sidebarInvalBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+      }
+
+      // Render Absent Teachers Alert List
+      const absentContainer = document.getElementById('overview-absent-list');
+      absentContainer.innerHTML = INVAL_SCHEDULES.map(item => {
+        const isPending = item.status === 'pending';
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border ${isPending ? 'border-rose-200/80' : 'border-emerald-200/80'} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-heading font-bold text-sm text-slate-900">${item.absentTeacher}</span>
+                <span class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/70 text-[11px] font-semibold">
+                  ${item.reason}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500">
+                Kelas <strong>${item.classroom}</strong> • ${item.subject} • ${item.timeSlot}
+              </p>
+              ${!isPending ? `
+                <p class="text-xs font-semibold text-emerald-700 flex items-center gap-1 pt-0.5">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                  Digantikan oleh ${item.substituteTeacher}
+                </p>
+              ` : ''}
+            </div>
+
+            ${isPending ? `
+              <button onclick="openSubstituteModal(${item.id})" class="shrink-0 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer">
+                Tunjuk Guru Pengganti
+              </button>
+            ` : `
+              <button onclick="openSubstituteModal(${item.id})" class="shrink-0 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer">
+                Ubah Pengganti
+              </button>
+            `}
+          </div>
+        `;
+      }).join('');
+
+      // Render Today's Duty Roster Card
+      const dutyContainer = document.getElementById('overview-duty-list');
+      dutyContainer.innerHTML = TODAY_PIKET_SLOTS.map(slot => {
+        const activeName = slot.overrideTeacher || slot.permanentTeacher;
+        const isOverridden = Boolean(slot.overrideTeacher);
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-full ${isOverridden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} font-heading font-bold text-xs flex items-center justify-center shrink-0">
+                ${getInitials(activeName)}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-slate-900 truncate">${activeName}</p>
+                <p class="text-[11px] text-slate-500 truncate">
+                  ${isOverridden ? `Menggantikan ${slot.permanentTeacher}` : slot.shiftLabel}
+                </p>
+              </div>
+            </div>
+            <span class="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${isOverridden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'}">
+              ${isOverridden ? 'Piket Pengganti' : 'Terjadwal'}
+            </span>
+          </div>
+        `;
+      }).join('');
+
+      // Render Weekly Bar Chart
+      const chartContainer = document.getElementById('weekly-chart-bars');
+      chartContainer.innerHTML = WEEKLY_ATTENDANCE.map((d, idx) => `
+        <div
+          onmouseenter="showWeeklyDetail(${idx})"
+          onclick="showWeeklyDetail(${idx})"
+          class="flex flex-col items-center justify-end h-full gap-1.5 group cursor-pointer"
+        >
+          <div class="w-full flex items-end justify-center gap-1 h-40">
+            <div class="w-3 sm:w-4 rounded-t-md bg-emerald-500 group-hover:bg-emerald-600 transition-all" style="height: ${d.guru}%" title="Guru: ${d.guru}%"></div>
+            <div class="w-3 sm:w-4 rounded-t-md bg-teal-300 group-hover:bg-teal-400 transition-all" style="height: ${d.siswa}%" title="Siswa: ${d.siswa}%"></div>
+          </div>
+          <span class="text-[11px] font-semibold text-slate-600 group-hover:text-emerald-700">${d.day.substring(0, 3)}</span>
+        </div>
+      `).join('');
+
+      // Render System Activity Log
+      const logContainer = document.getElementById('system-activity-log');
+      logContainer.innerHTML = ACTIVITY_LOGS.map(log => `
+        <div class="p-3 rounded-xl bg-white/90 border border-slate-200/70 flex items-start justify-between gap-3">
+          <div class="space-y-0.5">
+            <p class="text-xs font-semibold text-slate-900">${log.actor}</p>
+            <p class="text-xs text-slate-600 leading-relaxed">${log.action}</p>
+          </div>
+          <div class="text-right shrink-0 space-y-1">
+            <span class="block text-[10px] font-mono text-slate-400">${log.time}</span>
+            <span class="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold">
+              ${log.badge}
+            </span>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function showWeeklyDetail(idx) {
+      const item = WEEKLY_ATTENDANCE[idx];
+      if (!item) return;
+      const box = document.getElementById('weekly-chart-detail');
+      box.innerHTML = `
+        <span class="font-semibold text-slate-800">${item.day}: <span class="font-normal text-slate-600">${item.detail}</span></span>
+        <span class="font-bold text-emerald-700">Guru ${item.guru}% • Siswa ${item.siswa}%</span>
+      `;
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. VIEW 2: GURU & TUGAS TAMBAHAN (DYNAMIC RBAC)
+    // -----------------------------------------------------------------------
+    function renderGtkView() {
+      updateGtkFilterPills();
+      renderGtkTable();
+    }
+
+    function setGtkRoleFilter(role) {
+      gtkRoleFilter = role;
+      updateGtkFilterPills();
+      renderGtkTable();
+    }
+
+    function updateGtkFilterPills() {
+      document.querySelectorAll('.gtk-filter-pill').forEach(btn => {
+        const active = btn.getAttribute('data-gtk-filter') === gtkRoleFilter;
+        btn.className = active
+          ? 'gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-2xs transition-all cursor-pointer'
+          : 'gtk-filter-pill shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all cursor-pointer';
+      });
+    }
+
+    function getRoleBadgeColor(type) {
+      if (type.includes('Wali Kelas')) return 'bg-sky-50 text-sky-800 border-sky-200/80';
+      if (type.includes('Guru Piket')) return 'bg-amber-50 text-amber-800 border-amber-200/80';
+      if (type.includes('Bendahara') || type.includes('Tabungan')) return 'bg-purple-50 text-purple-800 border-purple-200/80';
+      if (type.includes('PPDB')) return 'bg-teal-50 text-teal-800 border-teal-200/80';
+      return 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
+    }
+
+    function renderGtkTable() {
+      const q = (document.getElementById('gtk-search')?.value || '').toLowerCase().trim();
+      const tbody = document.getElementById('gtk-table-body');
+
+      const filtered = GTK_LIST.filter(g => {
+        const matchRole = gtkRoleFilter === 'Semua' || g.roles.some(r => r.type === gtkRoleFilter);
+        const matchQuery = g.name.toLowerCase().includes(q) || g.nip.includes(q) || g.subject.toLowerCase().includes(q);
+        return matchRole && matchQuery;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-10 text-center text-xs text-slate-500">
+              Tidak ada data GTK yang sesuai dengan filter atau pencarian.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(teacher => {
+        const rolesHTML = teacher.roles.length > 0
+          ? teacher.roles.map(r => `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${getRoleBadgeColor(r.type)}">
+                ${r.type}${r.detail ? ` (${r.detail})` : ''}
+              </span>
+            `).join('')
+          : `<span class="text-xs text-slate-400 italic">Guru Mapel Reguler</span>`;
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3.5 px-4">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 font-heading font-bold text-xs flex items-center justify-center shrink-0">
+                  ${getInitials(teacher.name)}
+                </div>
+                <span class="font-semibold text-slate-900">${teacher.name}</span>
+              </div>
+            </td>
+            <td class="py-3.5 px-4 font-mono text-xs text-slate-500">${teacher.nip}</td>
+            <td class="py-3.5 px-4 text-xs font-medium text-slate-700">${teacher.subject}</td>
+            <td class="py-3.5 px-4">
+              <div class="flex flex-wrap gap-1.5">${rolesHTML}</div>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="openRoleModal(${teacher.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 hover:border-emerald-200 text-xs font-semibold transition-all cursor-pointer">
+                <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+                <span>Kelola Tugas</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openRoleModal(teacherId) {
+      selectedRoleTeacherId = teacherId || GTK_LIST[0].id;
+      const select = document.getElementById('role-teacher-select');
+      select.innerHTML = GTK_LIST.map(g => `
+        <option value="${g.id}" ${g.id === selectedRoleTeacherId ? 'selected' : ''}>${g.name} (${g.subject})</option>
+      `).join('');
+
+      renderRoleModalCurrentList();
+      handleRoleTypeCondition();
+      openModal('role-modal');
+    }
+
+    function onRoleTeacherChanged() {
+      selectedRoleTeacherId = Number(document.getElementById('role-teacher-select').value);
+      renderRoleModalCurrentList();
+    }
+
+    function renderRoleModalCurrentList() {
+      const teacher = GTK_LIST.find(g => g.id === selectedRoleTeacherId);
+      const container = document.getElementById('role-modal-current-list');
+      if (!teacher) return;
+
+      if (teacher.roles.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada tugas tambahan aktif untuk guru ini.</p>`;
+        return;
+      }
+
+      container.innerHTML = teacher.roles.map(r => `
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border ${getRoleBadgeColor(r.type)}">
+          <span>${r.type}${r.detail ? ` — ${r.detail}` : ''}</span>
+          <button type="button" onclick="removeAdditionalRole(${teacher.id}, ${r.id})" title="Hapus tugas tambahan" class="w-4 h-4 rounded-full bg-black/10 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+            ×
+          </button>
+        </span>
+      `).join('');
+    }
+
+    function handleRoleTypeCondition() {
+      const type = document.getElementById('new-role-type').value;
+      const classBox = document.getElementById('conditional-class-box');
+      const dayBox = document.getElementById('conditional-day-box');
+      const skBox = document.getElementById('conditional-sk-box');
+
+      classBox.classList.add('hidden');
+      dayBox.classList.add('hidden');
+      skBox.classList.add('hidden');
+
+      if (type === 'Wali Kelas') {
+        classBox.classList.remove('hidden');
+      } else if (type === 'Guru Piket') {
+        dayBox.classList.remove('hidden');
+      } else {
+        skBox.classList.remove('hidden');
+      }
+    }
+
+    function handleAddAdditionalRole(e) {
+      e.preventDefault();
+      const teacher = GTK_LIST.find(g => g.id === selectedRoleTeacherId);
+      if (!teacher) return;
+
+      const type = document.getElementById('new-role-type').value;
+      let detail = '';
+
+      if (type === 'Wali Kelas') {
+        detail = document.getElementById('new-role-class').value;
+      } else if (type === 'Guru Piket') {
+        detail = document.getElementById('new-role-day').value;
+      } else {
+        detail = document.getElementById('new-role-sk').value.trim() || 'TA 2026/2027';
+      }
+
+      teacher.roles.push({
+        id: Date.now(),
+        type,
+        detail
+      });
+
+      renderRoleModalCurrentList();
+      renderGtkTable();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Menambahkan tugas tambahan "${type} (${detail})" kepada ${teacher.name}.`, 'RBAC Update');
+      showToast(`Tugas "${type}" berhasil ditambahkan untuk ${teacher.name}.`);
+    }
+
+    function removeAdditionalRole(teacherId, roleId) {
+      const teacher = GTK_LIST.find(g => g.id === teacherId);
+      if (!teacher) return;
+
+      const removed = teacher.roles.find(r => r.id === roleId);
+      teacher.roles = teacher.roles.filter(r => r.id !== roleId);
+
+      renderRoleModalCurrentList();
+      renderGtkTable();
+      if (removed) {
+        prependActivityLog('Ahmad Fauzi, S.Pd.', `Mencabut tugas "${removed.type}" dari ${teacher.name}.`, 'RBAC Update');
+        showToast(`Tugas "${removed.type}" telah dihapus.`);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. VIEW 3: JADWAL & PENUNJUKAN PENGGANTI (INVAL & PIKET OVERRIDE)
+    // -----------------------------------------------------------------------
+    function setJadwalSubTab(tab) {
+      document.querySelectorAll('.jadwal-tab-btn').forEach(btn => {
+        const active = btn.getAttribute('data-jadwal-tab') === tab;
+        btn.className = active
+          ? 'jadwal-tab-btn px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-2xs transition-all cursor-pointer'
+          : 'jadwal-tab-btn px-4 py-2 rounded-xl text-xs font-medium bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all cursor-pointer';
+      });
+
+      const invalPanel = document.getElementById('panel-inval-mengajar');
+      const piketPanel = document.getElementById('panel-override-piket');
+
+      if (tab === 'all') {
+        invalPanel.classList.remove('hidden');
+        piketPanel.classList.remove('hidden');
+      } else if (tab === 'inval') {
+        invalPanel.classList.remove('hidden');
+        piketPanel.classList.add('hidden');
+      } else if (tab === 'piket') {
+        invalPanel.classList.add('hidden');
+        piketPanel.classList.remove('hidden');
+      }
+    }
+
+    function renderJadwalView() {
+      setJadwalSubTab('all');
+      renderInvalCards();
+      renderPiketOverrideCards();
+    }
+
+    function renderInvalCards() {
+      const container = document.getElementById('inval-cards-container');
+      const pill = document.getElementById('inval-summary-pill');
+      const pendingCount = INVAL_SCHEDULES.filter(s => s.status === 'pending').length;
+
+      pill.textContent = pendingCount > 0
+        ? `${pendingCount} Jadwal Menunggu Pengganti`
+        : 'Seluruh Jadwal Sudah Terisi Pengganti';
+      pill.className = pendingCount > 0
+        ? 'px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/80 text-xs font-semibold self-start sm:self-auto'
+        : 'px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-xs font-semibold self-start sm:self-auto';
+
+      container.innerHTML = INVAL_SCHEDULES.map(item => {
+        const isPending = item.status === 'pending';
+        return `
+          <div class="p-5 rounded-2xl bg-white border ${isPending ? 'border-amber-200/90' : 'border-emerald-200/90'} shadow-2xs flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-heading font-bold text-xs">
+                  Kelas ${item.classroom}
+                </span>
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${isPending ? 'bg-rose-50 text-rose-700 border border-rose-200/70' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'}">
+                  ${isPending ? `Berhalangan (${item.reason})` : 'Sudah Digantikan'}
+                </span>
+              </div>
+
+              <div>
+                <h3 class="font-heading font-bold text-base text-slate-900">${item.subject}</h3>
+                <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-600"></i>
+                  <span>${item.timeSlot}</span>
+                </p>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs space-y-1">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Guru Pengampu Asli</span>
+                <span class="font-semibold text-slate-800">${item.absentTeacher}</span>
+              </div>
+
+              ${!isPending ? `
+                <div class="p-3 rounded-xl bg-emerald-50/90 border border-emerald-200/80 text-xs space-y-1">
+                  <span class="text-emerald-700 font-bold flex items-center gap-1">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    Digantikan oleh ${item.substituteTeacher}
+                  </span>
+                  ${item.note ? `<p class="text-[11px] text-emerald-900/80 italic">"${item.note}"</p>` : ''}
+                </div>
+              ` : ''}
+            </div>
+
+            <button onclick="openSubstituteModal(${item.id})" class="w-full py-2.5 px-4 rounded-xl ${isPending ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'} text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer">
+              <i data-lucide="${isPending ? 'user-plus' : 'refresh-cw'}" class="w-3.5 h-3.5"></i>
+              <span>${isPending ? 'Tunjuk Pengganti' : 'Ganti Guru Pengganti'}</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openSubstituteModal(invalId) {
+      selectedInvalId = invalId;
+      const item = INVAL_SCHEDULES.find(s => s.id === invalId);
+      if (!item) return;
+
+      // Default select first candidate or currently assigned
+      const preselected = item.candidates.find(c => c.name === item.substituteTeacher) || item.candidates[0];
+      selectedCandidateTeacherId = preselected ? preselected.id : null;
+
+      document.getElementById('sub-modal-context').innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="font-bold text-amber-900 text-sm">Kelas ${item.classroom} — ${item.subject}</span>
+          <span class="font-mono text-xs text-amber-800">${item.timeSlot}</span>
+        </div>
+        <p class="text-amber-800 mt-1">
+          Guru Asli: <strong>${item.absentTeacher}</strong> (Status: <strong>${item.reason}</strong>)
+        </p>
+      `;
+
+      document.getElementById('sub-modal-note').value = item.note || '';
+      renderSubstituteCandidates(item);
+      openModal('substitute-modal');
+    }
+
+    function renderSubstituteCandidates(item) {
+      const container = document.getElementById('sub-modal-candidates');
+      container.innerHTML = item.candidates.map(cand => {
+        const isSelected = cand.id === selectedCandidateTeacherId;
+        return `
+          <div
+            onclick="selectCandidateTeacher(${cand.id})"
+            class="p-3.5 rounded-2xl border-2 ${isSelected ? 'border-emerald-600 bg-emerald-50/60' : 'border-slate-200/80 bg-white hover:border-emerald-300'} flex items-center justify-between gap-3 cursor-pointer transition-all"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-full ${isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'} font-heading font-bold text-xs flex items-center justify-center shrink-0">
+                ${getInitials(cand.name)}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs sm:text-sm font-bold text-slate-900 truncate">${cand.name}</p>
+                <p class="text-[11px] text-slate-500">Mapel: ${cand.subject} • Beban: ${cand.load}</p>
+              </div>
+            </div>
+
+            <div class="text-right shrink-0">
+              <span class="inline-block px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-semibold">
+                ${cand.match}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectCandidateTeacher(candId) {
+      selectedCandidateTeacherId = candId;
+      const item = INVAL_SCHEDULES.find(s => s.id === selectedInvalId);
+      if (item) renderSubstituteCandidates(item);
+    }
+
+    function confirmSubstituteTeacher() {
+      const item = INVAL_SCHEDULES.find(s => s.id === selectedInvalId);
+      if (!item) return;
+
+      const chosen = item.candidates.find(c => c.id === selectedCandidateTeacherId);
+      if (!chosen) return;
+
+      item.status = 'assigned';
+      item.substituteTeacher = chosen.name;
+      item.note = document.getElementById('sub-modal-note').value.trim();
+
+      closeModal('substitute-modal');
+      renderInvalCards();
+      renderOverview();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Menunjuk ${chosen.name} sebagai guru pengganti Kelas ${item.classroom} (${item.subject}).`, 'Inval Mengajar');
+      showToast(`Jadwal Kelas ${item.classroom} berhasil digantikan oleh ${chosen.name}.`);
+    }
+
+    // Duty Roster Override (Piket Pengganti)
+    function renderPiketOverrideCards() {
+      const container = document.getElementById('piket-override-container');
+      container.innerHTML = TODAY_PIKET_SLOTS.map(slot => {
+        const isOverridden = Boolean(slot.overrideTeacher);
+        return `
+          <div class="p-5 rounded-2xl bg-white border ${isOverridden ? 'border-amber-300' : 'border-slate-200/80'} shadow-2xs flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500">${slot.shiftLabel}</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${isOverridden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700'}">
+                  ${isOverridden ? 'Override Hari Ini Aktif' : 'Jadwal Permanen'}
+                </span>
+              </div>
+
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-2xl ${isOverridden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} font-heading font-bold text-sm flex items-center justify-center shrink-0">
+                  ${getInitials(isOverridden ? slot.overrideTeacher : slot.permanentTeacher)}
+                </div>
+                <div>
+                  <h3 class="font-heading font-bold text-base text-slate-900">
+                    ${isOverridden ? slot.overrideTeacher : slot.permanentTeacher}
+                  </h3>
+                  <p class="text-xs text-slate-500">
+                    ${isOverridden
+                      ? `Menggantikan petugas tetap: <strong>${slot.permanentTeacher}</strong> (${slot.overrideReason})`
+                      : 'Petugas piket reguler hari Sabtu'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="openPiketOverrideModal(${slot.slotId})" class="flex-1 py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer">
+                <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
+                <span>Tunjuk Piket Pengganti</span>
+              </button>
+              ${isOverridden ? `
+                <button onclick="resetPiketOverride(${slot.slotId})" class="py-2.5 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">
+                  Kembalikan
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openPiketOverrideModal(slotId) {
+      selectedPiketSlotId = slotId;
+      const slot = TODAY_PIKET_SLOTS.find(s => s.slotId === slotId);
+      if (!slot) return;
+
+      document.getElementById('piket-override-context').innerHTML = `
+        Mengganti petugas piket tetap: <strong>${slot.permanentTeacher}</strong> (${slot.shiftLabel}) khusus pada tanggal <strong>Sabtu, 14 November 2026</strong>.
+      `;
+
+      const select = document.getElementById('piket-replacement-select');
+      const eligible = GTK_LIST.filter(g => g.name !== slot.permanentTeacher);
+      select.innerHTML = eligible.map(g => `<option value="${g.name}">${g.name} (${g.subject})</option>`).join('');
+
+      openModal('piket-override-modal');
+    }
+
+    function confirmPiketOverride(e) {
+      e.preventDefault();
+      const slot = TODAY_PIKET_SLOTS.find(s => s.slotId === selectedPiketSlotId);
+      if (!slot) return;
+
+      const replacementName = document.getElementById('piket-replacement-select').value;
+      const reason = document.getElementById('piket-override-reason').value;
+
+      slot.overrideTeacher = replacementName;
+      slot.overrideReason = reason;
+
+      closeModal('piket-override-modal');
+      renderPiketOverrideCards();
+      renderOverview();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Menunjuk ${replacementName} sebagai Piket Pengganti (menggantikan ${slot.permanentTeacher}).`, 'Override Piket');
+      showToast(`Piket pengganti hari ini ditetapkan ke ${replacementName}.`);
+    }
+
+    function resetPiketOverride(slotId) {
+      const slot = TODAY_PIKET_SLOTS.find(s => s.slotId === slotId);
+      if (!slot) return;
+      slot.overrideTeacher = null;
+      slot.overrideReason = null;
+      renderPiketOverrideCards();
+      renderOverview();
+      showToast(`Jadwal piket dikembalikan ke ${slot.permanentTeacher}.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 7. VIEW 4: BUKU INDUK SISWA DIGITAL
+    // -----------------------------------------------------------------------
+    function renderStudentsTable() {
+      const q = (document.getElementById('student-search')?.value || '').toLowerCase().trim();
+      const rombel = document.getElementById('student-rombel-filter')?.value || 'Semua';
+      const status = document.getElementById('student-status-filter')?.value || 'Semua';
+      const tbody = document.getElementById('students-table-body');
+
+      const filtered = STUDENTS_LIST.filter(s => {
+        const matchQ = s.name.toLowerCase().includes(q) || s.nis.includes(q) || s.nisn.includes(q);
+        const matchRombel = rombel === 'Semua' || s.rombel === rombel;
+        const matchStatus = status === 'Semua' || s.status === status;
+        return matchQ && matchRombel && matchStatus;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-xs text-slate-500">Tidak ada data siswa yang cocok dengan filter.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(stu => {
+        const docBadge = (label, ok) => `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70' : 'bg-amber-50 text-amber-700 border border-amber-200/70'}">
+            ${ok ? '✓' : '!'} ${label}
+          </span>
+        `;
+
+        const statusClass = stu.status === 'Aktif'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+          : stu.status === 'Lulus'
+            ? 'bg-sky-50 text-sky-700 border-sky-200/80'
+            : 'bg-slate-100 text-slate-700 border-slate-200';
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3.5 px-4 font-mono text-xs text-slate-600">
+              <span class="font-bold text-slate-900">${stu.nis}</span><br/>
+              <span class="text-[11px] text-slate-400">NISN: ${stu.nisn}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <p class="font-semibold text-slate-900">${stu.name}</p>
+              <p class="text-[11px] text-slate-500">Wali: ${stu.parentName}</p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold text-xs">${stu.rombel}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex flex-wrap gap-1">
+                ${docBadge('KK', stu.docs.kk)}
+                ${docBadge('Akta', stu.docs.akta)}
+                ${docBadge('Ijazah', stu.docs.ijazah)}
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${statusClass}">${stu.status}</span>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="openStudentDetailModal(${stu.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-slate-200 hover:border-emerald-200 text-xs font-semibold transition-all cursor-pointer">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                <span>Detail &amp; R2</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openStudentDetailModal(studentId) {
+      const stu = STUDENTS_LIST.find(s => s.id === studentId);
+      if (!stu) return;
+
+      const renderR2FileCard = (title, fileName, available) => `
+        <div class="p-3.5 rounded-2xl border ${available ? 'border-emerald-200/80 bg-emerald-50/40' : 'border-amber-200/80 bg-amber-50/40'} flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-xl ${available ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center shrink-0">
+              <i data-lucide="file-text" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-900">${title}</p>
+              <p class="text-[11px] font-mono text-slate-500 truncate">${available ? `r2://buku-induk/${stu.nisn}/${fileName}` : 'Belum diunggah ke Cloudflare R2'}</p>
+            </div>
+          </div>
+          <button onclick="showToast('${available ? `Membuka pratinjau ${fileName} dari Cloudflare R2...` : `Silakan unggah berkas ${title} melalui Presigned URL R2.`}')" class="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:text-emerald-700 cursor-pointer">
+            ${available ? 'Lihat PDF' : 'Unggah'}
+          </button>
+        </div>
+      `;
+
+      document.getElementById('student-detail-body').innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
+          <div><span class="text-slate-400 block">Nama Peserta Didik</span><strong class="text-slate-900 text-sm">${stu.name}</strong></div>
+          <div><span class="text-slate-400 block">NIS / NISN</span><strong class="text-slate-900 font-mono">${stu.nis} / ${stu.nisn}</strong></div>
+          <div><span class="text-slate-400 block">Rombongan Belajar</span><strong class="text-slate-900">${stu.rombel} (Wali: ${stu.waliKelas})</strong></div>
+          <div><span class="text-slate-400 block">Orang Tua / Wali</span><strong class="text-slate-900">${stu.parentName}</strong></div>
+        </div>
+
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Arsip Dokumen Cloudflare R2</h4>
+          ${renderR2FileCard('Kartu Keluarga (KK)', 'kartu-keluarga.pdf', stu.docs.kk)}
+          ${renderR2FileCard('Akta Kelahiran', 'akta-kelahiran.pdf', stu.docs.akta)}
+          ${renderR2FileCard('Ijazah / SKL MI-SD Asal', 'ijazah-asal.pdf', stu.docs.ijazah)}
+        </div>
+      `;
+
+      openModal('student-detail-modal');
+      lucide.createIcons();
+    }
+
+    function openAddStudentModal() {
+      openModal('add-student-modal');
+    }
+
+    function handleAddStudentSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-stu-name').value.trim();
+      const nis = document.getElementById('new-stu-nis').value.trim();
+      const nisn = document.getElementById('new-stu-nisn').value.trim();
+      const rombel = document.getElementById('new-stu-rombel').value;
+      const gender = document.getElementById('new-stu-gender').value;
+      const parentName = document.getElementById('new-stu-parent').value.trim();
+
+      STUDENTS_LIST.unshift({
+        id: Date.now(),
+        nis,
+        nisn,
+        name,
+        gender,
+        rombel,
+        waliKelas: 'Wali Kelas ' + rombel,
+        parentName,
+        status: 'Aktif',
+        docs: {
+          kk: document.getElementById('new-stu-doc-kk').checked,
+          akta: document.getElementById('new-stu-doc-akta').checked,
+          ijazah: document.getElementById('new-stu-doc-ijazah').checked
+        }
+      });
+
+      // Increment KPI Active Student counter
+      const kpiEl = document.getElementById('kpi-total-siswa');
+      kpiEl.textContent = Number(kpiEl.textContent) + 1;
+
+      e.target.reset();
+      closeModal('add-student-modal');
+      renderStudentsTable();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Menambahkan siswa baru "${name}" (${rombel}) ke Buku Induk.`, 'Buku Induk');
+      showToast(`Siswa "${name}" berhasil ditambahkan ke Buku Induk.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 8. VIEW 5: PPDB ONLINE (VERIFIKASI & MIGRASI 1-KLIK)
+    // -----------------------------------------------------------------------
+    function renderPpdbTable() {
+      const filter = document.getElementById('ppdb-status-filter')?.value || 'Semua';
+      const tbody = document.getElementById('ppdb-table-body');
+
+      const filtered = PPDB_APPLICANTS.filter(app => filter === 'Semua' || app.status === filter);
+
+      tbody.innerHTML = filtered.map(app => {
+        let badgeStyle = 'bg-amber-50 text-amber-800 border-amber-200/80';
+        if (app.status === 'Terverifikasi') badgeStyle = 'bg-sky-50 text-sky-800 border-sky-200/80';
+        if (app.status === 'Diterima') badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
+        if (app.status === 'Sudah Dimigrasi') badgeStyle = 'bg-teal-600 text-white border-teal-600';
+
+        let actionButtons = `
+          <button onclick="openPpdbDocModal(${app.id})" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold cursor-pointer">
+            Periksa Berkas R2
+          </button>
+        `;
+
+        if (app.status === 'Menunggu Verifikasi' || app.status === 'Terverifikasi') {
+          actionButtons += `
+            <button onclick="acceptPpdbApplicant(${app.id})" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">
+              Verifikasi &amp; Terima
+            </button>
+          `;
+        } else if (app.status === 'Diterima') {
+          actionButtons += `
+            <button onclick="migratePpdbToBukuInduk(${app.id})" class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-2xs cursor-pointer">
+              Migrasi ke Buku Induk
+            </button>
+          `;
+        } else if (app.status === 'Sudah Dimigrasi') {
+          actionButtons += `
+            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-mono text-[11px] font-bold">
+              NIS: ${app.migratedNis}
+            </span>
+          `;
+        }
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3.5 px-4 font-mono text-xs">
+              <span class="font-bold text-slate-900">${app.regNo}</span><br/>
+              <span class="text-[11px] text-slate-400">NISN: ${app.nisn}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <p class="font-semibold text-slate-900">${app.name}</p>
+              <p class="text-[11px] text-slate-500">Asal: ${app.originSchool}</p>
+            </td>
+            <td class="py-3.5 px-4 text-xs font-medium text-slate-700">${app.track}</td>
+            <td class="py-3.5 px-4">
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">
+                <i data-lucide="cloud" class="w-3 h-3 text-emerald-600"></i>
+                ${app.docsStatus}
+              </span>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${badgeStyle}">${app.status}</span>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+                ${actionButtons}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openPpdbDocModal(appId) {
+      const app = PPDB_APPLICANTS.find(a => a.id === appId);
+      if (!app) return;
+
+      document.getElementById('ppdb-doc-body').innerHTML = `
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
+          <p class="font-heading font-bold text-sm text-slate-900">${app.name} (${app.regNo})</p>
+          <p class="text-slate-600">Asal Sekolah: <strong>${app.originSchool}</strong> • Jalur: <strong>${app.track}</strong></p>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <div class="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+            <span>1. Scan Kartu Keluarga (KK).pdf</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">Valid • R2 Verified</span>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+            <span>2. Scan Akta Kelahiran.pdf</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">Valid • R2 Verified</span>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+            <span>3. Surat Keterangan Aktif / Rapor MI-SD.pdf</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">Valid • R2 Verified</span>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button onclick="closeModal('ppdb-doc-modal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">Tutup</button>
+          ${app.status !== 'Diterima' && app.status !== 'Sudah Dimigrasi' ? `
+            <button onclick="acceptPpdbApplicant(${app.id}); closeModal('ppdb-doc-modal');" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold cursor-pointer">
+              Verifikasi &amp; Terima Sekarang
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      openModal('ppdb-doc-modal');
+    }
+
+    function acceptPpdbApplicant(appId) {
+      const app = PPDB_APPLICANTS.find(a => a.id === appId);
+      if (!app) return;
+      app.status = 'Diterima';
+      app.docsStatus = 'Terverifikasi (R2)';
+      renderPpdbTable();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Memverifikasi berkas & menyatakan DITERIMA pendaftar PPDB "${app.name}".`, 'PPDB Online');
+      showToast(`Pendaftar "${app.name}" telah diverifikasi dan dinyatakan Diterima.`);
+    }
+
+    function migratePpdbToBukuInduk(appId) {
+      const app = PPDB_APPLICANTS.find(a => a.id === appId);
+      if (!app || app.status === 'Sudah Dimigrasi') return;
+
+      const generatedNis = '262707' + String(Math.floor(100 + Math.random() * 899));
+      app.status = 'Sudah Dimigrasi';
+      app.migratedNis = generatedNis;
+
+      // Automatically insert into Buku Induk Siswa
+      STUDENTS_LIST.unshift({
+        id: Date.now(),
+        nis: generatedNis,
+        nisn: app.nisn,
+        name: app.name,
+        gender: app.gender,
+        rombel: 'VII-A',
+        waliKelas: 'Fitriani Rahmawati, S.E.',
+        parentName: app.parentName,
+        status: 'Aktif',
+        docs: { kk: true, akta: true, ijazah: true }
+      });
+
+      // Increment KPI Total Siswa Aktif
+      const kpiEl = document.getElementById('kpi-total-siswa');
+      kpiEl.textContent = Number(kpiEl.textContent) + 1;
+
+      renderPpdbTable();
+      renderStudentsTable();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Migrasi 1-Klik "${app.name}" dari PPDB ke Buku Induk (NIS: ${generatedNis}).`, 'Migrasi Buku Induk');
+      showToast(`Berhasil! "${app.name}" dimigrasi ke Buku Induk dengan NIS ${generatedNis}.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 9. VIEW 6: CMS HALAMAN PUBLIK
+    // -----------------------------------------------------------------------
+    function renderCmsTable() {
+      const tbody = document.getElementById('cms-table-body');
+      tbody.innerHTML = CMS_POSTS.map(post => {
+        const isPublished = post.status === 'Published';
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3.5 px-4 max-w-md">
+              <p class="font-semibold text-slate-900 line-clamp-1">${post.title}</p>
+              <p class="text-xs text-slate-500 line-clamp-1 mt-0.5">${post.excerpt}</p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">${post.category}</span>
+            </td>
+            <td class="py-3.5 px-4 text-xs text-slate-600">
+              <span class="font-medium text-slate-800">${post.date}</span><br/>
+              <span class="text-[11px] text-slate-400">Oleh: ${post.author}</span>
+            </td>
+            <td class="py-3.5 px-4 font-mono text-[11px] text-emerald-700">
+              r2://${post.thumb}
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${isPublished ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-amber-50 text-amber-800 border border-amber-200/80'}">
+                ${post.status}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <div class="inline-flex items-center gap-1.5">
+                <button onclick="toggleCmsPostStatus(${post.id})" class="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer">
+                  ${isPublished ? 'Jadikan Draft' : 'Publikasikan'}
+                </button>
+                <button onclick="deleteCmsPost(${post.id})" aria-label="Hapus Artikel" class="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors cursor-pointer">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openCreatePostModal() {
+      uploadedCmsThumbUrl = '';
+      document.getElementById('cms-r2-upload-text').textContent = 'Klik untuk simulasi unggah thumbnail ke bucket R2';
+      document.getElementById('cms-r2-upload-sub').textContent = 'Format: WebP / JPG / PNG • Maks 2 MB';
+      openModal('cms-create-modal');
+    }
+
+    function simulateR2ThumbnailUpload() {
+      const sampleFile = `berita-madrasah-${Math.floor(100 + Math.random() * 900)}.webp`;
+      uploadedCmsThumbUrl = sampleFile;
+      document.getElementById('cms-r2-upload-text').innerHTML = `<span class="text-emerald-700">✓ Berhasil diunggah ke R2: ${sampleFile}</span>`;
+      document.getElementById('cms-r2-upload-sub').textContent = 'Presigned PUT 200 OK • Tersimpan di Cloudflare R2';
+      showToast('Thumbnail berhasil diunggah ke Cloudflare R2.');
+    }
+
+    function handleCreateCmsPost(e) {
+      e.preventDefault();
+      const title = document.getElementById('cms-new-title').value.trim();
+      const category = document.getElementById('cms-new-category').value;
+      const status = document.getElementById('cms-new-status').value;
+      const excerpt = document.getElementById('cms-new-excerpt').value.trim();
+      const thumb = uploadedCmsThumbUrl || 'default-madrasah.webp';
+
+      CMS_POSTS.unshift({
+        id: Date.now(),
+        title,
+        category,
+        date: '14 Nov 2026',
+        author: 'Ahmad Fauzi, S.Pd.',
+        thumb,
+        status,
+        excerpt
+      });
+
+      e.target.reset();
+      closeModal('cms-create-modal');
+      renderCmsTable();
+      prependActivityLog('Ahmad Fauzi, S.Pd.', `Membuat konten CMS "${title}" (${status}).`, 'CMS Publik');
+      showToast(`Konten "${title}" berhasil disimpan (${status}).`);
+    }
+
+    function toggleCmsPostStatus(postId) {
+      const post = CMS_POSTS.find(p => p.id === postId);
+      if (!post) return;
+      post.status = post.status === 'Published' ? 'Draft' : 'Published';
+      renderCmsTable();
+      showToast(`Status artikel diubah menjadi "${post.status}".`);
+    }
+
+    function deleteCmsPost(postId) {
+      const post = CMS_POSTS.find(p => p.id === postId);
+      CMS_POSTS = CMS_POSTS.filter(p => p.id !== postId);
+      renderCmsTable();
+      if (post) {
+        showToast(`Artikel "${post.title}" telah dihapus.`);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 10. PRATINJAU SINKRONISASI HALAMAN PUBLIK
+    // -----------------------------------------------------------------------
+    function openPublicPreviewModal() {
+      const publishedPosts = CMS_POSTS.filter(p => p.status === 'Published');
+      const activePiketNames = TODAY_PIKET_SLOTS.map(s => s.overrideTeacher || s.permanentTeacher);
+
+      document.getElementById('public-preview-content').innerHTML = `
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 space-y-2">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Widget Info Piket Hari Ini (Halaman Beranda Publik)</span>
+          <p class="text-xs text-slate-700">Petugas Piket Aktif Sabtu, 14 November 2026:</p>
+          <div class="flex flex-wrap gap-2 pt-1">
+            ${activePiketNames.map(name => `
+              <span class="px-3 py-1 rounded-xl bg-white border border-emerald-200 text-xs font-bold text-slate-900">
+                ${name}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Berita Tayang di Portal Publik (${publishedPosts.length} Artikel)</span>
+          ${publishedPosts.map(p => `
+            <div class="p-3.5 rounded-xl bg-white border border-slate-200/80">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                <span class="font-semibold text-emerald-700">${p.category}</span>
+                <span>${p.date}</span>
+              </div>
+              <p class="text-xs font-bold text-slate-900">${p.title}</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      openModal('public-preview-modal');
+    }
+
+    // -----------------------------------------------------------------------
+    // 11. HELPER UTILITIES (MODAL, TOAST, AUDIT LOG, INITIALS)
+    // -----------------------------------------------------------------------
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    function prependActivityLog(actor, action, badge) {
+      ACTIVITY_LOGS.unshift({
+        time: 'Baru saja',
+        actor,
+        action,
+        badge
+      });
+      if (activeView === 'overview') {
+        renderOverview();
+      }
+    }
+
+    function getInitials(fullName) {
+      const cleaned = fullName
+        .replace(/^(Dr\.|Dra\.|H\.|Hj\.|Ust\.|M\.)\s+/gi, '')
+        .split(',')[0]
+        .trim();
+      const parts = cleaned.split(' ');
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-medium shadow-xl border border-slate-700/80 transition-all duration-300';
+      toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(6px)';
+        setTimeout(() => toast.remove(), 250);
+      }, 3400);
+    }
+
+    // Close any open modal on Escape key or backdrop click
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ['role-modal', 'substitute-modal', 'piket-override-modal', 'student-detail-modal', 'add-student-modal', 'ppdb-doc-modal', 'cms-create-modal', 'public-preview-modal'].forEach(closeModal);
+      }
+    });
+
+    ['role-modal', 'substitute-modal', 'piket-override-modal', 'student-detail-modal', 'add-student-modal', 'ppdb-doc-modal', 'cms-create-modal', 'public-preview-modal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('click', (e) => {
+          if (e.target === el) closeModal(id);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

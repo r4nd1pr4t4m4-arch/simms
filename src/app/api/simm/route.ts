@@ -1,0 +1,295 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(req: NextRequest) {
+  try {
+    const resource = req.nextUrl.searchParams.get("resource") || "summary";
+
+    if (resource === "summary") {
+      const [teachers, students, ppdb, cmsPosts, serviceRequests, mailAgenda] =
+        await Promise.all([
+          prisma.teacherProfile.findMany({
+            include: { user: true, roles: true },
+            orderBy: { nip: "asc" },
+          }),
+          prisma.student.findMany({
+            orderBy: { nis: "asc" },
+          }),
+          prisma.ppdbApplicant.findMany({
+            orderBy: { regNo: "desc" },
+          }),
+          prisma.cmsPost.findMany({
+            orderBy: { createdAt: "desc" },
+          }),
+          prisma.serviceRequest.findMany({
+            orderBy: { createdAt: "desc" },
+          }),
+          prisma.mailAgenda.findMany({
+            orderBy: { createdAt: "desc" },
+          }),
+        ]);
+
+      return NextResponse.json({
+        ok: true,
+        teachers,
+        students,
+        ppdb,
+        cmsPosts,
+        serviceRequests,
+        mailAgenda,
+      });
+    }
+
+    if (resource === "nisn") {
+      const nisn = req.nextUrl.searchParams.get("nisn") || "";
+      const student = await prisma.student.findUnique({
+        where: { nisn },
+      });
+      return NextResponse.json({ ok: true, student });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Database query gagal" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { action, payload } = body;
+
+    switch (action) {
+      // 1. Tambah Tugas Tambahan GTK (Dynamic RBAC)
+      case "ADD_GTK_ROLE": {
+        const { nip, type, detail, skNumber } = payload;
+        const teacher = await prisma.teacherProfile.findUnique({ where: { nip } });
+        if (!teacher) {
+          return NextResponse.json({ ok: false, error: "GTK tidak ditemukan" }, { status: 404 });
+        }
+        const created = await prisma.teacherAdditionalRole.create({
+          data: {
+            teacherId: teacher.id,
+            type,
+            detail,
+            skNumber: skNumber || "SK-024/MTs.NF/2026",
+          },
+        });
+        return NextResponse.json({ ok: true, data: created });
+      }
+
+      // 2. Hapus Tugas Tambahan GTK
+      case "REMOVE_GTK_ROLE": {
+        const { roleId } = payload;
+        await prisma.teacherAdditionalRole.delete({
+          where: { id: String(roleId) },
+        }).catch(() => null);
+        return NextResponse.json({ ok: true });
+      }
+
+      // 3. Tambah Siswa Baru ke Buku Induk
+      case "CREATE_STUDENT": {
+        const created = await prisma.student.create({
+          data: {
+            nis: payload.nis,
+            nisn: payload.nisn,
+            nik: payload.nik || "3204120000000001",
+            name: payload.name,
+            ttl: payload.ttl || "Bandung, 01 Januari 2013",
+            gender: payload.gender || "Laki-laki",
+            fatherName: payload.fatherName || "-",
+            motherName: payload.motherName || "-",
+            address: payload.address || "Kota Bandung",
+            prevSchool: payload.prevSchool || "SD/MI Asal",
+            rombel: payload.rombel || "VII-A",
+            waliKelas: payload.waliKelas || "Fitriani Rahmawati, S.E.",
+            status: payload.status || "Aktif",
+            academicHistory: `2026/2027: Kelas ${payload.rombel || "VII-A"}`,
+            r2KkUrl: payload.r2KkUrl || null,
+            r2AktaUrl: payload.r2AktaUrl || null,
+            r2IjazahUrl: payload.r2IjazahUrl || null,
+            r2FotoUrl: payload.r2FotoUrl || null,
+          },
+        });
+        return NextResponse.json({ ok: true, data: created });
+      }
+
+      // 4. Kenaikan Kelas Massal (Batch Promotion)
+      case "BATCH_PROMOTE_STUDENTS": {
+        const { fromRombel, toRombel } = payload;
+        const students = await prisma.student.findMany({
+          where: { rombel: fromRombel, status: "Aktif" },
+        });
+        const isGraduating = toRombel === "LULUS_ALUMNI";
+        for (const s of students) {
+          await prisma.student.update({
+            where: { id: s.id },
+            data: {
+              rombel: isGraduating ? s.rombel : toRombel,
+              status: isGraduating ? "Lulus / Alumni" : "Aktif",
+              academicHistory: isGraduating
+                ? `${s.academicHistory} • Lulus Tahun 2027`
+                : `${s.academicHistory} • Naik ke ${toRombel}`,
+            },
+          });
+        }
+        return NextResponse.json({ ok: true, count: students.length });
+      }
+
+      // 5. Pendaftaran PPDB Online Baru
+      case "SUBMIT_PPDB": {
+        const created = await prisma.ppdbApplicant.upsert({
+          where: { nisn: payload.nisn },
+          update: {
+            fullName: payload.fullName,
+            track: payload.track,
+            docKkUrl: payload.docKkUrl,
+            docAktaUrl: payload.docAktaUrl,
+            docSklUrl: payload.docSklUrl,
+            docFotoUrl: payload.docFotoUrl,
+            docExtraUrl: payload.docExtraUrl,
+          },
+          create: {
+            regNo: payload.regNo,
+            submittedAt: payload.submittedAt || "Hari Ini, Baru Saja",
+            track: payload.track || "REGULER",
+            fullName: payload.fullName,
+            nisn: payload.nisn,
+            nik: payload.nik,
+            birthPlace: payload.birthPlace || "Bandung",
+            birthDate: payload.birthDate || "2014-01-01",
+            gender: payload.gender || "LAKI-LAKI",
+            previousSchool: payload.previousSchool || "SD/MI Asal",
+            avgScore: payload.avgScore || "88.00",
+            fatherName: payload.fatherName || "-",
+            motherName: payload.motherName || "-",
+            parentPhone: payload.parentPhone || "-",
+            parentOccupation: payload.parentOccupation || "-",
+            address: payload.address || "-",
+            status: "MENUNGGU_VERIFIKASI",
+            docKkUrl: payload.docKkUrl || null,
+            docAktaUrl: payload.docAktaUrl || null,
+            docSklUrl: payload.docSklUrl || null,
+            docFotoUrl: payload.docFotoUrl || null,
+            docExtraName: payload.docExtraName || null,
+            docExtraUrl: payload.docExtraUrl || null,
+          },
+        });
+        return NextResponse.json({ ok: true, data: created });
+      }
+
+      // 6. Input Nilai Seleksi & Update Status PPDB (Panitia PPDB / Admin)
+      case "UPDATE_PPDB_SCORE_STATUS": {
+        const { regNo, scoreBtq, scoreAcademic, scoreInterview, status, verificationNotes, targetClassroom } = payload;
+        const btq = Number(scoreBtq ?? 0);
+        const acad = Number(scoreAcademic ?? 0);
+        const intv = Number(scoreInterview ?? 0);
+        const finalScore = Number(((btq * 0.4) + (acad * 0.35) + (intv * 0.25)).toFixed(2));
+
+        const updated = await prisma.ppdbApplicant.update({
+          where: { regNo },
+          data: {
+            ...(scoreBtq !== undefined ? { scoreBtq: btq, scoreAcademic: acad, scoreInterview: intv, finalScore } : {}),
+            ...(status ? { status } : {}),
+            ...(verificationNotes ? { verificationNotes } : {}),
+            ...(targetClassroom ? { targetClassroom } : {}),
+          },
+        });
+        return NextResponse.json({ ok: true, data: updated });
+      }
+
+      // 7. One-Click Migration PPDB ke Buku Induk Siswa
+      case "MIGRATE_PPDB_TO_BUKU_INDUK": {
+        const { regNo, issuedNis, targetRombel } = payload;
+        const app = await prisma.ppdbApplicant.findUnique({ where: { regNo } });
+        if (!app) {
+          return NextResponse.json({ ok: false, error: "Pendaftar tidak ditemukan" }, { status: 404 });
+        }
+
+        const nisFinal = issuedNis || `262707${Math.floor(100 + Math.random() * 899)}`;
+        const rombelFinal = targetRombel || app.targetClassroom || "VII-A";
+
+        const student = await prisma.student.upsert({
+          where: { nisn: app.nisn },
+          update: {
+            rombel: rombelFinal,
+            status: "Aktif",
+          },
+          create: {
+            nis: nisFinal,
+            nisn: app.nisn,
+            nik: app.nik,
+            name: app.fullName,
+            ttl: `${app.birthPlace}, ${app.birthDate}`,
+            gender: app.gender === "PEREMPUAN" ? "Perempuan" : "Laki-laki",
+            fatherName: app.fatherName,
+            motherName: app.motherName,
+            parentPhone: app.parentPhone,
+            address: app.address,
+            prevSchool: app.previousSchool,
+            rombel: rombelFinal,
+            waliKelas: "Fitriani Rahmawati, S.E.",
+            status: "Aktif",
+            academicHistory: `2026/2027: Kelas ${rombelFinal} (Migrasi Otomatis PPDB ${app.regNo})`,
+            r2KkUrl: app.docKkUrl,
+            r2KkUpdated: "Baru Saja (Migrasi PPDB)",
+            r2AktaUrl: app.docAktaUrl,
+            r2AktaUpdated: "Baru Saja (Migrasi PPDB)",
+            r2IjazahUrl: app.docSklUrl,
+            r2IjazahUpdated: "Baru Saja (Migrasi PPDB)",
+            r2FotoUrl: app.docFotoUrl,
+            r2FotoUpdated: "Baru Saja (Migrasi PPDB)",
+          },
+        });
+
+        await prisma.ppdbApplicant.update({
+          where: { regNo },
+          data: {
+            status: "SUDAH_MIGRASI",
+            nisIssued: nisFinal,
+          },
+        });
+
+        return NextResponse.json({ ok: true, student });
+      }
+
+      // 8. Buat / Toggle Artikel CMS Halaman Publik
+      case "CREATE_CMS_POST": {
+        const slug =
+          (payload.title || "berita")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") +
+          "-" +
+          Date.now().toString().slice(-4);
+
+        const created = await prisma.cmsPost.create({
+          data: {
+            title: payload.title,
+            slug,
+            category: payload.category || "Pengumuman",
+            excerpt: payload.excerpt || "",
+            content: payload.content || payload.excerpt || "",
+            author: payload.author || "Admin Humas",
+            dateLabel: payload.dateLabel || "15 Nov 2026",
+            r2ThumbUrl: payload.r2ThumbUrl || null,
+            status: payload.status || "Published",
+          },
+        });
+        return NextResponse.json({ ok: true, data: created });
+      }
+
+      default:
+        return NextResponse.json({ ok: true, action });
+    }
+  } catch (error: any) {
+    console.error("API /api/simm POST error:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Gagal memproses aksi" },
+      { status: 500 }
+    );
+  }
+}

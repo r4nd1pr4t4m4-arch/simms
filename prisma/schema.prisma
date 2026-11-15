@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================================
+// 1. AUTENTIKASI, PERAN DASAR (BASE ROLE) & TUGAS TAMBAHAN DINAMIS
+// =====================================================================
+
+enum BaseRole {
+  ADMIN
+  TU
+  GTK
+  SISWA
+  ORTU
+  PPDB
+}
+
+model AcademicYear {
+  id          String   @id @default(cuid())
+  name        String   // contoh: "2026/2027"
+  semester    String   // "Ganjil" | "Genap"
+  curriculum  String   @default("Kurikulum Merdeka & KMA 450")
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id             String   @id @default(cuid())
+  identifier     String   @unique // NIP / NUPTK / NISN / No.Reg / Username
+  email          String?  @unique
+  name           String
+  passwordHash   String
+  baseRole       BaseRole
+  avatarInitials String?
+  phone          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  teacherProfile TeacherProfile?
+  tuProfile      TuStaffProfile?
+  studentProfile Student?
+  parentChildren StudentParent[]
+}
+
+model TuStaffProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nip             String   @unique
+  position        String   // "Kepala Tata Usaha" | "Staf Administrasi Kesiswaan & Persuratan"
+  badge           String   // "AKSES PENUH" | "STAF LAYANAN"
+  roleScope       String
+  description     String
+  canSignOfficial Boolean  @default(false)
+}
+
+model TeacherProfile {
+  id           String                  @id @default(cuid())
+  userId       String                  @unique
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nip          String                  @unique
+  nuptk        String?
+  subject      String                  // Mata Pelajaran Utama
+  totalJp      String                  @default("18 JP / Pekan")
+  statusKepeg  String                  @default("PNS Kemenag")
+  roles        TeacherAdditionalRole[]
+  schedules    ClassSchedule[]
+  attendances  TeacherAttendance[]
+}
+
+model TeacherAdditionalRole {
+  id           String         @id @default(cuid())
+  teacherId    String
+  teacher      TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  type         String         // "Wali Kelas" | "Guru Piket" | "Panitia PPDB" | "Bendahara Komite" | "Pengelola Tabungan" | "Guru Wali/BK" | "Waka Kurikulum" | "Waka Kesiswaan" | "Kepala Madrasah"
+  detail       String         // contoh: "VIII-A", "Sabtu", "SK-012/MTs.NF/2026"
+  skNumber     String?
+  academicYear String         @default("2026/2027")
+  createdAt    DateTime       @default(now())
+}
+
+// =====================================================================
+// 2. BUKU INDUK SISWA DIGITAL & ARSIP CLOUDFLARE R2
+// =====================================================================
+
+model Student {
+  id              String   @id @default(cuid())
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  nis             String   @unique
+  nisn            String   @unique
+  nik             String
+  name            String
+  ttl             String   // Tempat, Tanggal Lahir
+  gender          String   // "Laki-laki" | "Perempuan"
+  fatherName      String
+  motherName      String
+  parentPhone     String   @default("0812-2345-6789")
+  address         String
+  prevSchool      String
+  rombel          String   // "VII-A", "VII-B", "VIII-A", "VIII-B", "IX-A", "IX-B"
+  waliKelas       String
+  status          String   @default("Aktif") // "Aktif" | "Mutasi Masuk" | "Mutasi Keluar" | "Lulus / Alumni"
+  academicHistory String
+  piketDay        String   @default("Senin")
+
+  // Ringkasan Akademik, Keuangan & Sikap
+  attendanceRate  String   @default("98.2%")
+  hadirCount      Int      @default(110)
+  sakitCount      Int      @default(1)
+  izinCount       Int      @default(1)
+  terlambatCount  Int      @default(0)
+  alpaCount       Int      @default(0)
+  savingsBalance  Int      @default(0)
+  savingsAccount  String?
+  komiteMonthsPaid Int     @default(5) // jumlah bulan lunas dari 12 bulan (Jul-Jun)
+  pointsTotal     Int      @default(100)
+  pointsBonus     Int      @default(0)
+  pointsPredicate String   @default("Sangat Baik")
+
+  // Arsip Dokumen Cloudflare R2 (JSON atau kolom terstruktur)
+  r2KkUrl         String?
+  r2KkUpdated     String?
+  r2AktaUrl       String?
+  r2AktaUpdated   String?
+  r2IjazahUrl     String?
+  r2IjazahUpdated String?
+  r2FotoUrl       String?
+  r2FotoUpdated   String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  parents            StudentParent[]
+  savingsMutations   SavingsTransaction[]
+  withdrawalRequests SavingsWithdrawalRequest[]
+  komitePayments     KomitePayment[]
+  leaveRequests      StudentLeaveRequest[]
+  counselingNotes    CounselingNote[]
+  achievements       StudentAchievement[]
+  serviceRequests    ServiceRequest[]
+}
+
+model StudentParent {
+  id           String  @id @default(cuid())
+  parentUserId String
+  parent       User    @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  relation     String  @default("Ayah Kandung")
+
+  @@unique([parentUserId, studentId])
+}
+
+// =====================================================================
+// 3. MODUL PPDB ONLINE PENUH (END-TO-END ADMISSIONS)
+// =====================================================================
+
+model PpdbApplicant {
+  id                  String   @id @default(cuid())
+  regNo               String   @unique // contoh: "PPDB-2027-0148"
+  submittedAt         String
+  track               String   // "REGULER" | "PRESTASI" | "AFIRMASI"
+  fullName            String
+  nisn                String   @unique
+  nik                 String
+  birthPlace          String
+  birthDate           String
+  gender              String   // "LAKI-LAKI" | "PEREMPUAN"
+  previousSchool      String
+  avgScore            String
+  fatherName          String
+  motherName          String
+  parentPhone         String
+  parentOccupation    String
+  address             String
+  status              String   @default("MENUNGGU_VERIFIKASI") // "MENUNGGU_VERIFIKASI" | "PERLU_REVISI" | "TERVERIFIKASI" | "DITERIMA" | "SUDAH_MIGRASI"
+  verificationNotes   String   @default("Berkas pendaftaran telah diterima sistem dan sedang dalam antrean pemeriksaan Panitia PPDB.")
+  daftarUlangSchedule String   @default("Menunggu Pengumuman Kelulusan (10 Januari 2027)")
+  targetClassroom     String   @default("VII-A")
+  nisIssued           String?
+
+  // Nilai Seleksi Panitia PPDB
+  scoreBtq            Int      @default(0)
+  scoreAcademic       Int      @default(0)
+  scoreInterview      Int      @default(0)
+  finalScore          Float    @default(0)
+
+  // Berkas Cloudflare R2
+  docKkUrl            String?
+  docKkVerified       Boolean  @default(false)
+  docAktaUrl          String?
+  docAktaVerified     Boolean  @default(false)
+  docSklUrl           String?
+  docSklVerified      Boolean  @default(false)
+  docFotoUrl          String?
+  docFotoVerified     Boolean  @default(false)
+  docExtraName        String?
+  docExtraUrl         String?
+  docExtraVerified    Boolean  @default(false)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// =====================================================================
+// 4. PENJADWALAN, GURU PENGGANTI (INVAL) & OVERRIDE PIKET HARIAN
+// =====================================================================
+
+model ClassSchedule {
+  id              String          @id @default(cuid())
+  day             String          // "Senin" | "Selasa" | "Rabu" | "Kamis" | "Jumat" | "Sabtu"
+  timeSlot        String          // contoh: "Jam ke 1–2 (07.30 – 08.50)"
+  classroom       String          // "VII-A", "VIII-A", dll.
+  room            String          // "R. Kelas VIII-A"
+  subject         String
+  teacherId       String?
+  teacher         TeacherProfile? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  teacherName     String
+  isToday         Boolean         @default(false)
+
+  // Status Inval / Substitusi
+  isAbsent        Boolean         @default(false)
+  absentReason    String?         // "Sakit (Surat Dokter R2)" | "Dinas Luar Kemenag"
+  isInval         Boolean         @default(false)
+  substituteId    String?
+  substituteName  String?
+  invalNote       String?
+
+  // Jurnal Mengajar & Presensi Kelas
+  journalFilled   Boolean         @default(false)
+  journalTopic    String?
+  journalNotes    String?
+  attHadir        Int             @default(28)
+  attSakit        Int             @default(0)
+  attIzin         Int             @default(0)
+  attAlpa         Int             @default(0)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model DailyDutySchedule {
+  id                  String   @id @default(cuid())
+  day                 String   // "Senin" .. "Sabtu"
+  shift               String   // "Piket Pagi (06.45 – 11.00)" | "Piket Siang (11.00 – 15.00)"
+  originalTeacherId   String?
+  originalTeacherName String
+  originalTeacherNip  String
+  isOverridden        Boolean  @default(false)
+  overrideTeacherId   String?
+  overrideTeacherName String?
+  overrideTeacherNip  String?
+  overrideReason      String?
+  dateLabel           String   @default("Sabtu, 15 Nov 2026")
+}
+
+model CleaningRoster {
+  id          String   @id @default(cuid())
+  classroom   String   // "VIII-A"
+  day         String   // "Senin" .. "Sabtu"
+  studentName String
+  isLeader    Boolean  @default(false)
+}
+
+// =====================================================================
+// 5. ABSENSI GURU, IZIN SISWA & LOG KEJADIAN PIKET
+// =====================================================================
+
+model TeacherAttendance {
+  id          String          @id @default(cuid())
+  teacherId   String?
+  teacher     TeacherProfile? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  teacherName String
+  dateLabel   String
+  checkInTime String?
+  checkOutTime String?
+  gpsDistance String?         @default("18 Meter dari Titik Pusat MTs Nurul Falah")
+  status      String          // "Hadir" | "Sakit" | "Izin" | "Dinas Luar"
+  leaveReason String?
+  r2FileKey   String?
+  createdAt   DateTime        @default(now())
+}
+
+model StudentLeaveRequest {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String
+  classroom   String
+  startDate   String
+  endDate     String
+  category    String   // "Sakit" | "Izin Keluarga" | "Dispensasi Lomba"
+  reason      String
+  r2FileKey   String
+  submittedBy String   @default("Orang Tua / Wali")
+  status      String   @default("Disetujui Wali Kelas")
+  createdAt   DateTime @default(now())
+}
+
+model PiketIncidentLog {
+  id          String   @id @default(cuid())
+  timeLabel   String
+  studentName String
+  classroom   String
+  incidentType String  // "Terlambat Masuk" | "Izin Pulang Mendadak" | "Sakit di UKS"
+  reason      String
+  recordedBy  String
+  createdAt   DateTime @default(now())
+}
+
+// =====================================================================
+// 6. KEUANGAN SISWA (TABUNGAN & IURAN KOMITE)
+// =====================================================================
+
+model SavingsTransaction {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String
+  classroom   String
+  dateLabel   String
+  txType      String   // "SETOR" | "TARIK"
+  amount      Int
+  balanceAfter Int
+  note        String
+  recordedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model SavingsWithdrawalRequest {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String
+  classroom   String
+  amount      Int
+  method      String   // "Tunai Melalui Siswa" | "Transfer Rekening Orang Tua"
+  reason      String
+  status      String   @default("Menunggu Otorisasi Pengelola Tabungan")
+  dateLabel   String
+  createdAt   DateTime @default(now())
+}
+
+model KomitePayment {
+  id            String   @id @default(cuid())
+  studentId     String?
+  student       Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName   String
+  classroom     String
+  monthLabel    String   // "Juli 2026", "Agustus 2026", dst.
+  monthIndex    Int      // 1..12
+  amount        Int      @default(75000)
+  status        String   @default("Lunas") // "Lunas" | "Menunggu Verifikasi" | "Belum Bayar"
+  paidAt        String?
+  receiptNo     String?
+  r2ProofKey    String?
+  recordedBy    String   @default("Bendahara Komite")
+  createdAt     DateTime @default(now())
+}
+
+// =====================================================================
+// 7. BIMBINGAN KONSELING (BK), PRESTASI & KOMUNIKASI ORTU
+// =====================================================================
+
+model CounselingNote {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String
+  classroom   String
+  dateLabel   String
+  counselor   String   // "Usth. Dewi Sartika Putri, S.Psi. (Guru BK)" | "Ust. Ahmad Fauzi (Wali Kelas)"
+  category    String   // "Bimbingan Akademik" | "Pembinaan Karakter" | "Apresiasi Sikap" | "Kedisiplinan"
+  pointDelta  Int      @default(0)
+  note        String
+  createdAt   DateTime @default(now())
+}
+
+model StudentAchievement {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String
+  classroom   String
+  title       String
+  level       String   // "Tingkat Kota Bandung" | "Tingkat Provinsi" | "Internal Madrasah"
+  dateLabel   String
+  pointBonus  Int      @default(15)
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  studentKey  String   // "rizky" | "aisyah"
+  channel     String   // "walikelas" | "bk"
+  senderRole  String   // "parent" | "teacher"
+  senderName  String
+  message     String
+  timeLabel   String
+  createdAt   DateTime @default(now())
+}
+
+// =====================================================================
+// 8. PERSURATAN TU, KOREKSI DATA & CMS HALAMAN PUBLIK
+// =====================================================================
+
+model ServiceRequest {
+  id             String   @id @default(cuid())
+  ticketNo       String   @unique // "REQ-2026-089"
+  studentId      String?
+  student        Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName    String
+  nisn           String
+  classroom      String
+  requestType    String   // "KOREKSI_DATA" | "SURAT_AKTIF"
+  title          String
+  fieldToCorrect String?  // contoh: "address" | "fatherName"
+  oldValue       String?
+  newValue       String?
+  note           String
+  r2SupportingKey String?
+  status         String   @default("Menunggu") // "Menunggu" | "Disetujui" | "Ditolak"
+  letterNumber   String?
+  submittedBy    String
+  submittedAt    String
+  createdAt      DateTime @default(now())
+}
+
+model MailAgenda {
+  id          String   @id @default(cuid())
+  mailType    String   // "SURAT_MASUK" | "SURAT_KELUAR"
+  category    String   // "Kemenag" | "Kesiswaan" | "Kepegawaian" | "Undangan"
+  mailNumber  String
+  dateLabel   String
+  party       String   // Pengirim / Tujuan
+  subject     String
+  r2FileKey   String
+  status      String   @default("Terarsip & TTE")
+  createdAt   DateTime @default(now())
+}
+
+model CmsPost {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  category    String   // "Pengumuman" | "Prestasi" | "Akademik" | "Kegiatan"
+  excerpt     String
+  content     String
+  author      String
+  dateLabel   String
+  readTime    String   @default("3 menit baca")
+  r2ThumbUrl  String?
+  isFeatured  Boolean  @default(false)
+  status      String   @default("Published") // "Published" | "Draft"
+  createdAt   DateTime @default(now())
+}
+
+model SystemActivityLog {
+  id          String   @id @default(cuid())
+  actor       String
+  roleBadge   String
+  actionText  String
+  timeLabel   String
+  category    String   @default("system")
+  createdAt   DateTime @default(now())
+}
