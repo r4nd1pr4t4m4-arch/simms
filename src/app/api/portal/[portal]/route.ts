@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { getMadrasahProfile } from "@/app/api/simm/route";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,37 @@ export async function GET(
 
     let html = await fs.readFile(filePath, "utf-8");
 
-    // Sisipkan bridge integrasi Supabase + Cloudflare R2 + Auth sebelum </body>
-    const bridgeTag = `\n<script src="/simm-bridge.js"></script>\n</body>`;
+    // Terapkan Identitas Resmi Madrasah yang dikonfigurasi Admin secara dinamis
+    const profile = await getMadrasahProfile();
+    if (profile.name && profile.name !== "MTs Nurul Falah") {
+      html = html.replace(/MTs Nurul Falah/g, profile.name);
+    }
+    if (profile.nsm && profile.nsm !== "121232040089") {
+      html = html.replace(/121232040089/g, profile.nsm);
+    }
+    if (profile.npsn && profile.npsn !== "20278412") {
+      html = html.replace(/20278412/g, profile.npsn);
+    }
+    if (
+      profile.address &&
+      profile.address !==
+        "Jl. Pendidikan No. 45, Kel. Mekarjaya, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40622"
+    ) {
+      html = html.replace(
+        /Jl\. Pendidikan No\. 45, Kel\. Mekarjaya, Kec\. Cileunyi, Kab\. Bandung, Jawa Barat 40622/g,
+        profile.address
+      );
+    }
+
+    // Sisipkan konfigurasi profil madrasah & bridge integrasi sebelum </body>
+    const profileScript = `<script>window.__MADRASAH_PROFILE__ = ${JSON.stringify(
+      profile
+    )};</script>`;
+    const bridgeTag = `\n${profileScript}\n<script src="/simm-bridge.js"></script>\n</body>`;
     if (html.includes("</body>")) {
       html = html.replace("</body>", bridgeTag);
     } else {
-      html += `\n<script src="/simm-bridge.js"></script>`;
+      html += `\n${profileScript}\n<script src="/simm-bridge.js"></script>`;
     }
 
     return new NextResponse(html, {

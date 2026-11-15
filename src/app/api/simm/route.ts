@@ -1,36 +1,119 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import fs from "fs/promises";
+import path from "path";
+
+const PROFILE_CONFIG_PATH = path.join(process.cwd(), "madrasah-profile.json");
+
+export interface MadrasahProfileConfig {
+  name: string;
+  nsm: string;
+  npsn: string;
+  accreditation: string;
+  academicYear: string;
+  semester: string;
+  curriculum: string;
+  headmasterName: string;
+  headmasterNip: string;
+  tuHeadName: string;
+  tuHeadNip: string;
+  address: string;
+  phone: string;
+  email: string;
+  gpsLat: string;
+  gpsLng: string;
+  gpsRadiusMeters: number;
+  komiteBankInfo: string;
+}
+
+const DEFAULT_MADRASAH_PROFILE: MadrasahProfileConfig = {
+  name: "MTs Nurul Falah",
+  nsm: "121232040089",
+  npsn: "20278412",
+  accreditation: "Terakreditasi A (Unggul)",
+  academicYear: "2026/2027",
+  semester: "Ganjil",
+  curriculum: "Kurikulum Merdeka & KMA 450",
+  headmasterName: "Dr. H. Ahmad Fauzi, M.Pd.",
+  headmasterNip: "197605142003121003",
+  tuHeadName: "Bapak Ridwan Kamil, S.AP.",
+  tuHeadNip: "198204152009011008",
+  address:
+    "Jl. Pendidikan No. 45, Kel. Mekarjaya, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40622",
+  phone: "0812-2345-6789",
+  email: "info@mtsnurulfalah.sch.id",
+  gpsLat: "-6.9348",
+  gpsLng: "107.7186",
+  gpsRadiusMeters: 100,
+  komiteBankInfo: "BSI (Bank Syariah Indonesia) 7123456789 a.n. Komite MTs Nurul Falah",
+};
+
+export async function getMadrasahProfile(): Promise<MadrasahProfileConfig> {
+  try {
+    // Cek dari SystemActivityLog kategori "madrasah_profile" di Supabase terlebih dahulu
+    const latest = await prisma.systemActivityLog.findFirst({
+      where: { category: "madrasah_profile" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (latest && latest.actionText) {
+      return { ...DEFAULT_MADRASAH_PROFILE, ...JSON.parse(latest.actionText) };
+    }
+  } catch {
+    // Fallback ke file JSON lokal jika ada
+  }
+  try {
+    const raw = await fs.readFile(PROFILE_CONFIG_PATH, "utf-8");
+    return { ...DEFAULT_MADRASAH_PROFILE, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_MADRASAH_PROFILE;
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
     const resource = req.nextUrl.searchParams.get("resource") || "summary";
 
+    if (resource === "profile") {
+      const profile = await getMadrasahProfile();
+      return NextResponse.json({ ok: true, profile });
+    }
+
     if (resource === "summary") {
-      const [teachers, students, ppdb, cmsPosts, serviceRequests, mailAgenda] =
-        await Promise.all([
-          prisma.teacherProfile.findMany({
-            include: { user: true, roles: true },
-            orderBy: { nip: "asc" },
-          }),
-          prisma.student.findMany({
-            orderBy: { nis: "asc" },
-          }),
-          prisma.ppdbApplicant.findMany({
-            orderBy: { regNo: "desc" },
-          }),
-          prisma.cmsPost.findMany({
-            orderBy: { createdAt: "desc" },
-          }),
-          prisma.serviceRequest.findMany({
-            orderBy: { createdAt: "desc" },
-          }),
-          prisma.mailAgenda.findMany({
-            orderBy: { createdAt: "desc" },
-          }),
-        ]);
+      const [
+        teachers,
+        students,
+        ppdb,
+        cmsPosts,
+        serviceRequests,
+        mailAgenda,
+        profile,
+      ] = await Promise.all([
+        prisma.teacherProfile.findMany({
+          include: { user: true, roles: true },
+          orderBy: { nip: "asc" },
+        }),
+        prisma.student.findMany({
+          orderBy: { nis: "asc" },
+        }),
+        prisma.ppdbApplicant.findMany({
+          orderBy: { regNo: "desc" },
+        }),
+        prisma.cmsPost.findMany({
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.serviceRequest.findMany({
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.mailAgenda.findMany({
+          orderBy: { createdAt: "desc" },
+        }),
+        getMadrasahProfile(),
+      ]);
 
       return NextResponse.json({
         ok: true,
+        profile,
         teachers,
         students,
         ppdb,
@@ -63,12 +146,186 @@ export async function POST(req: NextRequest) {
     const { action, payload } = body;
 
     switch (action) {
+      // 0. Simpan Identitas & Profil Resmi Madrasah (Go-Live)
+      case "SAVE_MADRASAH_PROFILE": {
+        const merged: MadrasahProfileConfig = {
+          ...DEFAULT_MADRASAH_PROFILE,
+          ...payload,
+        };
+        await prisma.systemActivityLog.create({
+          data: {
+            actor: "Super Admin",
+            roleBadge: "ADMIN",
+            actionText: JSON.stringify(merged),
+            timeLabel: new Date().toLocaleString("id-ID"),
+            category: "madrasah_profile",
+          },
+        });
+        await prisma.academicYear.updateMany({
+          where: { isActive: true },
+          data: {
+            name: merged.academicYear,
+            semester: merged.semester,
+            curriculum: merged.curriculum,
+          },
+        });
+        await fs
+          .writeFile(
+            PROFILE_CONFIG_PATH,
+            JSON.stringify(merged, null, 2),
+            "utf-8"
+          )
+          .catch(() => null);
+
+        return NextResponse.json({ ok: true, profile: merged });
+      }
+
+      // 0B. Import Massal Siswa dari CSV/Excel (Format EMIS / Buku Induk)
+      case "BULK_IMPORT_STUDENTS": {
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const defaultPw = await bcrypt.hash("Simms2026!", 10);
+        let importedCount = 0;
+
+        for (const r of rows) {
+          const nis = String(r.nis || "").trim();
+          const nisn = String(r.nisn || "").trim();
+          const name = String(r.name || "").trim();
+          if (!nis || !nisn || !name) continue;
+
+          const u = await prisma.user.upsert({
+            where: { identifier: nisn },
+            update: { name },
+            create: {
+              identifier: nisn,
+              name,
+              passwordHash: defaultPw,
+              baseRole: "SISWA",
+            },
+          });
+
+          await prisma.student.upsert({
+            where: { nisn },
+            update: {
+              nis,
+              name,
+              nik: String(r.nik || "3204120000000000"),
+              ttl: String(r.ttl || "Bandung, 01 Januari 2013"),
+              gender: String(r.gender || "Laki-laki"),
+              rombel: String(r.rombel || "VII-A"),
+              fatherName: String(r.fatherName || "-"),
+              motherName: String(r.motherName || "-"),
+              parentPhone: String(r.parentPhone || "-"),
+              address: String(r.address || "-"),
+              prevSchool: String(r.prevSchool || "-"),
+              waliKelas: String(r.waliKelas || "-"),
+              status: "Aktif",
+            },
+            create: {
+              userId: u.id,
+              nis,
+              nisn,
+              name,
+              nik: String(r.nik || "3204120000000000"),
+              ttl: String(r.ttl || "Bandung, 01 Januari 2013"),
+              gender: String(r.gender || "Laki-laki"),
+              rombel: String(r.rombel || "VII-A"),
+              fatherName: String(r.fatherName || "-"),
+              motherName: String(r.motherName || "-"),
+              parentPhone: String(r.parentPhone || "-"),
+              address: String(r.address || "-"),
+              prevSchool: String(r.prevSchool || "-"),
+              waliKelas: String(r.waliKelas || "-"),
+              status: "Aktif",
+              academicHistory: `Tahun Ajaran Aktif: Kelas ${r.rombel || "VII-A"} (Impor EMIS)`,
+            },
+          });
+          importedCount++;
+        }
+
+        return NextResponse.json({ ok: true, importedCount });
+      }
+
+      // 0C. Import Massal Guru / GTK dari CSV/Excel
+      case "BULK_IMPORT_TEACHERS": {
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const defaultPw = await bcrypt.hash("Simms2026!", 10);
+        let importedCount = 0;
+
+        for (const r of rows) {
+          const nip = String(r.nip || "").trim();
+          const name = String(r.name || "").trim();
+          const subject = String(r.subject || "Guru Mata Pelajaran").trim();
+          if (!nip || !name) continue;
+
+          const u = await prisma.user.upsert({
+            where: { identifier: nip },
+            update: { name },
+            create: {
+              identifier: nip,
+              name,
+              passwordHash: defaultPw,
+              baseRole: "GTK",
+            },
+          });
+
+          const tp = await prisma.teacherProfile.upsert({
+            where: { nip },
+            update: { subject },
+            create: {
+              userId: u.id,
+              nip,
+              subject,
+            },
+          });
+
+          if (r.additionalRole && String(r.additionalRole).trim()) {
+            await prisma.teacherAdditionalRole.create({
+              data: {
+                teacherId: tp.id,
+                type: String(r.additionalRole).trim(),
+                detail: String(r.roleDetail || "SK Tahun Ajaran Aktif").trim(),
+              },
+            });
+          }
+
+          importedCount++;
+        }
+
+        return NextResponse.json({ ok: true, importedCount });
+      }
+
+      // 0D. Reset / Bersihkan Data Dummy (Persiapan Go-Live Produksi)
+      case "RESET_DUMMY_DATA": {
+        await prisma.$transaction([
+          prisma.savingsTransaction.deleteMany(),
+          prisma.savingsWithdrawalRequest.deleteMany(),
+          prisma.komitePayment.deleteMany(),
+          prisma.studentLeaveRequest.deleteMany(),
+          prisma.counselingNote.deleteMany(),
+          prisma.studentAchievement.deleteMany(),
+          prisma.serviceRequest.deleteMany(),
+          prisma.ppdbApplicant.deleteMany(),
+          prisma.studentParent.deleteMany(),
+          prisma.student.deleteMany(),
+        ]);
+        return NextResponse.json({
+          ok: true,
+          message:
+            "Seluruh data siswa contoh, transaksi contoh, dan pendaftar PPDB dummy berhasil dibersihkan dari Supabase.",
+        });
+      }
+
       // 1. Tambah Tugas Tambahan GTK (Dynamic RBAC)
       case "ADD_GTK_ROLE": {
         const { nip, type, detail, skNumber } = payload;
-        const teacher = await prisma.teacherProfile.findUnique({ where: { nip } });
+        const teacher = await prisma.teacherProfile.findUnique({
+          where: { nip },
+        });
         if (!teacher) {
-          return NextResponse.json({ ok: false, error: "GTK tidak ditemukan" }, { status: 404 });
+          return NextResponse.json(
+            { ok: false, error: "GTK tidak ditemukan" },
+            { status: 404 }
+          );
         }
         const created = await prisma.teacherAdditionalRole.create({
           data: {
@@ -84,9 +341,11 @@ export async function POST(req: NextRequest) {
       // 2. Hapus Tugas Tambahan GTK
       case "REMOVE_GTK_ROLE": {
         const { roleId } = payload;
-        await prisma.teacherAdditionalRole.delete({
-          where: { id: String(roleId) },
-        }).catch(() => null);
+        await prisma.teacherAdditionalRole
+          .delete({
+            where: { id: String(roleId) },
+          })
+          .catch(() => null);
         return NextResponse.json({ ok: true });
       }
 
@@ -183,16 +442,33 @@ export async function POST(req: NextRequest) {
 
       // 6. Input Nilai Seleksi & Update Status PPDB (Panitia PPDB / Admin)
       case "UPDATE_PPDB_SCORE_STATUS": {
-        const { regNo, scoreBtq, scoreAcademic, scoreInterview, status, verificationNotes, targetClassroom } = payload;
+        const {
+          regNo,
+          scoreBtq,
+          scoreAcademic,
+          scoreInterview,
+          status,
+          verificationNotes,
+          targetClassroom,
+        } = payload;
         const btq = Number(scoreBtq ?? 0);
         const acad = Number(scoreAcademic ?? 0);
         const intv = Number(scoreInterview ?? 0);
-        const finalScore = Number(((btq * 0.4) + (acad * 0.35) + (intv * 0.25)).toFixed(2));
+        const finalScore = Number(
+          (btq * 0.4 + acad * 0.35 + intv * 0.25).toFixed(2)
+        );
 
         const updated = await prisma.ppdbApplicant.update({
           where: { regNo },
           data: {
-            ...(scoreBtq !== undefined ? { scoreBtq: btq, scoreAcademic: acad, scoreInterview: intv, finalScore } : {}),
+            ...(scoreBtq !== undefined
+              ? {
+                  scoreBtq: btq,
+                  scoreAcademic: acad,
+                  scoreInterview: intv,
+                  finalScore,
+                }
+              : {}),
             ...(status ? { status } : {}),
             ...(verificationNotes ? { verificationNotes } : {}),
             ...(targetClassroom ? { targetClassroom } : {}),
@@ -206,10 +482,14 @@ export async function POST(req: NextRequest) {
         const { regNo, issuedNis, targetRombel } = payload;
         const app = await prisma.ppdbApplicant.findUnique({ where: { regNo } });
         if (!app) {
-          return NextResponse.json({ ok: false, error: "Pendaftar tidak ditemukan" }, { status: 404 });
+          return NextResponse.json(
+            { ok: false, error: "Pendaftar tidak ditemukan" },
+            { status: 404 }
+          );
         }
 
-        const nisFinal = issuedNis || `262707${Math.floor(100 + Math.random() * 899)}`;
+        const nisFinal =
+          issuedNis || `262707${Math.floor(100 + Math.random() * 899)}`;
         const rombelFinal = targetRombel || app.targetClassroom || "VII-A";
 
         const student = await prisma.student.upsert({

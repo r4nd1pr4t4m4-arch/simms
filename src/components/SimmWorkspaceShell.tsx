@@ -26,6 +26,10 @@ import {
   LogOut,
   KeyRound,
   Lock,
+  Building2,
+  Download,
+  Upload,
+  Trash2,
 } from "lucide-react";
 
 export type PortalKey =
@@ -114,7 +118,8 @@ type ExtendedModalType =
   | "bk_counseling"
   | "batch_promotion"
   | "r2_uploader"
-  | "change_password";
+  | "change_password"
+  | "golive_settings";
 
 export default function SimmWorkspaceShell({
   activePortal,
@@ -126,6 +131,7 @@ export default function SimmWorkspaceShell({
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [barCollapsed, setBarCollapsed] = useState(false);
   const [activeModal, setActiveModal] = useState<ExtendedModalType>(null);
+  const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
   const [toastMsg, setToastMsg] = useState<{ title: string; sub: string } | null>(
     null
   );
@@ -133,6 +139,39 @@ export default function SimmWorkspaceShell({
   // State Ubah Kata Sandi
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // State Go-Live Settings, Import CSV & Identitas Madrasah
+  const [goLiveTab, setGoLiveTab] = useState<
+    "identitas" | "import_csv" | "reset_data"
+  >("identitas");
+  const [madrasahProfile, setMadrasahProfile] = useState({
+    name: "MTs Nurul Falah",
+    nsm: "121232040089",
+    npsn: "20278412",
+    accreditation: "Terakreditasi A (Unggul)",
+    academicYear: "2026/2027",
+    semester: "Ganjil",
+    curriculum: "Kurikulum Merdeka & KMA 450",
+    headmasterName: "Dr. H. Ahmad Fauzi, M.Pd.",
+    headmasterNip: "197605142003121003",
+    tuHeadName: "Bapak Ridwan Kamil, S.AP.",
+    tuHeadNip: "198204152009011003",
+    address:
+      "Jl. Pendidikan No. 45, Kel. Mekarjaya, Kec. Cileunyi, Kab. Bandung, Jawa Barat 40622",
+    phone: "0812-2345-6789",
+    email: "info@mtsnurulfalah.sch.id",
+    gpsLat: "-6.9348",
+    gpsLng: "107.7186",
+    gpsRadiusMeters: 100,
+    komiteBankInfo:
+      "BSI (Bank Syariah Indonesia) 7123456789 a.n. Komite MTs Nurul Falah",
+  });
+  const [importTarget, setImportTarget] = useState<"students" | "teachers">(
+    "students"
+  );
+  const [csvPreviewRows, setCsvPreviewRows] = useState<Array<Record<string, string>>>([]);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
 
   // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
   const [ppdbApplicants, setPpdbApplicants] = useState([
@@ -254,7 +293,7 @@ export default function SimmWorkspaceShell({
     },
   ]);
 
-  // State Modul 4: Kenaikan Kelas Massal (Batch Promotion)
+  // State Modul 4: Kenaikan Kelas Massal
   const [fromRombel, setFromRombel] = useState("VII-A");
   const [toRombel, setToRombel] = useState("VIII-A");
   const [batchHistory, setBatchHistory] = useState<string[]>([
@@ -272,23 +311,19 @@ export default function SimmWorkspaceShell({
     setTimeout(() => setToastMsg(null), 4500);
   };
 
-  // Muat sesi aktif dari server (/api/auth)
-  const fetchCurrentSession = async () => {
-    try {
-      const res = await fetch("/api/auth");
-      const data = await res.json();
-      if (data && data.session) {
-        setSession(data.session);
-      } else {
-        setSession(null);
-      }
-    } catch {
-      setSession(null);
-    }
-  };
-
+  // Muat sesi aktif & profil madrasah dari server
   useEffect(() => {
-    fetchCurrentSession();
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => setSession(d?.session || null))
+      .catch(() => setSession(null));
+
+    fetch("/api/simm?resource=profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.profile) setMadrasahProfile(d.profile);
+      })
+      .catch(() => null);
   }, [pathname]);
 
   // Dengarkan event postMessage dari iframe portal
@@ -362,6 +397,165 @@ export default function SimmWorkspaceShell({
     }
   };
 
+  // Simpan Identitas Resmi Madrasah
+  const handleSaveMadrasahProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_MADRASAH_PROFILE",
+          payload: madrasahProfile,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setIframeRefreshKey((k) => k + 1);
+        setActiveModal(null);
+        triggerToast(
+          "Identitas Madrasah Diperbarui!",
+          `Profil resmi "${madrasahProfile.name}" telah diterapkan di seluruh portal & cetakan surat.`
+        );
+      }
+    } catch {
+      triggerToast("Error", "Gagal menyimpan profil madrasah");
+    }
+  };
+
+  // Unduh Template CSV Siswa / Guru
+  const handleDownloadCsvTemplate = (type: "students" | "teachers") => {
+    const csvContent =
+      type === "students"
+        ? "nis,nisn,nik,name,ttl,gender,rombel,fatherName,motherName,parentPhone,address,prevSchool,waliKelas\n262707101,0135566778,3204120101130001,Ahmad Zaki Mubarak,\"Bandung, 12 Maret 2013\",Laki-laki,VII-A,H. Fauzan,Hj. Rahmah,081234567890,Jl. Raya Cibiru No. 10,MI Al-Hidayah,Fitriani Rahmawati S.E.\n262707102,0135566779,3204120202130002,Siti Fatimah Azzahra,\"Bandung, 20 Juni 2013\",Perempuan,VII-A,Drs. Mahmud,Siti Aminah,081298765432,Komp. Griya Cempaka,SDN Cibiru 01,Fitriani Rahmawati S.E."
+        : "nip,name,subject,additionalRole,roleDetail\n198501012010011001,Ust. H. Lukmanul Hakim M.Pd.,Al-Qur'an Hadits,Wali Kelas,IX-B\n199002022015032002,Usth. Rina Kartika S.Pd.,Bahasa Indonesia,Guru Piket,Selasa";
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      type === "students"
+        ? "Template_Import_Siswa_EMIS_SIMS.csv"
+        : "Template_Import_Guru_GTK_SIMS.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Parser File CSV sederhana (mendukung tanda kutip)
+  const parseCsvText = (text: string): Array<Record<string, string>> => {
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const splitCsvLine = (line: string) => {
+      const res: string[] = [];
+      let cur = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if ((ch === "," || ch === ";") && !inQuotes) {
+          res.push(cur.trim());
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      res.push(cur.trim());
+      return res;
+    };
+
+    const headers = splitCsvLine(lines[0]);
+    return lines.slice(1).map((line) => {
+      const vals = splitCsvLine(line);
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        obj[h] = vals[idx] || "";
+      });
+      return obj;
+    });
+  };
+
+  const handleCsvFileSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed = parseCsvText(text);
+    setCsvPreviewRows(parsed);
+    triggerToast(
+      "File CSV Terbaca",
+      `Ditemukan ${parsed.length} baris data siap diimpor ke Supabase.`
+    );
+  };
+
+  const handleExecuteBulkImport = async () => {
+    if (csvPreviewRows.length === 0) return;
+    setImportingCsv(true);
+    try {
+      const action =
+        importTarget === "students"
+          ? "BULK_IMPORT_STUDENTS"
+          : "BULK_IMPORT_TEACHERS";
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          payload: { rows: csvPreviewRows },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCsvPreviewRows([]);
+        setIframeRefreshKey((k) => k + 1);
+        triggerToast(
+          "Import Massal Berhasil!",
+          `${data.importedCount} data ${
+            importTarget === "students" ? "Siswa & Akun" : "Guru/GTK & Akun"
+          } telah disimpan ke database Supabase.`
+        );
+      } else {
+        triggerToast("Gagal Import", data.error || "Periksa format CSV");
+      }
+    } catch {
+      triggerToast("Error", "Gagal mengimpor data ke server");
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
+  const handleResetDummyData = async () => {
+    if (resetConfirmText !== "SIAP-GOLIVE") {
+      triggerToast(
+        "Konfirmasi Diperlukan",
+        "Ketik SIAP-GOLIVE pada kolom konfirmasi terlebih dahulu."
+      );
+      return;
+    }
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "RESET_DUMMY_DATA" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setResetConfirmText("");
+        setIframeRefreshKey((k) => k + 1);
+        setActiveModal(null);
+        triggerToast("Data Dummy Dibersihkan", data.message);
+      }
+    } catch {
+      triggerToast("Error", "Gagal membersihkan data dummy");
+    }
+  };
+
   // Deteksi hak akses modul tambahan sesuai BaseRole + Dynamic Additional Roles
   const isSuperAdmin = session?.baseRole === "ADMIN";
   const isTu = session?.baseRole === "TU";
@@ -371,11 +565,15 @@ export default function SimmWorkspaceShell({
   const canAccessPpdbScoring =
     isSuperAdmin || isTu || (isGtk && joinedRoles.includes("ppdb"));
   const canAccessScheduleBuilder =
-    isSuperAdmin || (isGtk && (joinedRoles.includes("kurikulum") || joinedRoles.includes("piket")));
+    isSuperAdmin ||
+    (isGtk &&
+      (joinedRoles.includes("kurikulum") || joinedRoles.includes("piket")));
   const canAccessBkDesk =
-    isSuperAdmin || (isGtk && (joinedRoles.includes("bk") || joinedRoles.includes("wali")));
+    isSuperAdmin ||
+    (isGtk && (joinedRoles.includes("bk") || joinedRoles.includes("wali")));
   const canAccessBatchPromotion = isSuperAdmin || isTu;
   const canAccessR2Manager = isSuperAdmin || isTu || isGtk;
+  const canAccessGoLiveSettings = isSuperAdmin || isTu;
 
   // Deteksi bentrok jadwal secara real-time
   const conflictingSchedule = schedules.find(
@@ -574,11 +772,10 @@ export default function SimmWorkspaceShell({
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 select-none">
       {/* ===================================================================
           PRODUCTION RBAC BAR (HANYA TAMPIL JIKA USER SUDAH LOGIN)
-          Pengunjung publik (belum login) tidak melihat bilah internal ini.
       =================================================================== */}
       {session && !barCollapsed && (
         <header className="z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-200 shadow-lg">
-          {/* Left: Session Identity & Portal Switcher (Full Switcher only for Super Admin) */}
+          {/* Left: Session Identity & Portal Switcher */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <div className="flex items-center gap-2 pr-2.5 mr-1 border-r border-slate-700/80 shrink-0">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -628,15 +825,26 @@ export default function SimmWorkspaceShell({
             )}
           </div>
 
-          {/* Right: Role-Permitted Extended Modules + Change Password + Logout */}
+          {/* Right: Role-Permitted Extended Modules + Go-Live Settings + Change Password + Logout */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {canAccessGoLiveSettings && (
+              <button
+                onClick={() => setActiveModal("golive_settings")}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition shadow-sm"
+                title="Pengaturan Identitas Madrasah, Import CSV EMIS/GTK & Reset Data Dummy"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Master & Import EMIS</span>
+              </button>
+            )}
+
             {canAccessPpdbScoring && (
               <button
                 onClick={() => setActiveModal("ppdb_scoring")}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 font-medium transition"
               >
                 <Award className="w-3.5 h-3.5" />
-                <span>Skor & Ranking PPDB</span>
+                <span>Skor PPDB</span>
               </button>
             )}
 
@@ -656,7 +864,7 @@ export default function SimmWorkspaceShell({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium transition"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Meja Kerja BK</span>
+                <span>Meja BK</span>
               </button>
             )}
 
@@ -666,7 +874,7 @@ export default function SimmWorkspaceShell({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 font-medium transition"
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Kenaikan Kelas Massal</span>
+                <span>Naik Kelas</span>
               </button>
             )}
 
@@ -676,7 +884,7 @@ export default function SimmWorkspaceShell({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-medium transition"
               >
                 <CloudUpload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Arsip R2</span>
+                <span className="hidden sm:inline">R2</span>
               </button>
             )}
 
@@ -686,7 +894,7 @@ export default function SimmWorkspaceShell({
               title="Ubah Kata Sandi Akun"
             >
               <KeyRound className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Ubah Sandi</span>
+              <span className="hidden md:inline">Sandi</span>
             </button>
 
             <button
@@ -725,12 +933,442 @@ export default function SimmWorkspaceShell({
       =================================================================== */}
       <main className="relative flex-1 w-full h-full bg-slate-50 overflow-hidden">
         <iframe
-          key={`${activePortal}-${session?.userId || "guest"}`}
+          key={`${activePortal}-${session?.userId || "guest"}-${iframeRefreshKey}`}
           src={`/api/portal/${activePortal}`}
           title={`Portal SIMS - ${activePortal.toUpperCase()}`}
           className="w-full h-full border-0"
         />
       </main>
+
+      {/* ===================================================================
+          MODAL PUSAT GO-LIVE: IDENTITAS MADRASAH, IMPORT CSV & RESET DUMMY
+      =================================================================== */}
+      {activeModal === "golive_settings" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-semibold">
+                  Pusat Konfigurasi Go-Live Madrasah
+                </span>
+                <h2 className="text-lg font-bold mt-1">
+                  Identitas Resmi Madrasah, Import Massal CSV (EMIS/GTK) & Pembersihan Data Dummy
+                </h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub-Tabs */}
+            <div className="px-6 pt-3 bg-slate-100 border-b border-slate-200 flex gap-2 text-xs font-semibold">
+              <button
+                onClick={() => setGoLiveTab("identitas")}
+                className={`px-4 py-2.5 rounded-t-xl border-t border-x transition ${
+                  goLiveTab === "identitas"
+                    ? "bg-white text-emerald-700 border-slate-200"
+                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
+                }`}
+              >
+                1. Identitas & Kop Madrasah
+              </button>
+              <button
+                onClick={() => setGoLiveTab("import_csv")}
+                className={`px-4 py-2.5 rounded-t-xl border-t border-x transition ${
+                  goLiveTab === "import_csv"
+                    ? "bg-white text-emerald-700 border-slate-200"
+                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
+                }`}
+              >
+                2. Import Massal CSV (Siswa EMIS & Guru)
+              </button>
+              <button
+                onClick={() => setGoLiveTab("reset_data")}
+                className={`px-4 py-2.5 rounded-t-xl border-t border-x transition ${
+                  goLiveTab === "reset_data"
+                    ? "bg-white text-rose-700 border-slate-200"
+                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
+                }`}
+              >
+                3. Bersihkan Data Dummy (Go-Live)
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              {/* TAB 1: IDENTITAS RESMI MADRASAH */}
+              {goLiveTab === "identitas" && (
+                <form onSubmit={handleSaveMadrasahProfile} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Nama Resmi Sekolah / Madrasah
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={madrasahProfile.name}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            name: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Nomor Statistik Madrasah (NSM)
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.nsm}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            nsm: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        NPSN Kemendikdasmen / Kemenag
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.npsn}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            npsn: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Tahun Ajaran Aktif
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.academicYear}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            academicYear: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Semester Berjalan
+                      </label>
+                      <select
+                        value={madrasahProfile.semester}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            semester: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"
+                      >
+                        <option value="Ganjil">Semester Ganjil</option>
+                        <option value="Genap">Semester Genap</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Status Akreditasi
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.accreditation}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            accreditation: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Nama Kepala Madrasah (Untuk TTE SKL & SK)
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.headmasterName}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            headmasterName: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        NIP Kepala Madrasah
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.headmasterNip}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            headmasterNip: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Alamat Lengkap Madrasah (Kop Surat & Halaman Publik)
+                    </label>
+                    <input
+                      type="text"
+                      value={madrasahProfile.address}
+                      onChange={(e) =>
+                        setMadrasahProfile({
+                          ...madrasahProfile,
+                          address: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Koordinat GPS Latitude (Absensi Guru)
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.gpsLat}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            gpsLat: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Koordinat GPS Longitude
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.gpsLng}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            gpsLng: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Info Rekening Komite Madrasah
+                      </label>
+                      <input
+                        type="text"
+                        value={madrasahProfile.komiteBankInfo}
+                        onChange={(e) =>
+                          setMadrasahProfile({
+                            ...madrasahProfile,
+                            komiteBankInfo: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-md"
+                  >
+                    Simpan Identitas Madrasah & Terapkan ke Seluruh 7 Portal
+                  </button>
+                </form>
+              )}
+
+              {/* TAB 2: IMPORT MASSAL CSV (SISWA EMIS & GURU) */}
+              {goLiveTab === "import_csv" && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImportTarget("students");
+                          setCsvPreviewRows([]);
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                          importTarget === "students"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-white text-slate-700 border border-slate-300"
+                        }`}
+                      >
+                        Import Buku Induk Siswa (EMIS)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImportTarget("teachers");
+                          setCsvPreviewRows([]);
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                          importTarget === "teachers"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-white text-slate-700 border border-slate-300"
+                        }`}
+                      >
+                        Import Data Guru / GTK
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCsvTemplate(importTarget)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>
+                        Unduh Template CSV{" "}
+                        {importTarget === "students" ? "Siswa EMIS" : "Guru GTK"}
+                      </span>
+                    </button>
+                  </div>
+
+                  <label className="block p-6 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50 text-center cursor-pointer transition">
+                    <Upload className="w-7 h-7 text-emerald-600 mx-auto mb-2" />
+                    <p className="font-bold text-emerald-950">
+                      Pilih File CSV ({importTarget === "students" ? "Data Siswa EMIS" : "Data Guru GTK"}) dari Komputer Anda
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Sistem akan otomatis membuat akun login (kata sandi awal: Simms2026!) dan menyimpan ke Supabase.
+                    </p>
+                    <input
+                      type="file"
+                      accept=".csv,.txt"
+                      onChange={handleCsvFileSelected}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {csvPreviewRows.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">
+                          Pratinjau Data Siap Impor ({csvPreviewRows.length} Baris)
+                        </span>
+                        <button
+                          type="button"
+                          disabled={importingCsv}
+                          onClick={handleExecuteBulkImport}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition"
+                        >
+                          {importingCsv
+                            ? "Sedang Menyimpan ke Supabase..."
+                            : `Proses Import ${csvPreviewRows.length} Data ke Supabase →`}
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-auto border border-slate-200 rounded-xl">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead className="bg-slate-100 text-slate-700">
+                            <tr>
+                              {Object.keys(csvPreviewRows[0]).map((h) => (
+                                <th key={h} className="py-2 px-3 border-b">
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {csvPreviewRows.slice(0, 10).map((r, i) => (
+                              <tr key={i}>
+                                {Object.values(r).map((v, j) => (
+                                  <td key={j} className="py-1.5 px-3">
+                                    {v}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: BERSIHKAN DATA DUMMY (SIAP GO-LIVE) */}
+              {goLiveTab === "reset_data" && (
+                <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Trash2 className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-rose-950 text-base">
+                        Pembersihan Data Contoh (Dummy) Sebelum Go-Live
+                      </h3>
+                      <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                        Tindakan ini akan menghapus seluruh data siswa contoh, pendaftar PPDB contoh, mutasi tabungan contoh, dan tiket layanan contoh di dalam database Supabase Anda, namun <strong>tetap mempertahankan akun Super Admin dan konfigurasi Tahun Ajaran</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-rose-900 mb-1">
+                      Ketik <code className="px-1.5 py-0.5 rounded bg-white border border-rose-300 font-mono">SIAP-GOLIVE</code> untuk mengonfirmasi:
+                    </label>
+                    <input
+                      type="text"
+                      value={resetConfirmText}
+                      onChange={(e) => setResetConfirmText(e.target.value)}
+                      placeholder="SIAP-GOLIVE"
+                      className="w-full px-3.5 py-2 rounded-xl border border-rose-300 bg-white font-mono text-sm"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleResetDummyData}
+                    className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition"
+                  >
+                    Bersihkan Seluruh Data Dummy di Database Supabase Sekarang
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================
           MODAL UBAH KATA SANDI MANDIRI (PRODUCTION SECURITY)
@@ -794,7 +1432,7 @@ export default function SimmWorkspaceShell({
       )}
 
       {/* ===================================================================
-          MODAL 1: MEJA KERJA PANITIA PPDB (INPUT SKOR SELEKSI & PERANKINGAN)
+          MODAL 1: MEJA KERJA PANITIA PPDB
       =================================================================== */}
       {activeModal === "ppdb_scoring" && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1382,7 +2020,7 @@ export default function SimmWorkspaceShell({
                     Kanal Konsultasi Langsung Orang Tua / Wali
                   </p>
                   <p className="text-[11px] text-slate-300">
-                    Terhubung ke Dashboard Orang Tua (Bapak Hendra Kusuma, S.T.)
+                    Terhubung ke Dashboard Orang Tua
                   </p>
                 </div>
                 <div className="flex-1 p-3.5 space-y-3 overflow-y-auto max-h-72">
@@ -1428,7 +2066,7 @@ export default function SimmWorkspaceShell({
       )}
 
       {/* ===================================================================
-          MODAL 4: KENAIKAN KELAS MASSAL (BATCH PROMOTION BUKU INDUK)
+          MODAL 4: KENAIKAN KELAS MASSAL
       =================================================================== */}
       {activeModal === "batch_promotion" && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1520,7 +2158,7 @@ export default function SimmWorkspaceShell({
       )}
 
       {/* ===================================================================
-          MODAL 5: CLOUDFLARE R2 STORAGE MANAGER (BUCKET: simm-media)
+          MODAL 5: CLOUDFLARE R2 STORAGE MANAGER
       =================================================================== */}
       {activeModal === "r2_uploader" && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
