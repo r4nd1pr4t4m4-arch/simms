@@ -13,7 +13,14 @@ export interface SessionPayload {
   name: string;
   baseRole: "ADMIN" | "TU" | "GTK" | "SISWA" | "ORTU" | "PPDB";
   subProfileKey?: string;
+  subject?: string;
+  nip?: string;
+  nis?: string;
+  nisn?: string;
+  rombel?: string;
+  waliKelas?: string;
   additionalRoles?: string[];
+  roleDetails?: Array<{ type: string; detail: string; skNumber?: string | null }>;
   targetPath: string;
 }
 

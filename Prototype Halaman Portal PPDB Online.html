@@ -393,9 +393,9 @@
           }
         }
       ],
-      nextSequenceNumber: 7, // Next generated ID will be PPDB-2728-007
-      searchQuery: 'PPDB-2728-001',
-      selectedApplicantNo: 'PPDB-2728-001',
+      nextSequenceNumber: 7,
+      searchQuery: '',
+      selectedApplicantNo: '',
       revisionUploading: false,
       revisionProgress: 0
     };
@@ -1111,18 +1111,12 @@
 
       return `
         <div class="max-w-4xl mx-auto space-y-6 animate-panel">
-          <!-- Header & Quick Demo Helper -->
+          <!-- Header -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 class="font-display font-extrabold text-xl sm:text-2xl text-slate-900">Formulir Pendaftaran PPDB Online</h1>
               <p class="text-xs sm:text-sm text-slate-500">Tahun Ajaran 2027/2028 • Lengkapi 4 tahapan berikut dengan data sesuai Kartu Keluarga & Rapor.</p>
             </div>
-            ${step < 3 ? `
-              <button type="button" onclick="fillDemoFormSample()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold shadow-sm self-start sm:self-auto transition-colors">
-                <i data-lucide="sparkles" class="w-4 h-4"></i>
-                <span>Isi Data Contoh Cepat</span>
-              </button>
-            ` : ''}
           </div>
 
           <!-- 4-STEP VISUAL STEPPER -->
@@ -1432,9 +1426,6 @@
                           <span>Pilih File</span>
                           <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="handleR2FileUpload('${doc.key}', this)" />
                         </label>
-                        <button type="button" onclick="handleR2FileUpload('${doc.key}', null)" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold transition-colors" title="Simulasi unggah cepat tanpa memilih file lokal">
-                          Simulasi R2
-                        </button>
                       </div>
                     `}
                   </div>
@@ -1635,57 +1626,13 @@
             <form onsubmit="handleStatusSearch(event)" class="flex flex-col sm:flex-row gap-3">
               <div class="relative flex-1">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
-                <input id="status-search-input" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="Ketik Nomor Pendaftaran (PPDB-2728-001) atau NISN..." class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 text-sm font-mono outline-none transition-all" />
+                <input id="status-search-input" type="text" value="${escapeHtml(state.searchQuery)}" placeholder="Ketik Nomor Pendaftaran atau 10 digit NISN..." class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 text-sm font-mono outline-none transition-all" />
               </div>
               <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm transition-colors">
                 <span>Periksa Status</span>
                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
               </button>
             </form>
-
-            <!-- Quick Demo Scenario Pills -->
-            <div class="pt-2 border-t border-slate-200/80 space-y-2.5">
-              <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Simulasi Cepat Skenario Sinkronisasi SIMS TU & Admin:</p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" onclick="selectDemoApplicant('PPDB-2728-001')" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  state.selectedApplicantNo === 'PPDB-2728-001'
-                    ? 'bg-amber-50 border-amber-400 text-amber-900 shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-amber-300'
-                }">
-                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span>PPDB-2728-001 • Rafi Ahmad (Menunggu Verifikasi TU)</span>
-                </button>
-
-                <button type="button" onclick="selectDemoApplicant('PPDB-2728-002')" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  state.selectedApplicantNo === 'PPDB-2728-002'
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-300'
-                }">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>PPDB-2728-002 • Anindya Putri (DITERIMA / LULUS)</span>
-                </button>
-
-                <button type="button" onclick="selectDemoApplicant('PPDB-2728-005')" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  state.selectedApplicantNo === 'PPDB-2728-005'
-                    ? 'bg-rose-50 border-rose-400 text-rose-900 shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-rose-300'
-                }">
-                  <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                  <span>PPDB-2728-005 • Bima Sakti (Perlu Perbaikan Berkas)</span>
-                </button>
-
-                ${newlyAdded.map((item) => `
-                  <button type="button" onclick="selectDemoApplicant('${item.registrationNo}')" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    state.selectedApplicantNo === item.registrationNo
-                      ? 'bg-teal-50 border-teal-500 text-teal-900 shadow-sm'
-                      : 'bg-teal-50/40 border-teal-200 text-teal-800 hover:border-teal-400'
-                  }">
-                    <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-                    <span>${item.registrationNo} • ${escapeHtml(item.fullName)} (Pendaftar Baru)</span>
-                  </button>
-                `).join('')}
-              </div>
-            </div>
           </div>
 
           <!-- SEARCH RESULT CARD -->
@@ -1694,8 +1641,8 @@
               <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 mx-auto flex items-center justify-center">
                 <i data-lucide="file-search" class="w-6 h-6"></i>
               </div>
-              <h3 class="font-display font-bold text-base text-slate-900">Data Pendaftar Tidak Ditemukan</h3>
-              <p class="text-xs text-slate-500 max-w-md mx-auto">Pastikan Nomor Pendaftaran (format PPDB-2728-XXX) atau 10 digit NISN sudah sesuai, atau klik salah satu tombol simulasi cepat di atas.</p>
+              <h3 class="font-display font-bold text-base text-slate-900">Cek Status Pendaftaran Anda</h3>
+              <p class="text-xs text-slate-500 max-w-md mx-auto">Masukkan Nomor Pendaftaran atau 10 digit NISN pada kolom pencarian di atas untuk melihat status verifikasi berkas dan hasil seleksi.</p>
             </div>
           `}
         </div>
@@ -1817,12 +1764,9 @@
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
                       <label class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer shadow-sm transition-colors">
                         <i data-lucide="file-up" class="w-4 h-4"></i>
-                        <span>Unggah Susulan ke Cloudflare R2</span>
+                        <span>Unggah Berkas Susulan</span>
                         <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="handleRevisionUpload('${app.registrationNo}', this)" />
                       </label>
-                      <button type="button" onclick="handleRevisionUpload('${app.registrationNo}', null)" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold transition-colors">
-                        Simulasi Unggah Cepat
-                      </button>
                     </div>
                   ` : ''}
                 </div>

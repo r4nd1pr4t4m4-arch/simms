@@ -755,67 +755,82 @@ export default function SimmWorkspaceShell({
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 select-none">
       {/* ===================================================================
-          PRODUCTION RBAC BAR (HANYA TAMPIL JIKA USER SUDAH LOGIN)
+          BILAH NAVIGASI SESI AKTIF (HANYA TAMPIL JIKA PENGGUNA SUDAH LOGIN)
       =================================================================== */}
       {session && !barCollapsed && (
         <header className="z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-200 shadow-lg">
-          {/* Left: Session Identity & Portal Switcher */}
+          {/* Left: Session Identity & Direct Role Navigation */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <div className="flex items-center gap-2 pr-2.5 mr-1 border-r border-slate-700/80 shrink-0">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-bold text-white">{session.name}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                {session.baseRole}
+                {isKepalaMadrasah ? "KEPALA MADRASAH" : session.baseRole}
               </span>
             </div>
 
-            {isSuperAdmin ? (
-              PORTAL_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive =
-                  activePortal === tab.key || pathname === tab.href;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => router.push(tab.href)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition shrink-0 border ${
-                      isActive
-                        ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                        : "bg-slate-800/70 hover:bg-slate-800 text-slate-300 border-slate-700/70"
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => router.push(session.targetPath)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
+                  pathname === session.targetPath
+                    ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Dashboard Utama</span>
+              </button>
+
+              {isKepalaMadrasah && (
                 <button
-                  onClick={() => router.push(session.targetPath)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white border border-emerald-500 font-medium"
+                  onClick={() => router.push("/admin")}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
+                    pathname === "/admin"
+                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                  }`}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Dashboard Saya ({session.baseRole})</span>
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Panel Eksekutif</span>
                 </button>
+              )}
+
+              {(session.baseRole === "ADMIN" || isKepalaMadrasah) && (
                 <button
-                  onClick={() => router.push("/")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium"
+                  onClick={() => router.push("/tu")}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
+                    pathname === "/tu"
+                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                  }`}
                 >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Beranda Publik</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Tata Usaha (TU)</span>
                 </button>
-              </div>
-            )}
+              )}
+
+              <button
+                onClick={() => router.push("/")}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
+                  pathname === "/"
+                    ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Beranda Publik</span>
+              </button>
+            </div>
           </div>
 
-          {/* Right: Role-Permitted Extended Modules + Go-Live Settings + Change Password + Logout */}
+          {/* Right: Role-Permitted Extended Modules + Master Settings + Change Password + Logout */}
           <div className="flex items-center gap-1.5 shrink-0">
             {canAccessGoLiveSettings && (
               <button
                 onClick={() => setActiveModal("golive_settings")}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition shadow-sm"
-                title="Pengaturan Identitas Madrasah, Import CSV EMIS/GTK & Reset Data Dummy"
+                title="Pengaturan Identitas Madrasah & Import Massal Excel (.xlsx)"
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Master & Import EMIS</span>
@@ -838,7 +853,7 @@ export default function SimmWorkspaceShell({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-medium transition"
               >
                 <CalendarClock className="w-3.5 h-3.5" />
-                <span>Jadwal Anti-Bentrok</span>
+                <span>Jadwal Kurikulum</span>
               </button>
             )}
 
@@ -859,16 +874,6 @@ export default function SimmWorkspaceShell({
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>Naik Kelas</span>
-              </button>
-            )}
-
-            {canAccessR2Manager && (
-              <button
-                onClick={() => setActiveModal("r2_uploader")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-medium transition"
-              >
-                <CloudUpload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">R2</span>
               </button>
             )}
 
@@ -925,7 +930,7 @@ export default function SimmWorkspaceShell({
       </main>
 
       {/* ===================================================================
-          MODAL PUSAT GO-LIVE: IDENTITAS MADRASAH, IMPORT CSV & RESET DUMMY
+          MODAL PENGATURAN IDENTITAS MADRASAH & IMPORT EXCEL (.XLSX)
       =================================================================== */}
       {activeModal === "golive_settings" && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -933,10 +938,10 @@ export default function SimmWorkspaceShell({
             <div className="px-6 py-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-semibold">
-                  Pusat Konfigurasi Go-Live Madrasah
+                  Pengaturan Master Madrasah
                 </span>
                 <h2 className="text-lg font-bold mt-1">
-                  Identitas Resmi Madrasah, Import Massal Excel (.xlsx) & Pembersihan Data Dummy
+                  Identitas Resmi Madrasah & Import Massal Excel (.xlsx)
                 </h2>
               </div>
               <button
@@ -968,16 +973,6 @@ export default function SimmWorkspaceShell({
                 }`}
               >
                 2. Import Massal Excel (.xlsx) — Siswa EMIS & Guru
-              </button>
-              <button
-                onClick={() => setGoLiveTab("reset_data")}
-                className={`px-4 py-2.5 rounded-t-xl border-t border-x transition ${
-                  goLiveTab === "reset_data"
-                    ? "bg-white text-rose-700 border-slate-200"
-                    : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
-                }`}
-              >
-                3. Bersihkan Data Dummy (Go-Live)
               </button>
             </div>
 

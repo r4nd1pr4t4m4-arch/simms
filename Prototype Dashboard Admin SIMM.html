@@ -217,14 +217,13 @@
       </nav>
     </div>
 
-    <!-- Bottom Infrastructure Status Indicator -->
+    <!-- Bottom Status Indicator -->
     <div class="p-4 border-t border-slate-200/75 bg-slate-50/70 shrink-0">
       <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
         <span class="flex items-center gap-1.5 font-medium text-slate-700">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Supabase &amp; R2 Terhubung
+          Sistem Aktif
         </span>
-        <span class="font-mono text-[10px] text-slate-400">v1.4</span>
       </div>
       <p class="text-[10px] text-slate-400 leading-relaxed">
         Sinkronisasi otomatis ke portal publik madrasah.
@@ -262,7 +261,7 @@
       <div class="flex items-center gap-3 shrink-0">
         <button onclick="openPublicPreviewModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200/90 hover:border-emerald-200 text-xs font-semibold shadow-2xs transition-all cursor-pointer">
           <i data-lucide="external-link" class="w-3.5 h-3.5 text-emerald-600"></i>
-          <span class="hidden sm:inline">Pratinjau Halaman Publik</span>
+          <span class="hidden sm:inline">Buka Halaman Publik</span>
           <span class="sm:hidden">Publik</span>
         </button>
 
@@ -270,12 +269,12 @@
 
         <!-- Admin User Pill -->
         <div class="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-2xl bg-white/90 border border-slate-200/80 shadow-2xs">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-heading font-bold text-xs flex items-center justify-center shrink-0">
-            AF
+          <div id="topbar-admin-avatar" class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-heading font-bold text-xs flex items-center justify-center shrink-0">
+            SA
           </div>
           <div class="hidden md:block text-left">
-            <p class="text-xs font-bold text-slate-900 leading-tight">Ahmad Fauzi, S.Pd.</p>
-            <p class="text-[11px] text-emerald-700 font-medium leading-tight">Operator / Super Admin</p>
+            <p id="topbar-admin-name" class="text-xs font-bold text-slate-900 leading-tight">Super Admin</p>
+            <p id="topbar-admin-role" class="text-[11px] text-emerald-700 font-medium leading-tight">Operator / Super Admin</p>
           </div>
         </div>
       </div>
