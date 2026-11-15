@@ -42,7 +42,7 @@ Kata sandi awal seluruh akun sebelum diubah melalui menu **Ubah Sandi**: **`Simm
 2. Klik tombol hijau **"Master & Import EMIS"** di bilah atas:
    - **Tab 1 (Identitas & Kop Madrasah)**: Ubah Nama Madrasah, NSM, NPSN, Akreditasi, Tahun Ajaran, Nama & NIP Kepala Madrasah, Alamat, Koordinat GPS Geofencing, dan Info Rekening Komite, lalu klik **Simpan**.
    - **Tab 3 (Bersihkan Data Dummy)**: Ketik `SIAP-GOLIVE` untuk membersihkan data siswa/pendaftar/transaksi contoh sebelum mengimpor data riil.
-   - **Tab 2 (Import Massal CSV)**: Unduh template CSV Siswa EMIS & Guru GTK, isi dengan data madrasah Anda di Excel (simpan sebagai `.csv`), lalu unggah untuk membuat seluruh data Buku Induk dan akun login secara otomatis.
+   - **Tab 2 (Import Massal Excel .xlsx)**: Unduh template Excel `.xlsx` Siswa EMIS & Guru GTK (`Template_Import_Siswa_EMIS_SIMS.xlsx` / `Template_Import_Guru_GTK_SIMS.xlsx`), isi dengan data madrasah Anda di Microsoft Excel, lalu unggah kembali file `.xlsx` tersebut untuk membuat seluruh data Buku Induk dan akun login secara otomatis.
 3. Klik tombol **"Sandi"** di bilah atas untuk mengganti kata sandi default akun Super Admin Anda.
 
 ---

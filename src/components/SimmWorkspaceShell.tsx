@@ -423,75 +423,57 @@ export default function SimmWorkspaceShell({
     }
   };
 
-  // Unduh Template CSV Siswa / Guru
-  const handleDownloadCsvTemplate = (type: "students" | "teachers") => {
-    const csvContent =
-      type === "students"
-        ? "nis,nisn,nik,name,ttl,gender,rombel,fatherName,motherName,parentPhone,address,prevSchool,waliKelas\n262707101,0135566778,3204120101130001,Ahmad Zaki Mubarak,\"Bandung, 12 Maret 2013\",Laki-laki,VII-A,H. Fauzan,Hj. Rahmah,081234567890,Jl. Raya Cibiru No. 10,MI Al-Hidayah,Fitriani Rahmawati S.E.\n262707102,0135566779,3204120202130002,Siti Fatimah Azzahra,\"Bandung, 20 Juni 2013\",Perempuan,VII-A,Drs. Mahmud,Siti Aminah,081298765432,Komp. Griya Cempaka,SDN Cibiru 01,Fitriani Rahmawati S.E."
-        : "nip,name,subject,additionalRole,roleDetail\n198501012010011001,Ust. H. Lukmanul Hakim M.Pd.,Al-Qur'an Hadits,Wali Kelas,IX-B\n199002022015032002,Usth. Rina Kartika S.Pd.,Bahasa Indonesia,Guru Piket,Selasa";
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+  // Unduh Template Excel (.xlsx) Siswa / Guru dari endpoint /api/xlsx
+  const handleDownloadXlsxTemplate = (type: "students" | "teachers") => {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = `/api/xlsx?type=${type}`;
     a.download =
       type === "students"
-        ? "Template_Import_Siswa_EMIS_SIMS.csv"
-        : "Template_Import_Guru_GTK_SIMS.csv";
+        ? "Template_Import_Siswa_EMIS_SIMS.xlsx"
+        : "Template_Import_Guru_GTK_SIMS.xlsx";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    triggerToast(
+      "Mengunduh Template Excel (.xlsx)",
+      `File ${a.download} sedang diunduh ke komputer Anda.`
+    );
   };
 
-  // Parser File CSV sederhana (mendukung tanda kutip)
-  const parseCsvText = (text: string): Array<Record<string, string>> => {
-    const lines = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length < 2) return [];
-
-    const splitCsvLine = (line: string) => {
-      const res: string[] = [];
-      let cur = "";
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          inQuotes = !inQuotes;
-        } else if ((ch === "," || ch === ";") && !inQuotes) {
-          res.push(cur.trim());
-          cur = "";
-        } else {
-          cur += ch;
-        }
-      }
-      res.push(cur.trim());
-      return res;
-    };
-
-    const headers = splitCsvLine(lines[0]);
-    return lines.slice(1).map((line) => {
-      const vals = splitCsvLine(line);
-      const obj: Record<string, string> = {};
-      headers.forEach((h, idx) => {
-        obj[h] = vals[idx] || "";
-      });
-      return obj;
-    });
-  };
-
-  const handleCsvFileSelected = async (
+  // Baca File Excel (.xlsx) melalui /api/xlsx
+  const handleXlsxFileSelected = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const parsed = parseCsvText(text);
-    setCsvPreviewRows(parsed);
-    triggerToast(
-      "File CSV Terbaca",
-      `Ditemukan ${parsed.length} baris data siap diimpor ke Supabase.`
-    );
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/xlsx", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.rows)) {
+        setCsvPreviewRows(data.rows);
+        triggerToast(
+          "File Excel (.xlsx) Terbaca",
+          `Ditemukan ${data.rows.length} baris data dari ${file.name} siap diimpor ke Supabase.`
+        );
+      } else {
+        triggerToast(
+          "Gagal Membaca File .xlsx",
+          data.error || "Pastikan file berformat Excel (.xlsx) sesuai template."
+        );
+      }
+    } catch {
+      triggerToast(
+        "Error Pembacaan File",
+        "Gagal memproses file .xlsx yang dipilih."
+      );
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const handleExecuteBulkImport = async () => {
@@ -952,7 +934,7 @@ export default function SimmWorkspaceShell({
                   Pusat Konfigurasi Go-Live Madrasah
                 </span>
                 <h2 className="text-lg font-bold mt-1">
-                  Identitas Resmi Madrasah, Import Massal CSV (EMIS/GTK) & Pembersihan Data Dummy
+                  Identitas Resmi Madrasah, Import Massal Excel (.xlsx) & Pembersihan Data Dummy
                 </h2>
               </div>
               <button
@@ -983,7 +965,7 @@ export default function SimmWorkspaceShell({
                     : "bg-transparent text-slate-600 border-transparent hover:text-slate-900"
                 }`}
               >
-                2. Import Massal CSV (Siswa EMIS & Guru)
+                2. Import Massal Excel (.xlsx) — Siswa EMIS & Guru
               </button>
               <button
                 onClick={() => setGoLiveTab("reset_data")}
@@ -1218,7 +1200,7 @@ export default function SimmWorkspaceShell({
                 </form>
               )}
 
-              {/* TAB 2: IMPORT MASSAL CSV (SISWA EMIS & GURU) */}
+              {/* TAB 2: IMPORT MASSAL EXCEL (.XLSX) (SISWA EMIS & GURU) */}
               {goLiveTab === "import_csv" && (
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
@@ -1255,12 +1237,12 @@ export default function SimmWorkspaceShell({
 
                     <button
                       type="button"
-                      onClick={() => handleDownloadCsvTemplate(importTarget)}
+                      onClick={() => handleDownloadXlsxTemplate(importTarget)}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>
-                        Unduh Template CSV{" "}
+                        Unduh Template Excel (.xlsx){" "}
                         {importTarget === "students" ? "Siswa EMIS" : "Guru GTK"}
                       </span>
                     </button>
@@ -1269,15 +1251,15 @@ export default function SimmWorkspaceShell({
                   <label className="block p-6 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50 text-center cursor-pointer transition">
                     <Upload className="w-7 h-7 text-emerald-600 mx-auto mb-2" />
                     <p className="font-bold text-emerald-950">
-                      Pilih File CSV ({importTarget === "students" ? "Data Siswa EMIS" : "Data Guru GTK"}) dari Komputer Anda
+                      Pilih File Excel (.xlsx) ({importTarget === "students" ? "Data Siswa EMIS" : "Data Guru GTK"}) dari Komputer Anda
                     </p>
                     <p className="text-xs text-slate-600 mt-1">
-                      Sistem akan otomatis membuat akun login (kata sandi awal: Simms2026!) dan menyimpan ke Supabase.
+                      Kolom NIS, NISN, NIK, dan NIP otomatis terjaga sebagai Teks (angka nol di depan tidak hilang). Sistem otomatis membuat akun login (sandi awal: Simms2026!) di Supabase.
                     </p>
                     <input
                       type="file"
-                      accept=".csv,.txt"
-                      onChange={handleCsvFileSelected}
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handleXlsxFileSelected}
                       className="hidden"
                     />
                   </label>
