@@ -12,6 +12,7 @@ interface MiddlewareSession {
   identifier: string;
   name: string;
   baseRole: "ADMIN" | "TU" | "GTK" | "SISWA" | "ORTU" | "PPDB";
+  additionalRoles?: string[];
   targetPath: string;
 }
 
@@ -70,9 +71,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 2. Cek kesesuaian Role (RBAC)
+  // 2. Cek kesesuaian Role (RBAC) — Kepala Madrasah juga memiliki hak supervisi eksekutif ke /admin & /tu
+  const isKepalaMadrasah =
+    session.baseRole === "GTK" &&
+    (session.additionalRoles || [])
+      .join(" ")
+      .toLowerCase()
+      .includes("kepala madrasah");
+
   const allowedRoles = ROUTE_ROLE_MAP[matchedPrefix];
-  if (!allowedRoles.includes(session.baseRole)) {
+  if (!allowedRoles.includes(session.baseRole) && !isKepalaMadrasah) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         {

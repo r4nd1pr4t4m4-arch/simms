@@ -52,6 +52,13 @@ const STUDENT_TEMPLATE_ROWS: string[][] = [
 const TEACHER_TEMPLATE_ROWS: string[][] = [
   ["nip", "name", "subject", "additionalRole", "roleDetail"],
   [
+    "197605142003121003",
+    "Dr. H. Ahmad Fauzi, M.Pd.",
+    "Akidah Akhlak",
+    "Kepala Madrasah",
+    "SK-001/MTs/2026",
+  ],
+  [
     "198501012010011001",
     "Ust. H. Lukmanul Hakim, M.Pd.",
     "Al-Qur'an Hadits",

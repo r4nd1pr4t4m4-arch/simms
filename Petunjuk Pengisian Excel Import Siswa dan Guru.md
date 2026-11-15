@@ -80,6 +80,7 @@ Agar sistem **Dynamic RBAC** otomatis membuka menu khusus pada dashboard guru ya
 
 | Isi Kolom `additionalRole` | Isi Kolom `roleDetail` yang Disarankan | Modul Tambahan yang Terbuka Otomatis di Dashboard Guru |
 | :--- | :--- | :--- |
+| `Kepala Madrasah` | Nomor SK Pengangkatan (contoh: `SK-001/MTs/2026`) | Membuka **Akses Supervisi Eksekutif Pimpinan** ke seluruh modul (Portal Admin, TU, GTK, PPDB, Jadwal, & BK) serta **otomatis memperbarui Nama & NIP Kepala Madrasah** pada Kop Surat, SKL, & Tanda Tangan Elektronik (TTE). |
 | `Wali Kelas` | Kode Rombel binaan (contoh: `VII-A`, `VIII-A`, `IX-B`) | Membuka **Panel Wali Kelas** (Presensi Pagi, Catatan Wali Kelas, & Jadwal Piket Kebersihan Siswa). |
 | `Guru Piket` | Nama hari bertugas (contoh: `Senin`, `Selasa`, `Rabu`, `Kamis`, `Jumat`, `Sabtu`) | Membuka **Meja Kerja Guru Piket** (Pantauan Guru Izin/Sakit, Penunjukan Guru Inval, & Log Kejadian Siswa). |
 | `Pengelola Tabungan` | Jabatan / Nomor SK (contoh: `Admin Tabungan Siswa` atau `SK-015/MTs/2026`) | Membuka **Modul Keuangan: Tabungan Siswa** (Setor, Tarik, Mutasi & Buku Tabungan Digital). |
@@ -89,6 +90,22 @@ Agar sistem **Dynamic RBAC** otomatis membuka menu khusus pada dashboard guru ya
 | `Waka Kurikulum` | Nomor SK (contoh: `SK-012/MTs/2026`) | Membuka **Modul Penyusunan Jadwal Pelajaran Anti-Bentrok (*Conflict Detection*)**. |
 | `Waka Kesiswaan` | Nomor SK (contoh: `SK-013/MTs/2026`) | Akses pemantauan kedisiplinan, poin prestasi, dan kegiatan kesiswaan. |
 | *(Kosongkan)* | *(Kosongkan)* | Guru Mata Pelajaran murni (hanya menampilkan Beranda Presensi GPS, Jadwal Mengajar & Isi Jurnal Kelas). |
+
+### Contoh Tabel Pengisian Guru (Termasuk Kepala Madrasah) di Excel:
+
+| nip | name | subject | additionalRole | roleDetail |
+| :--- | :--- | :--- | :--- | :--- |
+| `197804122005011002` | H. Ahmad Fauzi, M.Ag. | Akidah Akhlak | `Kepala Madrasah` | `SK-001/MTs/2026` |
+| `198501012010011001` | Ust. H. Lukmanul Hakim, M.Pd. | Al-Qur'an Hadits | `Wali Kelas` | `IX-B` |
+| `198803152015032002` | Fitriani Rahmawati, S.E. | IPS Terpadu | `Pengelola Tabungan` | `Admin Tabungan Siswa` |
+
+> **Khusus Guru yang Menjabat sebagai Kepala Madrasah:**
+> Sesuai regulasi Kementerian Agama (PMA), Kepala Madrasah adalah **Guru yang diberi tugas tambahan sebagai Kepala Madrasah**. Oleh karena itu:
+> 1. Tetap masukkan data beliau di file Excel Guru (`Template_Import_Guru_GTK_SIMS.xlsx`) dengan mengisi mata pelajaran yang diampu pada kolom `subject` (atau isi `Manajerial / Kepala Madrasah` jika bebas jam mengajar).
+> 2. Isi kolom `additionalRole` dengan **`Kepala Madrasah`** dan kolom `roleDetail` dengan **Nomor SK Pengangkatan** (contoh: `SK-001/MTs/2026`).
+> 3. Saat diimpor, sistem otomatis:
+>    - Memberikan **Hak Akses Supervisi Eksekutif Pimpinan** (dapat memonitor Dashboard Eksekutif `/admin`, Layanan Surat & Keuangan `/tu`, Portal Guru `/gtk`, Seleksi PPDB, Jadwal Kurikulum, hingga BK).
+>    - Memperbarui **Nama & NIP Kepala Madrasah** pada Pengaturan Identitas Madrasah, Kop Surat Resmi, SK Tugas Tambahan, dan QR Tanda Tangan Elektronik (TTE).
 
 > **Catatan**: Jika seorang guru memiliki **lebih dari satu** tugas tambahan (misalnya menjadi *Wali Kelas VIII-A* sekaligus *Guru Piket Hari Sabtu*), Anda dapat:
 > 1. Mencantumkan keduanya dengan membuat 2 baris dengan `nip` yang sama pada file Excel (baris ke-1 dengan `additionalRole = Wali Kelas`, baris ke-2 dengan `additionalRole = Guru Piket`), **atau**

@@ -279,13 +279,33 @@ export async function POST(req: NextRequest) {
           });
 
           if (r.additionalRole && String(r.additionalRole).trim()) {
+            const roleType = String(r.additionalRole).trim();
             await prisma.teacherAdditionalRole.create({
               data: {
                 teacherId: tp.id,
-                type: String(r.additionalRole).trim(),
+                type: roleType,
                 detail: String(r.roleDetail || "SK Tahun Ajaran Aktif").trim(),
               },
             });
+
+            // Jika tugas tambahan adalah Kepala Madrasah, perbarui otomatis profil Kepala Madrasah resmi
+            if (roleType.toLowerCase().includes("kepala madrasah")) {
+              const currentProfile = await getMadrasahProfile();
+              const updatedProfile: MadrasahProfileConfig = {
+                ...currentProfile,
+                headmasterName: name,
+                headmasterNip: nip,
+              };
+              await prisma.systemActivityLog.create({
+                data: {
+                  actor: "System Import GTK",
+                  roleBadge: "ADMIN",
+                  actionText: JSON.stringify(updatedProfile),
+                  timeLabel: new Date().toLocaleString("id-ID"),
+                  category: "madrasah_profile",
+                },
+              });
+            }
           }
 
           importedCount++;
@@ -320,6 +340,7 @@ export async function POST(req: NextRequest) {
         const { nip, type, detail, skNumber } = payload;
         const teacher = await prisma.teacherProfile.findUnique({
           where: { nip },
+          include: { user: true },
         });
         if (!teacher) {
           return NextResponse.json(
@@ -335,6 +356,23 @@ export async function POST(req: NextRequest) {
             skNumber: skNumber || "SK-024/MTs.NF/2026",
           },
         });
+        if (String(type || "").toLowerCase().includes("kepala madrasah")) {
+          const currentProfile = await getMadrasahProfile();
+          const updatedProfile: MadrasahProfileConfig = {
+            ...currentProfile,
+            headmasterName: teacher.user?.name || currentProfile.headmasterName,
+            headmasterNip: teacher.nip || currentProfile.headmasterNip,
+          };
+          await prisma.systemActivityLog.create({
+            data: {
+              actor: "Super Admin",
+              roleBadge: "ADMIN",
+              actionText: JSON.stringify(updatedProfile),
+              timeLabel: new Date().toLocaleString("id-ID"),
+              category: "madrasah_profile",
+            },
+          });
+        }
         return NextResponse.json({ ok: true, data: created });
       }
 

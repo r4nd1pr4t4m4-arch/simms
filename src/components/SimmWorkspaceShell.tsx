@@ -539,10 +539,12 @@ export default function SimmWorkspaceShell({
   };
 
   // Deteksi hak akses modul tambahan sesuai BaseRole + Dynamic Additional Roles
-  const isSuperAdmin = session?.baseRole === "ADMIN";
+  const joinedRoles = (session?.additionalRoles || []).join(" ").toLowerCase();
+  const isKepalaMadrasah =
+    session?.baseRole === "GTK" && joinedRoles.includes("kepala madrasah");
+  const isSuperAdmin = session?.baseRole === "ADMIN" || isKepalaMadrasah;
   const isTu = session?.baseRole === "TU";
   const isGtk = session?.baseRole === "GTK";
-  const joinedRoles = (session?.additionalRoles || []).join(" ").toLowerCase();
 
   const canAccessPpdbScoring =
     isSuperAdmin || isTu || (isGtk && joinedRoles.includes("ppdb"));
