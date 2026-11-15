@@ -334,6 +334,10 @@ export default function SimmWorkspaceShell({
 
       if (data.type === "NAVIGATE" && data.payload?.path) {
         router.push(data.payload.path);
+      } else if (data.type === "OPEN_MODAL" && data.payload?.modal) {
+        setActiveModal(data.payload.modal as ExtendedModalType);
+      } else if (data.type === "LOGOUT") {
+        handleLogout();
       } else if (data.type === "AUTH_SUCCESS" && data.payload?.targetPath) {
         setSession(data.payload);
         triggerToast(
@@ -755,170 +759,7 @@ export default function SimmWorkspaceShell({
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 select-none">
       {/* ===================================================================
-          BILAH NAVIGASI SESI AKTIF (HANYA TAMPIL JIKA PENGGUNA SUDAH LOGIN)
-      =================================================================== */}
-      {session && !barCollapsed && (
-        <header className="z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-200 shadow-lg">
-          {/* Left: Session Identity & Direct Role Navigation */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <div className="flex items-center gap-2 pr-2.5 mr-1 border-r border-slate-700/80 shrink-0">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-bold text-white">{session.name}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                {isKepalaMadrasah ? "KEPALA MADRASAH" : session.baseRole}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => router.push(session.targetPath)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
-                  pathname === session.targetPath
-                    ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Dashboard Utama</span>
-              </button>
-
-              {isKepalaMadrasah && (
-                <button
-                  onClick={() => router.push("/admin")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
-                    pathname === "/admin"
-                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                      : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Panel Eksekutif</span>
-                </button>
-              )}
-
-              {(session.baseRole === "ADMIN" || isKepalaMadrasah) && (
-                <button
-                  onClick={() => router.push("/tu")}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
-                    pathname === "/tu"
-                      ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                      : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                  }`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Tata Usaha (TU)</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => router.push("/")}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition border ${
-                  pathname === "/"
-                    ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                }`}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Beranda Publik</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Role-Permitted Extended Modules + Master Settings + Change Password + Logout */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {canAccessGoLiveSettings && (
-              <button
-                onClick={() => setActiveModal("golive_settings")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition shadow-sm"
-                title="Pengaturan Identitas Madrasah & Import Massal Excel (.xlsx)"
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Master & Import EMIS</span>
-              </button>
-            )}
-
-            {canAccessPpdbScoring && (
-              <button
-                onClick={() => setActiveModal("ppdb_scoring")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 font-medium transition"
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span>Skor PPDB</span>
-              </button>
-            )}
-
-            {canAccessScheduleBuilder && (
-              <button
-                onClick={() => setActiveModal("schedule_conflict")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-medium transition"
-              >
-                <CalendarClock className="w-3.5 h-3.5" />
-                <span>Jadwal Kurikulum</span>
-              </button>
-            )}
-
-            {canAccessBkDesk && (
-              <button
-                onClick={() => setActiveModal("bk_counseling")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium transition"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Meja BK</span>
-              </button>
-            )}
-
-            {canAccessBatchPromotion && (
-              <button
-                onClick={() => setActiveModal("batch_promotion")}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 font-medium transition"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Naik Kelas</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setActiveModal("change_password")}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition"
-              title="Ubah Kata Sandi Akun"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Sandi</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold transition"
-              title="Keluar dari Sesi SIMS"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Keluar</span>
-            </button>
-
-            <button
-              onClick={() => setBarCollapsed(true)}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition"
-              title="Sembunyikan Bilah Sesi"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </header>
-      )}
-
-      {session && barCollapsed && (
-        <button
-          onClick={() => setBarCollapsed(false)}
-          className="fixed top-2 right-3 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-emerald-300 border border-emerald-500/40 text-xs font-semibold shadow-lg backdrop-blur-md transition"
-        >
-          <Database className="w-3.5 h-3.5" />
-          <span>{session.baseRole} • Menu Sesi</span>
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
-      )}
-
-      {/* ===================================================================
-          MAIN PORTAL VIEWPORT
+          MAIN PORTAL VIEWPORT (FULLSCREEN TANPA BILAH MENU SESI ATAS)
       =================================================================== */}
       <main className="relative flex-1 w-full h-full bg-slate-50 overflow-hidden">
         <iframe

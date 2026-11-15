@@ -15,6 +15,203 @@
     }
   }
 
+  window.__SIMM_OPEN_MODAL__ = function (modalKey) {
+    notifyShell("OPEN_MODAL", { modal: modalKey });
+  };
+
+  window.__SIMM_NAVIGATE__ = function (path) {
+    notifyShell("NAVIGATE", { path });
+    if (window.parent === window) {
+      window.location.href = path;
+    }
+  };
+
+  window.__SIMM_LOGOUT__ = async function () {
+    notifyShell("LOGOUT", {});
+    if (window.parent === window) {
+      await fetch("/api/auth", { method: "DELETE" }).catch(() => null);
+      window.location.href = "/";
+    }
+  };
+
+  // Gabungkan menu sesi & modul tambahan langsung ke dalam daftar menu di Sidebar masing-masing dashboard
+  function injectIntegratedSidebarSessionMenus(session) {
+    if (!session) return;
+
+    // Jika sedang di Halaman Publik (/), ubah tombol "Masuk SIMS" menjadi "Dashboard Saya"
+    const loginBtns = document.querySelectorAll('button[onclick*="openLoginModal"]');
+    loginBtns.forEach((btn) => {
+      btn.setAttribute("onclick", `window.__SIMM_NAVIGATE__('${session.targetPath || "/"}')`);
+      btn.innerHTML = `<i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Dashboard Saya</span>`;
+    });
+
+    const navEl =
+      document.getElementById("dynamic-sidebar-nav") ||
+      document.getElementById("tu-sidebar-nav") ||
+      document.getElementById("student-sidebar-nav") ||
+      document.getElementById("parent-sidebar-nav") ||
+      document.querySelector('aside nav[aria-label="Menu Utama Admin"]');
+
+    if (!navEl) {
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    const existing = document.getElementById("sims-integrated-sidebar-ext");
+    if (existing) existing.remove();
+
+    const joinedRoles = (session.additionalRoles || []).join(" ").toLowerCase();
+    const isKepalaMadrasah =
+      session.baseRole === "GTK" && joinedRoles.includes("kepala madrasah");
+    const isSuperAdmin = session.baseRole === "ADMIN" || isKepalaMadrasah;
+    const isTu = session.baseRole === "TU";
+    const isGtk = session.baseRole === "GTK";
+
+    const canAccessGoLiveSettings = isSuperAdmin || isTu;
+    const canAccessPpdbScoring =
+      isSuperAdmin || isTu || (isGtk && joinedRoles.includes("ppdb"));
+    const canAccessScheduleBuilder =
+      isSuperAdmin ||
+      (isGtk &&
+        (joinedRoles.includes("kurikulum") || joinedRoles.includes("piket")));
+    const canAccessBkDesk =
+      isSuperAdmin ||
+      (isGtk && (joinedRoles.includes("bk") || joinedRoles.includes("wali")));
+    const canAccessBatchPromotion = isSuperAdmin || isTu;
+
+    const currentPortalPath =
+      window.parent && window.parent !== window
+        ? window.parent.location.pathname
+        : window.location.pathname;
+
+    const moduleButtons = [];
+
+    if (canAccessGoLiveSettings) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('golive_settings')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="building-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span class="truncate">Master &amp; Import EMIS</span>
+          </span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">XLSX</span>
+        </button>
+      `);
+    }
+
+    if (canAccessPpdbScoring) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('ppdb_scoring')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="award" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <span class="truncate">Skor &amp; Seleksi PPDB</span>
+          </span>
+        </button>
+      `);
+    }
+
+    if (canAccessScheduleBuilder) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('schedule_conflict')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <span class="truncate">Jadwal Kurikulum</span>
+          </span>
+        </button>
+      `);
+    }
+
+    if (canAccessBkDesk) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('bk_counseling')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="sparkles" class="w-4 h-4 text-purple-600 shrink-0"></i>
+            <span class="truncate">Meja Kerja BK &amp; Poin</span>
+          </span>
+        </button>
+      `);
+    }
+
+    if (canAccessBatchPromotion) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('batch_promotion')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="layers" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <span class="truncate">Kenaikan Kelas Massal</span>
+          </span>
+        </button>
+      `);
+    }
+
+    // Navigasi lintas portal khusus Pimpinan (Kepala Madrasah) & Super Admin
+    if (isSuperAdmin && currentPortalPath !== "/admin") {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_NAVIGATE__('/admin')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span class="truncate">Panel Eksekutif Admin</span>
+          </span>
+        </button>
+      `);
+    }
+
+    if (isSuperAdmin && currentPortalPath !== "/tu") {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_NAVIGATE__('/tu')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <span class="truncate">Portal Tata Usaha (TU)</span>
+          </span>
+        </button>
+      `);
+    }
+
+    if (isKepalaMadrasah && currentPortalPath !== "/gtk") {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_NAVIGATE__('/gtk')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="graduation-cap" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span class="truncate">Portal Guru &amp; GTK</span>
+          </span>
+        </button>
+      `);
+    }
+
+    const extWrapper = document.createElement("div");
+    extWrapper.id = "sims-integrated-sidebar-ext";
+    extWrapper.className = "pt-3 mt-3 border-t border-slate-200/80 space-y-1";
+
+    extWrapper.innerHTML = `
+      ${
+        moduleButtons.length > 0
+          ? `<p class="px-3 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Modul &amp; Pengaturan</p>
+             ${moduleButtons.join("")}`
+          : ""
+      }
+      <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Akun &amp; Navigasi</p>
+      <button type="button" onclick="window.__SIMM_NAVIGATE__('/')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <span class="flex items-center gap-3 min-w-0">
+          <i data-lucide="globe" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">Beranda Publik</span>
+        </span>
+      </button>
+      <button type="button" onclick="window.__SIMM_OPEN_MODAL__('change_password')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <span class="flex items-center gap-3 min-w-0">
+          <i data-lucide="key-round" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">Ubah Kata Sandi</span>
+        </span>
+      </button>
+      <button type="button" onclick="window.__SIMM_LOGOUT__()" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-all cursor-pointer">
+        <span class="flex items-center gap-3 min-w-0">
+          <i data-lucide="log-out" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">Keluar Aplikasi</span>
+        </span>
+      </button>
+    `;
+
+    navEl.appendChild(extWrapper);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   function getInitials(name) {
     if (!name) return "SM";
     const parts = String(name)
@@ -540,8 +737,25 @@
     if (dbSummary) {
       syncDatabaseRecordsToPortal(dbSummary);
     }
+
+    // Hook fungsi render sidebar di setiap portal agar menu sesi selalu tergabung di sidebar
+    ["renderSidebarNavigation", "renderSidebarMenu", "renderSidebarNav", "updateSidebarActiveState"].forEach(
+      (fnName) => {
+        if (typeof window[fnName] === "function") {
+          const origFn = window[fnName];
+          window[fnName] = function () {
+            origFn.apply(this, arguments);
+            if (currentSession) {
+              injectIntegratedSidebarSessionMenus(currentSession);
+            }
+          };
+        }
+      }
+    );
+
     if (currentSession) {
       applyLiveUserSessionToPortal(currentSession, dbSummary);
+      injectIntegratedSidebarSessionMenus(currentSession);
     }
 
     // Jika diarahkan oleh Middleware karena belum login (?login=required), buka modal login otomatis
