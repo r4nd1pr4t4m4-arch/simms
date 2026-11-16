@@ -195,12 +195,14 @@ export default function SimmWorkspaceShell({
           <PublikPortal
             db={db}
             session={session}
-            onLoginSuccess={loadWorkspaceData}
-            triggerToast={triggerToast}
+            onLoginSuccess={(sess) => {
+              setSession(sess);
+              router.push(sess.targetPath || "/");
+            }}
           />
         );
       case "ppdb":
-        return <PpdbPortal db={db} triggerToast={triggerToast} />;
+        return <PpdbPortal db={db} />;
       case "admin":
         return (
           <AdminPortal
