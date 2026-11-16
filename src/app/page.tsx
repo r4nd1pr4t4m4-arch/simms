@@ -1,5 +1,15 @@
 import SimmWorkspaceShell from "@/components/SimmWorkspaceShell";
+import { loadPortalSsrProps } from "@/lib/portal-ssr";
 
-export default function PublicHomePage() {
-  return <SimmWorkspaceShell activePortal="publik" />;
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const { initialSession, initialDb } = await loadPortalSsrProps();
+  return (
+    <SimmWorkspaceShell
+      activePortal="publik"
+      initialSession={initialSession}
+      initialDb={initialDb}
+    />
+  );
 }
