@@ -119,7 +119,12 @@ type ExtendedModalType =
   | "batch_promotion"
   | "r2_uploader"
   | "change_password"
-  | "golive_settings";
+  | "golive_settings"
+  | "academic_master"
+  | "academic_period"
+  | "tu_persuratan"
+  | "tu_agenda"
+  | "tu_emis";
 
 export default function SimmWorkspaceShell({
   activePortal,
@@ -190,6 +195,116 @@ export default function SimmWorkspaceShell({
     "Agung Saputra (7A)",
   ]);
   const [realRombels, setRealRombels] = useState<string[]>(["7A", "8A", "9A"]);
+  const [realSubjects, setRealSubjects] = useState<string[]>([
+    "Al-Qur'an Hadits",
+    "Akidah Akhlak",
+    "Fiqih",
+    "Sejarah Kebudayaan Islam (SKI)",
+    "Bahasa Arab",
+    "Pendidikan Pancasila",
+    "Bahasa Indonesia",
+    "Matematika",
+    "IPA Terpadu",
+    "Ilmu Pengetahuan Sosial",
+    "Bahasa Inggris",
+    "PJOK",
+    "Informatika",
+    "Seni Budaya & Prakarya",
+    "Tahfidzul Qur'an & BTQ",
+    "Bimbingan & Konseling",
+  ]);
+
+  // State Master Akademik (Tingkat Kelas, Rombel, Mata Pelajaran)
+  const [masterTab, setMasterTab] = useState<"grades" | "rombels" | "subjects">(
+    "rombels"
+  );
+  const [gradeLevels, setGradeLevels] = useState<
+    Array<{ code: string; label: string; phase: string; isFinalGrade: boolean }>
+  >([
+    {
+      code: "VII",
+      label: "Kelas VII (Tingkat 7)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: false,
+    },
+    {
+      code: "VIII",
+      label: "Kelas VIII (Tingkat 8)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: false,
+    },
+    {
+      code: "IX",
+      label: "Kelas IX (Tingkat 9 / Tingkat Akhir)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: true,
+    },
+  ]);
+  const [masterRombels, setMasterRombels] = useState<
+    Array<{
+      code: string;
+      name: string;
+      gradeCode: string;
+      waliKelas: string;
+      room: string;
+      quota: number;
+    }>
+  >([]);
+  const [masterSubjects, setMasterSubjects] = useState<
+    Array<{ code: string; name: string; group: string; jpPerWeek: number }>
+  >([]);
+
+  // Form tambah Tingkat Kelas
+  const [newGradeCode, setNewGradeCode] = useState("");
+  const [newGradeLabel, setNewGradeLabel] = useState("");
+  const [newGradePhase, setNewGradePhase] = useState(
+    "Fase D — Kurikulum Merdeka & KMA 450"
+  );
+  const [newGradeFinal, setNewGradeFinal] = useState(false);
+
+  // Form tambah Rombel
+  const [newRombelCode, setNewRombelCode] = useState("");
+  const [newRombelName, setNewRombelName] = useState("");
+  const [newRombelGrade, setNewRombelGrade] = useState("VII");
+  const [newRombelWali, setNewRombelWali] = useState("");
+  const [newRombelRoom, setNewRombelRoom] = useState("");
+  const [newRombelQuota, setNewRombelQuota] = useState(32);
+
+  // Form tambah Mata Pelajaran
+  const [newSubjCode, setNewSubjCode] = useState("");
+  const [newSubjName, setNewSubjName] = useState("");
+  const [newSubjGroup, setNewSubjGroup] = useState(
+    "PAI & Bahasa Arab (KMA 450)"
+  );
+  const [newSubjJp, setNewSubjJp] = useState(2);
+
+  // State Pergantian Semester / Tahun Pelajaran & Arsip Akademik
+  const [periodTab, setPeriodTab] = useState<"transition" | "archives">(
+    "transition"
+  );
+  const [targetAcadYear, setTargetAcadYear] = useState("2026/2027");
+  const [targetSemester, setTargetSemester] = useState<"Ganjil" | "Genap">(
+    "Genap"
+  );
+  const [targetCurriculum, setTargetCurriculum] = useState(
+    "Kurikulum Merdeka & KMA 450"
+  );
+  const [resetSemesterPoints, setResetSemesterPoints] = useState(true);
+  const [autoPromoteAndGraduate, setAutoPromoteAndGraduate] = useState(true);
+  const [transitionNotes, setTransitionNotes] = useState("");
+  const [academicArchives, setAcademicArchives] = useState<Array<any>>([]);
+
+  // State Modul TU Terpadu di Dashboard Admin (Persuratan, Agenda, Audit EMIS)
+  const [tuStudentsList, setTuStudentsList] = useState<Array<any>>([]);
+  const [tuServiceRequests, setTuServiceRequests] = useState<Array<any>>([]);
+  const [tuMailAgenda, setTuMailAgenda] = useState<Array<any>>([]);
+  const [newAgType, setNewAgType] = useState("Surat Masuk");
+  const [newAgCat, setNewAgCat] = useState("Kemenag");
+  const [newAgNo, setNewAgNo] = useState("B-155/MTs.NF/PP.00.5/11/2026");
+  const [newAgDate, setNewAgDate] = useState("16 Nov 2026");
+  const [newAgParty, setNewAgParty] = useState("");
+  const [newAgSubject, setNewAgSubject] = useState("");
+  const [newAgR2Key, setNewAgR2Key] = useState("");
 
   // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
   const [ppdbApplicants, setPpdbApplicants] = useState<
@@ -271,13 +386,72 @@ export default function SimmWorkspaceShell({
         return fetch(`/api/simm?resource=${resource}`).then((r) => r.json());
       })
       .then((d) => {
-        if (d?.profile) setMadrasahProfile(d.profile);
+        if (d?.profile) {
+          setMadrasahProfile(d.profile);
+          setTargetAcadYear(d.profile.academicYear || "2026/2027");
+          setTargetSemester(
+            d.profile.semester === "Ganjil" ? "Genap" : "Ganjil"
+          );
+          setTargetCurriculum(
+            d.profile.curriculum || "Kurikulum Merdeka & KMA 450"
+          );
+        }
+        if (d?.academicMaster) {
+          if (Array.isArray(d.academicMaster.gradeLevels)) {
+            setGradeLevels(d.academicMaster.gradeLevels);
+          }
+          if (Array.isArray(d.academicMaster.rombels)) {
+            setMasterRombels(d.academicMaster.rombels);
+          }
+          if (Array.isArray(d.academicMaster.subjects)) {
+            setMasterSubjects(d.academicMaster.subjects);
+            const sNames = d.academicMaster.subjects
+              .map((s: any) => String(s.name || "").trim())
+              .filter(Boolean);
+            if (sNames.length > 0) {
+              setRealSubjects(sNames);
+              setNewSchSubject(sNames[0]);
+            }
+          }
+        }
+        if (Array.isArray(d?.academicArchives)) {
+          setAcademicArchives(d.academicArchives);
+        }
         if (Array.isArray(d?.teachers) && d.teachers.length > 0) {
           const tNames = d.teachers.map(
             (t: any) => t.user?.name || t.nip
           );
           setRealTeacherNames(tNames);
           setNewSchTeacher(tNames[0]);
+          setNewRombelWali(tNames[0]);
+        }
+        if (Array.isArray(d?.students)) {
+          setTuStudentsList(d.students);
+        }
+        if (Array.isArray(d?.serviceRequests)) {
+          setTuServiceRequests(d.serviceRequests);
+        }
+        if (Array.isArray(d?.mailAgenda)) {
+          setTuMailAgenda(d.mailAgenda);
+        }
+        const masterRombelCodes = Array.isArray(d?.academicMaster?.rombels)
+          ? d.academicMaster.rombels
+              .map((r: any) => String(r.code || "").trim())
+              .filter(Boolean)
+          : [];
+        const stuRombelCodes = Array.isArray(d?.students)
+          ? d.students
+              .map((s: any) => String(s.rombel || "").trim())
+              .filter(Boolean)
+          : [];
+        const combinedRombels = Array.from(
+          new Set([...masterRombelCodes, ...stuRombelCodes])
+        ).sort() as string[];
+        if (combinedRombels.length > 0) {
+          setRealRombels(combinedRombels);
+          setNewSchRombel(combinedRombels[0]);
+          setFromRombel(combinedRombels[0]);
+          setToRombel(combinedRombels[1] || combinedRombels[0]);
         }
         if (Array.isArray(d?.students) && d.students.length > 0) {
           const sLabels = d.students.map(
@@ -285,15 +459,6 @@ export default function SimmWorkspaceShell({
           );
           setRealStudentLabels(sLabels);
           setBkStudent(sLabels[0]);
-          const rombels = Array.from(
-            new Set(d.students.map((s: any) => String(s.rombel || "")).filter(Boolean))
-          ).sort() as string[];
-          if (rombels.length > 0) {
-            setRealRombels(rombels);
-            setNewSchRombel(rombels[0]);
-            setFromRombel(rombels[0]);
-            setToRombel(rombels[1] || rombels[0]);
-          }
         }
         if (Array.isArray(d?.ppdb)) {
           setPpdbApplicants(
@@ -773,6 +938,326 @@ export default function SimmWorkspaceShell({
       );
     } catch {
       triggerToast("Error", "Gagal menyimpan catatan BK ke server");
+    }
+  };
+
+  // Sinkronkan state dari objek academicMaster terbaru
+  const applyUpdatedMaster = (master: any) => {
+    if (!master) return;
+    if (Array.isArray(master.gradeLevels)) setGradeLevels(master.gradeLevels);
+    if (Array.isArray(master.rombels)) {
+      setMasterRombels(master.rombels);
+      const codes = master.rombels
+        .map((r: any) => String(r.code || "").trim())
+        .filter(Boolean);
+      if (codes.length > 0) {
+        setRealRombels((prev) =>
+          Array.from(new Set([...codes, ...prev])).sort()
+        );
+      }
+    }
+    if (Array.isArray(master.subjects)) {
+      setMasterSubjects(master.subjects);
+      const sNames = master.subjects
+        .map((s: any) => String(s.name || "").trim())
+        .filter(Boolean);
+      if (sNames.length > 0) {
+        setRealSubjects(sNames);
+      }
+    }
+    setIframeRefreshKey((k) => k + 1);
+  };
+
+  const handleAddGradeLevel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGradeCode.trim() || !newGradeLabel.trim()) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ADD_GRADE_LEVEL",
+          payload: {
+            code: newGradeCode.trim().toUpperCase(),
+            label: newGradeLabel.trim(),
+            phase: newGradePhase.trim(),
+            isFinalGrade: newGradeFinal,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        setNewGradeCode("");
+        setNewGradeLabel("");
+        setNewGradeFinal(false);
+        triggerToast(
+          "Tingkat Kelas Disimpan",
+          `Tingkat kelas ${newGradeCode.toUpperCase()} telah ditambahkan ke referensi utama.`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal menyimpan tingkat kelas");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const handleDeleteGradeLevel = async (code: string) => {
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_GRADE_LEVEL",
+          payload: { code },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        triggerToast("Tingkat Kelas Dihapus", `Tingkat ${code} telah dihapus.`);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAddRombel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRombelCode.trim()) return;
+    const code = newRombelCode.trim().toUpperCase();
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ADD_ROMBEL",
+          payload: {
+            code,
+            name: newRombelName.trim() || `Kelas ${code}`,
+            gradeCode: newRombelGrade,
+            waliKelas: newRombelWali || "-",
+            room: newRombelRoom.trim() || `R. Kelas ${code}`,
+            quota: newRombelQuota,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        setNewRombelCode("");
+        setNewRombelName("");
+        setNewRombelRoom("");
+        triggerToast(
+          "Rombel Referensi Disimpan",
+          `Rombel ${code} (Tingkat ${newRombelGrade}) kini aktif sebagai referensi di seluruh modul SIMS.`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal menyimpan rombel");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const handleDeleteRombel = async (code: string) => {
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_ROMBEL",
+          payload: { code },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        triggerToast("Rombel Dihapus", `Rombel ${code} telah dihapus dari daftar referensi.`);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAddSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubjName.trim()) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ADD_SUBJECT",
+          payload: {
+            code: newSubjCode.trim().toUpperCase(),
+            name: newSubjName.trim(),
+            group: newSubjGroup,
+            jpPerWeek: newSubjJp,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        setNewSubjCode("");
+        setNewSubjName("");
+        triggerToast(
+          "Mata Pelajaran Disimpan",
+          `"${newSubjName.trim()}" kini tersedia di seluruh pilihan jadwal & pengampu GTK.`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal menyimpan mata pelajaran");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const handleDeleteSubject = async (code: string) => {
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_SUBJECT",
+          payload: { code },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.academicMaster) {
+        applyUpdatedMaster(data.academicMaster);
+        triggerToast("Mata Pelajaran Dihapus", `Kode ${code} telah dihapus.`);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Eksekusi Pergantian Semester / Tahun Pelajaran Aktif + Arsip Otomatis
+  const handleTransitionAcademicPeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "TRANSITION_ACADEMIC_PERIOD",
+          payload: {
+            targetAcademicYear: targetAcadYear.trim(),
+            targetSemester,
+            targetCurriculum: targetCurriculum.trim(),
+            resetSemesterPoints,
+            autoPromoteAndGraduate,
+            notes: transitionNotes.trim(),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (data.profile) setMadrasahProfile(data.profile);
+        if (Array.isArray(data.academicArchives)) {
+          setAcademicArchives(data.academicArchives);
+        }
+        setTransitionNotes("");
+        setIframeRefreshKey((k) => k + 1);
+        setPeriodTab("archives");
+        triggerToast(
+          "Periode Akademik Diperbarui & Diarsipkan!",
+          `Data periode sebelumnya resmi dibekukan ke Arsip Akademik. Sistem kini aktif di TA ${targetAcadYear} Semester ${targetSemester}.`
+        );
+      } else {
+        triggerToast("Gagal Transisi", data.error || "Periksa format Tahun Pelajaran (YYYY/YYYY)");
+      }
+    } catch {
+      triggerToast("Error", "Gagal memproses transisi periode akademik");
+    }
+  };
+
+  // Handler Modul TU Terpadu di Dashboard Admin
+  const handleProcessTuService = async (
+    id: string,
+    decision: "APPROVE_CORRECTION" | "REJECT" | "ISSUE_LETTER"
+  ) => {
+    const letterNo =
+      decision === "ISSUE_LETTER"
+        ? `B-${160 + tuMailAgenda.length}/MTs.NF/PP.00.5/11/2026`
+        : undefined;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "PROCESS_SERVICE_REQUEST",
+          payload: { id, decision, letterNumber: letterNo },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTuServiceRequests((prev) =>
+          prev.map((r) =>
+            r.id === id || r.ticketNo === id
+              ? {
+                  ...r,
+                  status:
+                    decision === "REJECT" ? "Ditolak" : "Disetujui",
+                  ...(letterNo ? { letterNumber: letterNo } : {}),
+                }
+              : r
+          )
+        );
+        setIframeRefreshKey((k) => k + 1);
+        triggerToast(
+          "Layanan Administrasi TU Diproses",
+          decision === "APPROVE_CORRECTION"
+            ? "Koreksi data disetujui dan langsung diperbarui di Buku Induk Supabase."
+            : decision === "ISSUE_LETTER"
+              ? `Surat resmi diterbitkan dengan nomor ${letterNo} & dicatat di Agenda Surat Keluar.`
+              : "Permohonan telah ditandai ditolak."
+        );
+      }
+    } catch {
+      triggerToast("Error", "Gagal memproses layanan TU");
+    }
+  };
+
+  const handleCreateTuMailAgenda = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAgNo.trim() || !newAgParty.trim() || !newAgSubject.trim()) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_MAIL_AGENDA",
+          payload: {
+            type: newAgType,
+            category: newAgCat,
+            letterNo: newAgNo.trim(),
+            date: newAgDate.trim(),
+            party: newAgParty.trim(),
+            subject: newAgSubject.trim(),
+            r2File: newAgR2Key || undefined,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setTuMailAgenda((prev) => [data.data, ...prev]);
+        setNewAgParty("");
+        setNewAgSubject("");
+        setNewAgR2Key("");
+        setIframeRefreshKey((k) => k + 1);
+        triggerToast(
+          "Agenda Surat Tersimpan",
+          `${newAgType} (${newAgNo}) berhasil dicatat ke Buku Agenda & Cloudflare R2.`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal menyimpan agenda surat");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
     }
   };
 
@@ -1699,14 +2184,19 @@ export default function SimmWorkspaceShell({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Mata Pelajaran
+                      Mata Pelajaran (Referensi Master)
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={newSchSubject}
                       onChange={(e) => setNewSchSubject(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white"
-                    />
+                    >
+                      {realSubjects.map((sub) => (
+                        <option key={sub} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -2162,6 +2652,1155 @@ export default function SimmWorkspaceShell({
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 6: MASTER TINGKAT KELAS, ROMBEL & MATA PELAJARAN (SINGLE SOURCE OF TRUTH)
+      =================================================================== */}
+      {activeModal === "academic_master" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">
+                  Master Referensi Akademik Terpusat
+                </span>
+                <h2 className="text-lg font-bold mt-1">
+                  Manajemen Tingkat Kelas, Rombongan Belajar (Rombel) &amp; Mata Pelajaran
+                </h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 pt-3 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-2">
+              <button
+                onClick={() => setMasterTab("rombels")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  masterTab === "rombels"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                1. Rombongan Belajar / Kelas ({masterRombels.length || realRombels.length})
+              </button>
+              <button
+                onClick={() => setMasterTab("grades")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  masterTab === "grades"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                2. Tingkat Kelas ({gradeLevels.length})
+              </button>
+              <button
+                onClick={() => setMasterTab("subjects")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  masterTab === "subjects"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                3. Mata Pelajaran Referensi ({masterSubjects.length || realSubjects.length})
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
+                <strong>Single Source of Truth:</strong> Setiap Tingkat Kelas, Rombel, dan Mata Pelajaran yang Anda kelola di sini otomatis menjadi daftar pilihan di Buku Induk Siswa, Penugasan Wali Kelas GTK, Penyusunan Jadwal Anti-Bentrok, Kenaikan Kelas Massal, dan PPDB.
+              </div>
+
+              {/* TAB ROMBEL */}
+              {masterTab === "rombels" && (
+                <div className="space-y-5">
+                  <form
+                    onSubmit={handleAddRombel}
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+                  >
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      + Tambah / Perbarui Rombongan Belajar (Rombel)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kode Rombel
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: 7B / VII-B"
+                          value={newRombelCode}
+                          onChange={(e) => setNewRombelCode(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Nama Rombel
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Kelas 7B"
+                          value={newRombelName}
+                          onChange={(e) => setNewRombelName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Tingkat Kelas
+                        </label>
+                        <select
+                          value={newRombelGrade}
+                          onChange={(e) => setNewRombelGrade(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                        >
+                          {gradeLevels.map((g) => (
+                            <option key={g.code} value={g.code}>
+                              Tingkat {g.code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="lg:col-span-2">
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Wali Kelas Binaan
+                        </label>
+                        <select
+                          value={newRombelWali}
+                          onChange={(e) => setNewRombelWali(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        >
+                          <option value="-">— Pilih Guru Wali Kelas —</option>
+                          {realTeacherNames.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Daya Tampung
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={newRombelQuota}
+                          onChange={(e) =>
+                            setNewRombelQuota(Number(e.target.value))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+                    >
+                      + Simpan Rombel ke Master Referensi
+                    </button>
+                  </form>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-700 uppercase">
+                          <th className="py-2.5 px-4">Kode Rombel</th>
+                          <th className="py-2.5 px-4">Nama Kelas</th>
+                          <th className="py-2.5 px-4">Tingkat</th>
+                          <th className="py-2.5 px-4">Wali Kelas</th>
+                          <th className="py-2.5 px-4">Ruang &amp; Kuota</th>
+                          <th className="py-2.5 px-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {masterRombels.map((r) => (
+                          <tr key={r.code} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-4 font-mono font-bold text-emerald-800">
+                              {r.code}
+                            </td>
+                            <td className="py-2.5 px-4 font-semibold">
+                              {r.name}
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className="px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 font-bold">
+                                Tingkat {r.gradeCode}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4">{r.waliKelas}</td>
+                            <td className="py-2.5 px-4 text-slate-500">
+                              {r.room} • {r.quota} Siswa
+                            </td>
+                            <td className="py-2.5 px-4 text-right">
+                              <button
+                                onClick={() => handleDeleteRombel(r.code)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold"
+                              >
+                                Hapus
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB TINGKAT KELAS */}
+              {masterTab === "grades" && (
+                <div className="space-y-5">
+                  <form
+                    onSubmit={handleAddGradeLevel}
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+                  >
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      + Tambah / Perbarui Tingkat Kelas
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kode Tingkat
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: VII / VIII / IX"
+                          value={newGradeCode}
+                          onChange={(e) => setNewGradeCode(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Label Tingkat Kelas
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Kelas VII (Tingkat 7)"
+                          value={newGradeLabel}
+                          onChange={(e) => setNewGradeLabel(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Fase / Kurikulum
+                        </label>
+                        <input
+                          type="text"
+                          value={newGradePhase}
+                          onChange={(e) => setNewGradePhase(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 pb-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newGradeFinal}
+                          onChange={(e) => setNewGradeFinal(e.target.checked)}
+                          className="w-4 h-4 accent-emerald-600 rounded"
+                        />
+                        <span>Tingkat Akhir (Lulus saat Ganti TA)</span>
+                      </label>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+                    >
+                      + Simpan Tingkat Kelas
+                    </button>
+                  </form>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {gradeLevels.map((g) => (
+                      <div
+                        key={g.code}
+                        className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col justify-between space-y-3"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-extrabold text-base text-emerald-800">
+                              Tingkat {g.code}
+                            </span>
+                            {g.isFinalGrade && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                                Tingkat Akhir (Lulus/Alumni)
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-bold text-slate-900 mt-1">
+                            {g.label}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {g.phase}
+                          </p>
+                        </div>
+                        <div className="flex justify-end pt-2 border-t border-slate-100">
+                          <button
+                            onClick={() => handleDeleteGradeLevel(g.code)}
+                            className="text-xs text-rose-600 hover:underline font-semibold"
+                          >
+                            Hapus Tingkat
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB MATA PELAJARAN */}
+              {masterTab === "subjects" && (
+                <div className="space-y-5">
+                  <form
+                    onSubmit={handleAddSubject}
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+                  >
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      + Tambah / Perbarui Mata Pelajaran Referensi
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kode Mapel
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: PAI-QH / UM-MTK"
+                          value={newSubjCode}
+                          onChange={(e) => setNewSubjCode(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Nama Mata Pelajaran
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: Bahasa Arab"
+                          value={newSubjName}
+                          onChange={(e) => setNewSubjName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kelompok Kurikulum
+                        </label>
+                        <select
+                          value={newSubjGroup}
+                          onChange={(e) => setNewSubjGroup(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        >
+                          <option value="PAI & Bahasa Arab (KMA 450)">
+                            PAI &amp; Bahasa Arab (KMA 450)
+                          </option>
+                          <option value="Umum (Kurikulum Merdeka)">
+                            Umum (Kurikulum Merdeka)
+                          </option>
+                          <option value="Muatan Lokal & Pembinaan">
+                            Muatan Lokal &amp; Pembinaan
+                          </option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Alokasi JP / Pekan
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={24}
+                          value={newSubjJp}
+                          onChange={(e) => setNewSubjJp(Number(e.target.value))}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+                    >
+                      + Simpan Mata Pelajaran ke Master Referensi
+                    </button>
+                  </form>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-700 uppercase">
+                          <th className="py-2.5 px-4">Kode</th>
+                          <th className="py-2.5 px-4">Nama Mata Pelajaran</th>
+                          <th className="py-2.5 px-4">Kelompok Kurikulum</th>
+                          <th className="py-2.5 px-4">Alokasi JP</th>
+                          <th className="py-2.5 px-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {masterSubjects.map((s) => (
+                          <tr key={s.code} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-4 font-mono font-bold text-slate-700">
+                              {s.code}
+                            </td>
+                            <td className="py-2.5 px-4 font-semibold text-slate-900">
+                              {s.name}
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
+                                {s.group}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4 font-mono">
+                              {s.jpPerWeek} JP / Pekan
+                            </td>
+                            <td className="py-2.5 px-4 text-right">
+                              <button
+                                onClick={() => handleDeleteSubject(s.code)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold"
+                              >
+                                Hapus
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 7: PERGANTIAN SEMESTER / TAHUN PELAJARAN AKTIF & ARSIP AKADEMIK
+      =================================================================== */}
+      {activeModal === "academic_period" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-amber-900 via-slate-900 to-emerald-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold">
+                  Manajemen Siklus &amp; Arsip Periode Akademik
+                </span>
+                <h2 className="text-lg font-bold mt-1">
+                  Pergantian Semester, Tahun Pelajaran Aktif &amp; Snapshot Arsip Terkunci
+                </h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 pt-3 bg-slate-100 border-b border-slate-200 flex gap-2">
+              <button
+                onClick={() => setPeriodTab("transition")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  periodTab === "transition"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                1. Transisi Semester / Tahun Pelajaran Baru
+              </button>
+              <button
+                onClick={() => setPeriodTab("archives")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  periodTab === "archives"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                2. Riwayat Arsip Periode Sebelumnya ({academicArchives.length})
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              {periodTab === "transition" && (
+                <form
+                  onSubmit={handleTransitionAcademicPeriod}
+                  className="space-y-4"
+                >
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase text-emerald-800">
+                        Periode Akademik Aktif Saat Ini
+                      </span>
+                      <p className="text-base font-extrabold text-slate-900">
+                        Tahun Pelajaran {madrasahProfile.academicYear} • Semester{" "}
+                        {madrasahProfile.semester}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        Kurikulum: {madrasahProfile.curriculum}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold self-start sm:self-auto">
+                      AKTIF BERJALAN
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Tahun Pelajaran Tujuan (Format YYYY/YYYY)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="2026/2027 atau 2027/2028"
+                        value={targetAcadYear}
+                        onChange={(e) => setTargetAcadYear(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Semester Tujuan
+                      </label>
+                      <select
+                        value={targetSemester}
+                        onChange={(e) =>
+                          setTargetSemester(
+                            e.target.value as "Ganjil" | "Genap"
+                          )
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-semibold"
+                      >
+                        <option value="Ganjil">Semester Ganjil</option>
+                        <option value="Genap">Semester Genap</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Kurikulum Berlaku
+                      </label>
+                      <input
+                        type="text"
+                        value={targetCurriculum}
+                        onChange={(e) => setTargetCurriculum(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ketentuan otomatis sesuai jenis transisi */}
+                  {targetAcadYear.trim() !== madrasahProfile.academicYear ? (
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 space-y-2.5 text-xs text-amber-950">
+                      <p className="font-bold text-sm text-amber-900">
+                        Ketentuan Pergantian Tahun Pelajaran Baru ({madrasahProfile.academicYear} → {targetAcadYear}):
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>
+                          <strong>Snapshot Arsip Tahun Pelajaran:</strong> Seluruh statistik siswa per rombel, lulusan, jadwal, catatan BK, dan saldo tabungan TA {madrasahProfile.academicYear} dibekukan ke Arsip Akademik.
+                        </li>
+                        <li>
+                          <strong>Kenaikan Tingkat &amp; Kelulusan Otomatis:</strong> Siswa tingkat akhir (Kelas IX) otomatis berstatus <strong>Lulus / Alumni</strong>; siswa Kelas VII naik ke VIII dan Kelas VIII naik ke IX beserta pembaruan riwayat akademik Buku Induk.
+                        </li>
+                        <li>
+                          <strong>Reset Siklus Tahunan:</strong> Tagihan iuran Komite 12 bulan &amp; penghitung presensi dimulai dari 0 untuk tahun ajaran baru (sementara <strong>Saldo Tabungan Siswa tetap utuh</strong>).
+                        </li>
+                      </ul>
+                      <label className="flex items-center gap-2 pt-2 font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={autoPromoteAndGraduate}
+                          onChange={(e) =>
+                            setAutoPromoteAndGraduate(e.target.checked)
+                          }
+                          className="w-4 h-4 accent-amber-700 rounded"
+                        />
+                        <span>
+                          Jalankan Kenaikan Kelas Berjenjang (VII→VIII, VIII→IX) &amp; Kelulusan Kelas IX Otomatis
+                        </span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 space-y-2.5 text-xs text-sky-950">
+                      <p className="font-bold text-sm text-sky-900">
+                        Ketentuan Pergantian Semester ({madrasahProfile.semester} → {targetSemester} pada TA {madrasahProfile.academicYear}):
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li>
+                          <strong>Snapshot Arsip Semester:</strong> Rekap kehadiran, jurnal mengajar, dan catatan BK Semester {madrasahProfile.semester} disimpan ke Arsip Akademik.
+                        </li>
+                        <li>
+                          <strong>Rombel &amp; Keuangan Berlanjut:</strong> Kelas/Rombel siswa, Wali Kelas, Saldo Tabungan, dan progres iuran Komite 12 bulan <strong>tetap dipertahankan</strong>.
+                        </li>
+                        <li>
+                          <strong>Reset Presensi &amp; Jurnal Semester Baru:</strong> Penghitung kehadiran semester berjalan dan status pengisian jurnal harian dimulai dari 0.
+                        </li>
+                      </ul>
+                      <label className="flex items-center gap-2 pt-2 font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={resetSemesterPoints}
+                          onChange={(e) =>
+                            setResetSemesterPoints(e.target.checked)
+                          }
+                          className="w-4 h-4 accent-sky-700 rounded"
+                        />
+                        <span>
+                          Reset Poin Sikap/Kedisiplinan Siswa ke Nilai Dasar Awal Semester (100 Poin • Sangat Baik)
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Catatan Berita Acara Tutup Buku / Pengarsipan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      value={transitionNotes}
+                      onChange={(e) => setTransitionNotes(e.target.value)}
+                      placeholder="Contoh: Penetapan SK Semester Genap berdasarkan Rapat Dewan Guru..."
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-md"
+                  >
+                    Arsipkan Periode Berjalan ({madrasahProfile.academicYear} {madrasahProfile.semester}) &amp; Aktifkan Periode Baru →
+                  </button>
+                </form>
+              )}
+
+              {periodTab === "archives" && (
+                <div className="space-y-3">
+                  {academicArchives.length === 0 ? (
+                    <div className="p-8 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                      Belum ada arsip pergantian semester atau tahun pelajaran. Arsip akan otomatis terbentuk saat Anda melakukan transisi semester/tahun pelajaran.
+                    </div>
+                  ) : (
+                    academicArchives.map((arc: any) => (
+                      <div
+                        key={arc.id}
+                        className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5 text-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                              {arc.transitionType === "NEW_ACADEMIC_YEAR"
+                                ? "ARSIP TUTUP TAHUN PELAJARAN"
+                                : "ARSIP TUTUP SEMESTER"}
+                            </span>
+                            <h4 className="font-bold text-sm text-slate-900 mt-1">
+                              TA {arc.academicYear} • Semester {arc.semester} → TA{" "}
+                              {arc.targetAcademicYear} ({arc.targetSemester})
+                            </h4>
+                          </div>
+                          <div className="text-right text-[11px] text-slate-500">
+                            <p>Diarsipkan: {arc.archivedAt}</p>
+                            <p className="font-semibold text-slate-700">
+                              Oleh: {arc.archivedBy}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-slate-700">{arc.notes}</p>
+                        {arc.summary && (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200">
+                            <div className="p-2 rounded-lg bg-white border border-slate-200">
+                              <span className="text-[10px] text-slate-500 block">
+                                Siswa Aktif Saat Arsip
+                              </span>
+                              <strong className="text-slate-900">
+                                {arc.summary.activeStudents} Siswa
+                              </strong>
+                            </div>
+                            <div className="p-2 rounded-lg bg-white border border-slate-200">
+                              <span className="text-[10px] text-slate-500 block">
+                                Lulus / Naik Kelas
+                              </span>
+                              <strong className="text-emerald-700">
+                                {arc.summary.graduatedStudents} Lulus •{" "}
+                                {arc.summary.promotedStudents} Naik
+                              </strong>
+                            </div>
+                            <div className="p-2 rounded-lg bg-white border border-slate-200">
+                              <span className="text-[10px] text-slate-500 block">
+                                Pendidik &amp; Jadwal
+                              </span>
+                              <strong className="text-slate-900">
+                                {arc.summary.activeTeachers} GTK •{" "}
+                                {arc.summary.totalSchedules} Jadwal
+                              </strong>
+                            </div>
+                            <div className="p-2 rounded-lg bg-white border border-slate-200">
+                              <span className="text-[10px] text-slate-500 block">
+                                Total Tabungan Siswa
+                              </span>
+                              <strong className="font-mono text-slate-900">
+                                Rp{" "}
+                                {Number(
+                                  arc.summary.totalSavingsBalance || 0
+                                ).toLocaleString("id-ID")}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 8: LAYANAN TATA USAHA (TU) TERPADU DI DASHBOARD SUPER ADMIN
+          (Persuratan, Koreksi Data Induk, Agenda Surat R2, Audit EMIS & Ekspor)
+      =================================================================== */}
+      {(activeModal === "tu_persuratan" ||
+        activeModal === "tu_agenda" ||
+        activeModal === "tu_emis") && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-teal-950 via-emerald-900 to-slate-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-400/20 text-teal-200 font-semibold">
+                  Akses Penuh Super Admin — Modul Tata Usaha (TU) Terintegrasi
+                </span>
+                <h2 className="text-lg font-bold mt-1">
+                  Pusat Persuratan Resmi, Koreksi Buku Induk, Agenda Surat R2 &amp; Validasi EMIS
+                </h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 pt-3 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveModal("tu_persuratan")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  activeModal === "tu_persuratan"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                1. Layanan Surat &amp; Koreksi Buku Induk ({tuServiceRequests.length})
+              </button>
+              <button
+                onClick={() => setActiveModal("tu_agenda")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  activeModal === "tu_agenda"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                2. Agenda Surat Masuk &amp; Keluar R2 ({tuMailAgenda.length})
+              </button>
+              <button
+                onClick={() => setActiveModal("tu_emis")}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition ${
+                  activeModal === "tu_emis"
+                    ? "bg-white text-emerald-900 border-t border-x border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                3. Validasi Residu EMIS &amp; Ekspor Laporan TU
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              {/* SUB-MODUL 1: PERSURATAN & KOREKSI BUKU INDUK */}
+              {activeModal === "tu_persuratan" && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-950 flex items-center justify-between">
+                    <span>
+                      Kelola permohonan koreksi data Buku Induk dan penerbitan Surat Keterangan Siswa Aktif langsung dari Dashboard Super Admin.
+                    </span>
+                    <span className="font-mono font-bold">
+                      Penomoran: MTs.NF/PP.00.5/{new Date().getFullYear()}
+                    </span>
+                  </div>
+
+                  {tuServiceRequests.length === 0 ? (
+                    <div className="p-8 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                      Belum ada antrean permohonan surat atau koreksi data dari Portal Siswa / Orang Tua.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {tuServiceRequests.map((req: any) => {
+                        const isPending =
+                          String(req.status || "").startsWith("Menunggu");
+                        const isKoreksi =
+                          req.requestType === "KOREKSI_DATA" ||
+                          Boolean(req.fieldToCorrect);
+                        return (
+                          <div
+                            key={req.id}
+                            className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col justify-between space-y-3"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[11px] font-bold">
+                                  {req.ticketNo || req.id}
+                                </span>
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                    isPending
+                                      ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  }`}
+                                >
+                                  {req.status}
+                                </span>
+                              </div>
+                              <h4 className="font-bold text-slate-900">
+                                {req.title}
+                              </h4>
+                              <p className="text-xs text-slate-500">
+                                Siswa: <strong>{req.studentName}</strong> (Kelas{" "}
+                                {req.classroom})
+                              </p>
+                              {isKoreksi && (
+                                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                                    <span className="text-[10px] text-slate-400 block uppercase">
+                                      Data Lama ({req.fieldToCorrect})
+                                    </span>
+                                    <strong className="text-slate-700">
+                                      {req.oldValue || "-"}
+                                    </strong>
+                                  </div>
+                                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                                    <span className="text-[10px] text-emerald-700 block uppercase">
+                                      Usulan Baru
+                                    </span>
+                                    <strong className="text-emerald-950">
+                                      {req.newValue || "-"}
+                                    </strong>
+                                  </div>
+                                </div>
+                              )}
+                              {req.letterNumber && (
+                                <p className="text-xs font-mono font-bold text-emerald-700">
+                                  No. Surat Resmi: {req.letterNumber}
+                                </p>
+                              )}
+                            </div>
+
+                            {isPending && (
+                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                  onClick={() =>
+                                    handleProcessTuService(req.id, "REJECT")
+                                  }
+                                  className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold"
+                                >
+                                  Tolak
+                                </button>
+                                {isKoreksi ? (
+                                  <button
+                                    onClick={() =>
+                                      handleProcessTuService(
+                                        req.id,
+                                        "APPROVE_CORRECTION"
+                                      )
+                                    }
+                                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                                  >
+                                    Setujui &amp; Update Buku Induk
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      handleProcessTuService(
+                                        req.id,
+                                        "ISSUE_LETTER"
+                                      )
+                                    }
+                                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                                  >
+                                    Terbitkan Nomor Surat Resmi (TTE)
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUB-MODUL 2: AGENDA SURAT MASUK & KELUAR R2 */}
+              {activeModal === "tu_agenda" && (
+                <div className="space-y-5">
+                  <form
+                    onSubmit={handleCreateTuMailAgenda}
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+                  >
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      + Catat Agenda Surat Masuk / Surat Keluar Baru
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Jenis Surat
+                        </label>
+                        <select
+                          value={newAgType}
+                          onChange={(e) => setNewAgType(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                        >
+                          <option value="Surat Masuk">Surat Masuk</option>
+                          <option value="Surat Keluar">Surat Keluar</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Kategori Instansi
+                        </label>
+                        <select
+                          value={newAgCat}
+                          onChange={(e) => setNewAgCat(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        >
+                          <option value="Kemenag">Kemenag</option>
+                          <option value="Kesiswaan">Kesiswaan</option>
+                          <option value="Kepegawaian">Kepegawaian</option>
+                          <option value="Undangan">Undangan / Umum</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Nomor Surat Resmi
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newAgNo}
+                          onChange={(e) => setNewAgNo(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Tanggal Surat
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newAgDate}
+                          onChange={(e) => setNewAgDate(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Pengirim / Tujuan Surat
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: Kantor Kemenag Kab. Musi Rawas"
+                          value={newAgParty}
+                          onChange={(e) => setNewAgParty(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Perihal / Ringkasan Surat
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: Undangan Rapat Koordinasi EMIS"
+                          value={newAgSubject}
+                          onChange={(e) => setNewAgSubject(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+                    >
+                      + Simpan ke Buku Agenda Surat &amp; Supabase
+                    </button>
+                  </form>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-700 uppercase">
+                          <th className="py-2.5 px-4">Nomor Surat</th>
+                          <th className="py-2.5 px-4">Tanggal</th>
+                          <th className="py-2.5 px-4">Jenis &amp; Kategori</th>
+                          <th className="py-2.5 px-4">Perihal &amp; Pihak</th>
+                          <th className="py-2.5 px-4 text-right">Arsip R2</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {tuMailAgenda.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="py-8 text-center text-slate-500"
+                            >
+                              Belum ada catatan agenda surat.
+                            </td>
+                          </tr>
+                        ) : (
+                          tuMailAgenda.map((m: any) => (
+                            <tr key={m.id} className="hover:bg-slate-50">
+                              <td className="py-2.5 px-4 font-mono font-bold text-slate-900">
+                                {m.mailNumber || m.letterNo}
+                              </td>
+                              <td className="py-2.5 px-4">{m.dateLabel || m.date}</td>
+                              <td className="py-2.5 px-4">
+                                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+                                  {m.mailType || m.type} • {m.category}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-4">
+                                <p className="font-bold text-slate-900">
+                                  {m.subject}
+                                </p>
+                                <p className="text-slate-500">{m.party}</p>
+                              </td>
+                              <td className="py-2.5 px-4 text-right font-mono text-[11px] text-emerald-700">
+                                {m.r2FileKey || m.r2File || "-"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-MODUL 3: VALIDASI RESIDU EMIS & PUSAT EKSPOR LAPORAN TU */}
+              {activeModal === "tu_emis" && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[11px] font-bold uppercase text-emerald-800">
+                        Total Siswa Buku Induk
+                      </span>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                        {tuStudentsList.length} Siswa
+                      </p>
+                      <span className="text-[11px] text-emerald-700">
+                        Siap Sinkron EMIS 4.0
+                      </span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-sky-50 border border-sky-200">
+                      <span className="text-[11px] font-bold uppercase text-sky-800">
+                        Validitas NISN 10 Digit
+                      </span>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                        {
+                          tuStudentsList.filter((s) =>
+                            /^\d{10}$/.test(String(s.nisn || ""))
+                          ).length
+                        }
+                        /{tuStudentsList.length}
+                      </p>
+                      <span className="text-[11px] text-sky-700">
+                        Terverifikasi Pusdatin
+                      </span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
+                      <span className="text-[11px] font-bold uppercase text-teal-800">
+                        Validitas NIK 16 Digit
+                      </span>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                        {
+                          tuStudentsList.filter(
+                            (s) =>
+                              /^\d{16}$/.test(String(s.nik || "")) &&
+                              s.nik !== "3204120000000000"
+                          ).length
+                        }
+                        /{tuStudentsList.length}
+                      </p>
+                      <span className="text-[11px] text-teal-700">
+                        Padan Dukcapil
+                      </span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                      <span className="text-[11px] font-bold uppercase text-amber-800">
+                        Rombel &amp; Mapel Master
+                      </span>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                        {realRombels.length} Rombel
+                      </p>
+                      <span className="text-[11px] text-amber-800">
+                        {realSubjects.length} Mata Pelajaran Aktif
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-900">
+                          Format Template &amp; Buku Induk Siswa EMIS (.XLSX)
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Unduh file Excel standar EMIS Kemenag untuk pengarsipan &amp; sinkronisasi.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadXlsxTemplate("students")}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0"
+                      >
+                        Unduh .XLSX Siswa
+                      </button>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-900">
+                          Daftar Nominatif Guru / GTK &amp; Tugas Tambahan (.XLSX)
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Unduh file Excel nominatif pendidik dan pembagian tugas mengajar.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadXlsxTemplate("teachers")}
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shrink-0"
+                      >
+                        Unduh .XLSX GTK
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

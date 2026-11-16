@@ -12,9 +12,15 @@ import {
   requireAuth,
 } from "@/lib/guard";
 import {
+  AcademicMasterConfig,
+  AcademicPeriodArchive,
   MadrasahProfileConfig,
+  getAcademicArchives,
+  getAcademicMaster,
   getMadrasahProfile,
   getScopedSummary,
+  inferGradeCodeFromRombel,
+  persistAcademicMaster,
   persistMadrasahProfile,
 } from "@/lib/data-scope";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -122,6 +128,257 @@ async function generateNextStudentNis(prefix = "262707"): Promise<string> {
   return `${prefix}${String(count + 1).padStart(3, "0")}`;
 }
 
+/** Tentukan rombel tujuan saat kenaikan tahun pelajaran (VII->VIII, VIII->IX, IX->LULUS). */
+function computeNextYearRombel(
+  currentRombel: string,
+  master: AcademicMasterConfig
+): { isGraduating: boolean; nextRombel: string } {
+  const s = String(currentRombel || "").trim();
+  const matchedRombel = master.rombels.find(
+    (r) => r.code.toUpperCase() === s.toUpperCase()
+  );
+  const gradeCode =
+    matchedRombel?.gradeCode || inferGradeCodeFromRombel(s);
+  const matchedGrade = master.gradeLevels.find(
+    (g) => g.code.toUpperCase() === gradeCode.toUpperCase()
+  );
+
+  if (matchedGrade?.isFinalGrade || /^(:?IX|9)\b/i.test(s) || /^9[A-Z]/i.test(s)) {
+    return { isGraduating: true, nextRombel: s };
+  }
+
+  // Naik dari VIII / 8 ke IX / 9
+  if (/^VIII/i.test(s)) {
+    return { isGraduating: false, nextRombel: s.replace(/^VIII/i, "IX") };
+  }
+  if (/^8/i.test(s)) {
+    return { isGraduating: false, nextRombel: s.replace(/^8/, "9") };
+  }
+  // Naik dari VII / 7 ke VIII / 8
+  if (/^VII/i.test(s)) {
+    return { isGraduating: false, nextRombel: s.replace(/^VII/i, "VIII") };
+  }
+  if (/^7/i.test(s)) {
+    return { isGraduating: false, nextRombel: s.replace(/^7/, "8") };
+  }
+
+  return { isGraduating: false, nextRombel: s };
+}
+
+/**
+ * Arsipkan periode akademik aktif (Semester / Tahun Pelajaran) dan jalankan
+ * ketentuan transisi akademik secara otomatis.
+ */
+async function executeAcademicPeriodTransition(
+  ctx: AuthContext,
+  opts: {
+    targetAcademicYear: string;
+    targetSemester: "Ganjil" | "Genap";
+    targetCurriculum?: string;
+    resetSemesterPoints?: boolean;
+    autoPromoteAndGraduate?: boolean;
+    notes?: string;
+  }
+): Promise<AcademicPeriodArchive> {
+  const currentProfile = await getMadrasahProfile();
+  const master = await getAcademicMaster();
+
+  const isNewYear = opts.targetAcademicYear !== currentProfile.academicYear;
+  const transitionType: "CHANGE_SEMESTER" | "NEW_ACADEMIC_YEAR" = isNewYear
+    ? "NEW_ACADEMIC_YEAR"
+    : "CHANGE_SEMESTER";
+
+  const [
+    activeStudents,
+    activeTeachersCount,
+    schedulesCount,
+    counselingCount,
+  ] = await Promise.all([
+    prisma.student.findMany({ where: { status: "Aktif" } }),
+    prisma.teacherProfile.count(),
+    prisma.classSchedule.count(),
+    prisma.counselingNote.count(),
+  ]);
+
+  const rombelMap = new Map<string, number>();
+  let totalSavings = 0;
+  for (const st of activeStudents) {
+    rombelMap.set(st.rombel, (rombelMap.get(st.rombel) || 0) + 1);
+    totalSavings += st.savingsBalance || 0;
+  }
+  const rombelBreakdown = Array.from(rombelMap.entries())
+    .map(([rombel, count]) => ({ rombel, count }))
+    .sort((a, b) => a.rombel.localeCompare(b.rombel));
+
+  let graduatedCount = 0;
+  let promotedCount = 0;
+
+  if (transitionType === "NEW_ACADEMIC_YEAR") {
+    const shouldPromote = opts.autoPromoteAndGraduate !== false;
+
+    for (const st of activeStudents) {
+      if (shouldPromote) {
+        const { isGraduating, nextRombel } = computeNextYearRombel(
+          st.rombel,
+          master
+        );
+        if (isGraduating) {
+          graduatedCount++;
+          await prisma.student.update({
+            where: { id: st.id },
+            data: {
+              status: "Lulus / Alumni",
+              academicHistory: `${st.academicHistory} • Lulus TA ${currentProfile.academicYear}`,
+            },
+          });
+        } else {
+          if (nextRombel !== st.rombel) promotedCount++;
+          const nextRombelMeta = master.rombels.find(
+            (r) => r.code.toUpperCase() === nextRombel.toUpperCase()
+          );
+          await prisma.student.update({
+            where: { id: st.id },
+            data: {
+              rombel: nextRombel,
+              ...(nextRombelMeta?.waliKelas
+                ? { waliKelas: nextRombelMeta.waliKelas }
+                : {}),
+              hadirCount: 0,
+              sakitCount: 0,
+              izinCount: 0,
+              terlambatCount: 0,
+              alpaCount: 0,
+              attendanceRate: "100%",
+              komiteMonthsPaid: 0,
+              pointsTotal: 100,
+              pointsBonus: 0,
+              pointsPredicate: "Sangat Baik",
+              academicHistory: `${st.academicHistory} • ${opts.targetAcademicYear}: Kelas ${nextRombel}`,
+            },
+          });
+        }
+      } else {
+        await prisma.student.update({
+          where: { id: st.id },
+          data: {
+            hadirCount: 0,
+            sakitCount: 0,
+            izinCount: 0,
+            terlambatCount: 0,
+            alpaCount: 0,
+            attendanceRate: "100%",
+            komiteMonthsPaid: 0,
+            pointsTotal: 100,
+            pointsBonus: 0,
+            pointsPredicate: "Sangat Baik",
+          },
+        });
+      }
+    }
+
+    // Reset jurnal jadwal & perbarui masa SK tugas tambahan GTK ke tahun pelajaran baru
+    await prisma.classSchedule.updateMany({
+      data: { journalFilled: false, journalTopic: null, journalNotes: null },
+    });
+    await prisma.teacherAdditionalRole.updateMany({
+      data: { academicYear: opts.targetAcademicYear },
+    });
+  } else {
+    // Pergantian Semester (Ganjil <-> Genap dalam Tahun Ajaran yang sama):
+    // Rombel tetap, saldo tabungan & komite tetap berlanjut, presensi & jurnal di-reset untuk semester baru
+    const resetPoints = opts.resetSemesterPoints !== false;
+    await prisma.student.updateMany({
+      where: { status: "Aktif" },
+      data: {
+        hadirCount: 0,
+        sakitCount: 0,
+        izinCount: 0,
+        terlambatCount: 0,
+        alpaCount: 0,
+        attendanceRate: "100%",
+        ...(resetPoints
+          ? { pointsTotal: 100, pointsBonus: 0, pointsPredicate: "Sangat Baik" }
+          : {}),
+      },
+    });
+    await prisma.classSchedule.updateMany({
+      data: { journalFilled: false, journalTopic: null, journalNotes: null },
+    });
+  }
+
+  // Simpan Snapshot Arsip Periode Akademik yang baru saja ditutup
+  const archivePayload: Omit<AcademicPeriodArchive, "id"> = {
+    academicYear: currentProfile.academicYear,
+    semester: currentProfile.semester,
+    curriculum: currentProfile.curriculum,
+    transitionType,
+    targetAcademicYear: opts.targetAcademicYear,
+    targetSemester: opts.targetSemester,
+    archivedAt: nowLabel(),
+    archivedBy: actorIdentity(ctx),
+    notes:
+      opts.notes ||
+      (isNewYear
+        ? `Tutup buku Tahun Pelajaran ${currentProfile.academicYear} (${currentProfile.semester}) menuju TA ${opts.targetAcademicYear} (${opts.targetSemester}). ${graduatedCount} siswa lulus menjadi Alumni, ${promotedCount} siswa naik tingkat kelas.`
+        : `Tutup buku Semester ${currentProfile.semester} menuju Semester ${opts.targetSemester} TA ${opts.targetAcademicYear}. Rombel siswa & saldo tabungan berlanjut; presensi semester baru di-reset.`),
+    summary: {
+      activeStudents: activeStudents.length,
+      graduatedStudents: graduatedCount,
+      promotedStudents: promotedCount,
+      activeTeachers: activeTeachersCount,
+      totalSchedules: schedulesCount,
+      totalCounselingNotes: counselingCount,
+      totalSavingsBalance: totalSavings,
+      rombelBreakdown,
+    },
+  };
+
+  const logRecord = await prisma.systemActivityLog.create({
+    data: {
+      actor: actorIdentity(ctx),
+      roleBadge: actorBadge(ctx),
+      actionText: JSON.stringify(archivePayload),
+      timeLabel: nowLabel(),
+      category: "academic_period_archive",
+    },
+  });
+
+  // Perbarui tabel AcademicYear & profil resmi madrasah
+  const newCurriculum = opts.targetCurriculum || currentProfile.curriculum;
+  await prisma.academicYear.updateMany({
+    where: { isActive: true },
+    data: { isActive: false },
+  });
+  await prisma.academicYear.create({
+    data: {
+      name: opts.targetAcademicYear,
+      semester: opts.targetSemester,
+      curriculum: newCurriculum,
+      isActive: true,
+    },
+  });
+
+  const updatedProfile: MadrasahProfileConfig = {
+    ...currentProfile,
+    academicYear: opts.targetAcademicYear,
+    semester: opts.targetSemester,
+    curriculum: newCurriculum,
+  };
+  await persistMadrasahProfile(
+    updatedProfile,
+    actorIdentity(ctx),
+    actorBadge(ctx)
+  );
+
+  await writeAuditLog(
+    ctx,
+    `Transisi Periode Akademik (${transitionType === "NEW_ACADEMIC_YEAR" ? "Pergantian Tahun Pelajaran" : "Pergantian Semester"}): ${currentProfile.academicYear} ${currentProfile.semester} → ${opts.targetAcademicYear} ${opts.targetSemester}`,
+    "security_audit"
+  );
+
+  return { id: logRecord.id, ...archivePayload };
+}
+
 // ===========================================================================
 // GET
 // ===========================================================================
@@ -135,10 +392,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, profile: deepNeutralize(profile) });
     }
 
-    // Ringkasan data: wajib login, isi disesuaikan dengan peran
+  // 2. Ringkasan data: wajib login, isi disesuaikan dengan peran
     if (resource === "summary") {
       const ctx = await requireAuth();
       return NextResponse.json(await getScopedSummary(ctx));
+    }
+
+    if (resource === "master") {
+      await requireAuth();
+      const [academicMaster, academicArchives] = await Promise.all([
+        getAcademicMaster(),
+        getAcademicArchives(),
+      ]);
+      return NextResponse.json({
+        ok: true,
+        academicMaster: deepNeutralize(academicMaster),
+        academicArchives: deepNeutralize(academicArchives),
+      });
     }
 
     // Cek NISN publik: hanya informasi minimal (tanpa NIK/alamat/orang tua/saldo) + rate limit
@@ -193,6 +463,16 @@ const ACTION_PERMISSIONS: Record<string, Permission | "PUBLIC"> = {
   CREATE_CLASS_SCHEDULE: can.scheduleBuilder,
   CREATE_COUNSELING_NOTE: can.bkDesk,
   RECORD_TEACHER_ATTENDANCE: can.gtkOrStaff,
+  ADD_GRADE_LEVEL: can.staff,
+  DELETE_GRADE_LEVEL: can.staff,
+  ADD_ROMBEL: can.staff,
+  DELETE_ROMBEL: can.staff,
+  ADD_SUBJECT: can.staff,
+  DELETE_SUBJECT: can.staff,
+  TRANSITION_ACADEMIC_PERIOD: can.admin,
+  PROCESS_SERVICE_REQUEST: can.staff,
+  CREATE_MAIL_AGENDA: can.staff,
+  UPDATE_STUDENT_BIODATA: can.staff,
 };
 
 const handlers: Record<string, ActionHandler> = {
@@ -250,6 +530,21 @@ const handlers: Record<string, ActionHandler> = {
         `Rekening Komite diubah dari "${current.komiteBankInfo}" menjadi "${merged.komiteBankInfo}"`,
         "security_audit"
       );
+    }
+
+    // Jika Tahun Pelajaran atau Semester berubah lewat form Identitas Madrasah, otomatis arsipkan periode sebelumnya
+    const periodChanged =
+      merged.academicYear !== current.academicYear ||
+      merged.semester !== current.semester;
+    if (periodChanged) {
+      await executeAcademicPeriodTransition(ctx!, {
+        targetAcademicYear: merged.academicYear,
+        targetSemester:
+          merged.semester.toLowerCase() === "genap" ? "Genap" : "Ganjil",
+        targetCurriculum: merged.curriculum,
+        resetSemesterPoints: true,
+        autoPromoteAndGraduate: merged.academicYear !== current.academicYear,
+      });
     }
 
     await persistMadrasahProfile(merged, actorIdentity(ctx!), actorBadge(ctx!));
@@ -916,6 +1211,350 @@ const handlers: Record<string, ActionHandler> = {
 
     await writeAuditLog(ctx!, `Mencatat presensi GTK (${status} — ${gpsDistanceLabel})`);
     return NextResponse.json({ ok: true, data: deepNeutralize(created) });
+  },
+
+  // 12. Tambah / Update Tingkat Kelas (Master Akademik)
+  async ADD_GRADE_LEVEL(payload, ctx) {
+    const code = codeId(payload.code, "Kode tingkat kelas", 12).toUpperCase();
+    const label = reqText(payload.label, "Nama tingkat kelas", 80);
+    const phase = optText(
+      payload.phase,
+      100,
+      "Fase D — Kurikulum Merdeka & KMA 450"
+    );
+    const isFinalGrade = Boolean(payload.isFinalGrade);
+
+    const master = await getAcademicMaster();
+    const idx = master.gradeLevels.findIndex(
+      (g) => g.code.toUpperCase() === code
+    );
+    const item = { code, label, phase, isFinalGrade };
+    if (idx >= 0) {
+      master.gradeLevels[idx] = item;
+    } else {
+      master.gradeLevels.push(item);
+    }
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(ctx!, `Menyimpan Tingkat Kelas Master: ${code} (${label})`);
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  async DELETE_GRADE_LEVEL(payload, ctx) {
+    const code = codeId(payload.code, "Kode tingkat kelas", 12).toUpperCase();
+    const master = await getAcademicMaster();
+    master.gradeLevels = master.gradeLevels.filter(
+      (g) => g.code.toUpperCase() !== code
+    );
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(ctx!, `Menghapus Tingkat Kelas Master: ${code}`);
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  // 13. Tambah / Update Rombongan Belajar (Rombel)
+  async ADD_ROMBEL(payload, ctx) {
+    const code = codeId(payload.code, "Kode rombel", 16).toUpperCase();
+    const name = optText(payload.name, 60, `Kelas ${code}`);
+    const gradeCode = optText(
+      payload.gradeCode,
+      12,
+      inferGradeCodeFromRombel(code)
+    ).toUpperCase();
+    const waliKelas = optText(payload.waliKelas, 120, "-");
+    const room = optText(payload.room, 60, `R. Kelas ${code}`);
+    const quota = numberIn(payload.quota, "Kuota rombel", 1, 60, 32);
+
+    const master = await getAcademicMaster();
+    const idx = master.rombels.findIndex((r) => r.code.toUpperCase() === code);
+    const item = { code, name, gradeCode, waliKelas, room, quota };
+    if (idx >= 0) {
+      master.rombels[idx] = item;
+    } else {
+      master.rombels.push(item);
+    }
+
+    // Jika waliKelas diisi, sinkronkan ke siswa aktif di rombel tersebut
+    if (waliKelas && waliKelas !== "-") {
+      await prisma.student
+        .updateMany({
+          where: { rombel: code, status: "Aktif" },
+          data: { waliKelas },
+        })
+        .catch(() => null);
+    }
+
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(
+      ctx!,
+      `Menyimpan Rombel Master: ${code} (Tingkat ${gradeCode}, Wali Kelas: ${waliKelas})`
+    );
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  async DELETE_ROMBEL(payload, ctx) {
+    const code = codeId(payload.code, "Kode rombel", 16).toUpperCase();
+    const master = await getAcademicMaster();
+    master.rombels = master.rombels.filter(
+      (r) => r.code.toUpperCase() !== code
+    );
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(ctx!, `Menghapus Rombel Master: ${code}`);
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  // 14. Tambah / Update Mata Pelajaran Referensi
+  async ADD_SUBJECT(payload, ctx) {
+    const name = reqText(payload.name, "Nama mata pelajaran", 100);
+    const rawCode = String(payload.code || "").trim();
+    const code = rawCode
+      ? codeId(rawCode, "Kode mata pelajaran", 20).toUpperCase()
+      : `MP-${name
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(0, 5)
+          .toUpperCase()}`;
+    const group = optText(
+      payload.group,
+      80,
+      "Umum (Kurikulum Merdeka)"
+    );
+    const jpPerWeek = numberIn(payload.jpPerWeek, "Alokasi JP/pekan", 1, 24, 2);
+
+    const master = await getAcademicMaster();
+    const idx = master.subjects.findIndex(
+      (s) =>
+        s.code.toUpperCase() === code ||
+        s.name.toLowerCase() === name.toLowerCase()
+    );
+    const item = { code, name, group, jpPerWeek };
+    if (idx >= 0) {
+      master.subjects[idx] = item;
+    } else {
+      master.subjects.push(item);
+    }
+
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(
+      ctx!,
+      `Menyimpan Mata Pelajaran Master: ${name} (${code} • ${group})`
+    );
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  async DELETE_SUBJECT(payload, ctx) {
+    const code = codeId(payload.code, "Kode mata pelajaran", 24).toUpperCase();
+    const master = await getAcademicMaster();
+    master.subjects = master.subjects.filter(
+      (s) => s.code.toUpperCase() !== code
+    );
+    await persistAcademicMaster(master, actorIdentity(ctx!), actorBadge(ctx!));
+    await writeAuditLog(ctx!, `Menghapus Mata Pelajaran Master: ${code}`);
+    return NextResponse.json({ ok: true, academicMaster: deepNeutralize(master) });
+  },
+
+  // 15. Transisi & Pengarsipan Semester / Tahun Pelajaran Aktif
+  async TRANSITION_ACADEMIC_PERIOD(payload, ctx) {
+    const targetAcademicYear = reqText(
+      payload.targetAcademicYear,
+      "Tahun Pelajaran Tujuan",
+      20
+    );
+    if (!/^\d{4}\/\d{4}$/.test(targetAcademicYear)) {
+      throw new HttpError(
+        400,
+        "Format Tahun Pelajaran harus YYYY/YYYY (contoh: 2026/2027 atau 2027/2028)."
+      );
+    }
+    const targetSemester = oneOf(
+      payload.targetSemester,
+      ["Ganjil", "Genap"] as const,
+      "Semester Tujuan",
+      "Ganjil"
+    );
+    const targetCurriculum = optText(payload.targetCurriculum, 120);
+    const notes = optText(payload.notes, 500);
+
+    const archive = await executeAcademicPeriodTransition(ctx!, {
+      targetAcademicYear,
+      targetSemester,
+      targetCurriculum: targetCurriculum || undefined,
+      resetSemesterPoints: payload.resetSemesterPoints !== false,
+      autoPromoteAndGraduate: payload.autoPromoteAndGraduate !== false,
+      notes: notes || undefined,
+    });
+
+    const [profile, archives] = await Promise.all([
+      getMadrasahProfile(),
+      getAcademicArchives(),
+    ]);
+
+    return NextResponse.json({
+      ok: true,
+      archive: deepNeutralize(archive),
+      profile: deepNeutralize(profile),
+      academicArchives: deepNeutralize(archives),
+    });
+  },
+
+  // 16. Proses Layanan Persuratan & Koreksi Data Buku Induk (TU & Super Admin)
+  async PROCESS_SERVICE_REQUEST(payload, ctx) {
+    const ticketOrId = codeId(payload.id, "ID permohonan", 64);
+    const decision = oneOf(
+      payload.decision,
+      ["APPROVE_CORRECTION", "REJECT", "ISSUE_LETTER"] as const,
+      "Keputusan layanan"
+    );
+
+    const reqItem = await prisma.serviceRequest.findFirst({
+      where: { OR: [{ id: ticketOrId }, { ticketNo: ticketOrId }] },
+    });
+
+    if (reqItem) {
+      if (decision === "APPROVE_CORRECTION") {
+        const allowedFields = new Set([
+          "name",
+          "ttl",
+          "fatherName",
+          "motherName",
+          "address",
+          "parentPhone",
+          "prevSchool",
+          "nik",
+        ]);
+        if (
+          reqItem.studentId &&
+          reqItem.fieldToCorrect &&
+          allowedFields.has(reqItem.fieldToCorrect) &&
+          reqItem.newValue
+        ) {
+          await prisma.student.update({
+            where: { id: reqItem.studentId },
+            data: { [reqItem.fieldToCorrect]: reqItem.newValue },
+          });
+        }
+        await prisma.serviceRequest.update({
+          where: { id: reqItem.id },
+          data: { status: "Disetujui" },
+        });
+      } else if (decision === "REJECT") {
+        await prisma.serviceRequest.update({
+          where: { id: reqItem.id },
+          data: { status: "Ditolak" },
+        });
+      } else if (decision === "ISSUE_LETTER") {
+        const letterNumber =
+          optText(payload.letterNumber, 80) ||
+          `B-${randomInt(100, 999)}/MTs.NF/PP.00.5/${new Date().getFullYear()}`;
+        await prisma.serviceRequest.update({
+          where: { id: reqItem.id },
+          data: { status: "Disetujui", letterNumber },
+        });
+        await prisma.mailAgenda.create({
+          data: {
+            mailType: "SURAT_KELUAR",
+            category: "Kesiswaan",
+            mailNumber: letterNumber,
+            dateLabel: nowLabel(),
+            party: `${reqItem.studentName} (${reqItem.classroom})`,
+            subject: reqItem.title,
+            r2FileKey: `persuratan/keluar/${letterNumber.replace(/[^a-zA-Z0-9_-]/g, "-")}.pdf`,
+            status: "Terarsip & TTE",
+          },
+        });
+      }
+    }
+
+    await writeAuditLog(
+      ctx!,
+      `Memproses layanan administrasi TU (${decision}) untuk tiket ${ticketOrId}`
+    );
+    return NextResponse.json({ ok: true });
+  },
+
+  // 17. Catat Agenda Surat Masuk / Keluar Baru (TU & Super Admin)
+  async CREATE_MAIL_AGENDA(payload, ctx) {
+    const mailType =
+      String(payload.type || "").toLowerCase().includes("keluar")
+        ? "SURAT_KELUAR"
+        : "SURAT_MASUK";
+    const category = optText(payload.category, 60, "Kemenag");
+    const mailNumber = reqText(payload.letterNo, "Nomor surat", 100);
+    const dateLabel = optText(payload.date, 60, nowLabel());
+    const party = reqText(payload.party, "Pengirim / Tujuan surat", 160);
+    const subject = reqText(payload.subject, "Perihal surat", 300);
+    const r2FileKey =
+      r2KeyOrNull(payload.r2File) ||
+      `persuratan/scan/${Date.now()}-surat.pdf`;
+
+    const created = await prisma.mailAgenda.create({
+      data: {
+        mailType,
+        category,
+        mailNumber,
+        dateLabel,
+        party,
+        subject,
+        r2FileKey,
+        status: "Terarsip & TTE",
+      },
+    });
+    await writeAuditLog(
+      ctx!,
+      `Mencatat ${mailType === "SURAT_MASUK" ? "Surat Masuk" : "Surat Keluar"} (${mailNumber}) — ${subject}`
+    );
+    return NextResponse.json({ ok: true, data: deepNeutralize(created) });
+  },
+
+  // 18. Update Biodata Siswa Buku Induk / Perbaikan Residu EMIS (TU & Super Admin)
+  async UPDATE_STUDENT_BIODATA(payload, ctx) {
+    const nisn = digitsOrNull(payload.nisn, 5, 20);
+    const nis = digitsOrNull(payload.nis, 4, 20);
+    if (!nisn && !nis) {
+      throw new HttpError(400, "NIS atau NISN siswa wajib diisi.");
+    }
+    const existing = await prisma.student.findFirst({
+      where: nisn ? { nisn } : { nis: nis! },
+    });
+    if (!existing) throw new HttpError(404, "Data siswa tidak ditemukan.");
+
+    const updated = await prisma.student.update({
+      where: { id: existing.id },
+      data: {
+        ...(nis ? { nis } : {}),
+        ...(nisn ? { nisn } : {}),
+        ...(payload.nik ? { nik: digits(payload.nik, "NIK", 16, 16) } : {}),
+        ...(payload.name ? { name: optText(payload.name, 120, existing.name) } : {}),
+        ...(payload.ttl ? { ttl: optText(payload.ttl, 120, existing.ttl) } : {}),
+        ...(payload.fatherName
+          ? { fatherName: optText(payload.fatherName, 120, existing.fatherName) }
+          : {}),
+        ...(payload.motherName
+          ? { motherName: optText(payload.motherName, 120, existing.motherName) }
+          : {}),
+        ...(payload.rombel
+          ? { rombel: optText(payload.rombel, 20, existing.rombel) }
+          : {}),
+        ...(payload.status
+          ? {
+              status: oneOf(
+                payload.status,
+                STUDENT_STATUSES,
+                "Status",
+                "Aktif"
+              ),
+            }
+          : {}),
+        ...(payload.prevSchool
+          ? { prevSchool: optText(payload.prevSchool, 120, existing.prevSchool) }
+          : {}),
+        ...(payload.address
+          ? { address: optText(payload.address, 300, existing.address) }
+          : {}),
+      },
+    });
+    await writeAuditLog(
+      ctx!,
+      `Memperbarui biodata Buku Induk / EMIS siswa: ${updated.name} (NIS ${updated.nis})`
+    );
+    return NextResponse.json({ ok: true, data: deepNeutralize(updated) });
   },
 };
 

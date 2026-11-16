@@ -12,6 +12,206 @@ import { deepNeutralize } from "@/lib/security";
  */
 
 const PROFILE_CONFIG_PATH = path.join(process.cwd(), "madrasah-profile.json");
+const MASTER_CONFIG_PATH = path.join(process.cwd(), "academic-master.json");
+
+export interface AcademicGradeLevel {
+  code: string; // contoh: "VII", "VIII", "IX"
+  label: string; // contoh: "Kelas VII (Tingkat 7)"
+  phase: string; // contoh: "Fase D (Kurikulum Merdeka)"
+  isFinalGrade: boolean; // true untuk tingkat akhir (IX) yang akan lulus saat ganti tahun ajaran
+}
+
+export interface AcademicRombelItem {
+  code: string; // contoh: "7A", "8A", "9A", "VII-A"
+  name: string; // contoh: "Kelas 7A"
+  gradeCode: string; // referensi ke AcademicGradeLevel.code ("VII" | "VIII" | "IX")
+  waliKelas: string;
+  room: string;
+  quota: number;
+}
+
+export interface AcademicSubjectItem {
+  code: string; // contoh: "PAI-QH", "UM-MTK"
+  name: string; // contoh: "Al-Qur'an Hadits", "Matematika"
+  group: string; // "PAI & Bahasa Arab (KMA 450)" | "Umum (Kurikulum Merdeka)" | "Muatan Lokal & Pembinaan"
+  jpPerWeek: number;
+}
+
+export interface AcademicMasterConfig {
+  gradeLevels: AcademicGradeLevel[];
+  rombels: AcademicRombelItem[];
+  subjects: AcademicSubjectItem[];
+}
+
+export interface AcademicPeriodArchive {
+  id: string;
+  academicYear: string;
+  semester: string;
+  curriculum: string;
+  transitionType: "CHANGE_SEMESTER" | "NEW_ACADEMIC_YEAR";
+  targetAcademicYear: string;
+  targetSemester: string;
+  archivedAt: string;
+  archivedBy: string;
+  notes: string;
+  summary: {
+    activeStudents: number;
+    graduatedStudents: number;
+    promotedStudents: number;
+    activeTeachers: number;
+    totalSchedules: number;
+    totalCounselingNotes: number;
+    totalSavingsBalance: number;
+    rombelBreakdown: Array<{ rombel: string; count: number }>;
+  };
+}
+
+export const DEFAULT_ACADEMIC_MASTER: AcademicMasterConfig = {
+  gradeLevels: [
+    {
+      code: "VII",
+      label: "Kelas VII (Tingkat 7)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: false,
+    },
+    {
+      code: "VIII",
+      label: "Kelas VIII (Tingkat 8)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: false,
+    },
+    {
+      code: "IX",
+      label: "Kelas IX (Tingkat 9 / Tingkat Akhir)",
+      phase: "Fase D — Kurikulum Merdeka & KMA 450",
+      isFinalGrade: true,
+    },
+  ],
+  rombels: [
+    {
+      code: "7A",
+      name: "Kelas 7A",
+      gradeCode: "VII",
+      waliKelas: "Fitriani Rahmawati, S.E.",
+      room: "R. Kelas 7A",
+      quota: 32,
+    },
+    {
+      code: "8A",
+      name: "Kelas 8A",
+      gradeCode: "VIII",
+      waliKelas: "Ust. Ahmad Fauzi, S.Pd.",
+      room: "R. Kelas 8A",
+      quota: 32,
+    },
+    {
+      code: "9A",
+      name: "Kelas 9A",
+      gradeCode: "IX",
+      waliKelas: "Budi Santoso, M.Pd.",
+      room: "R. Kelas 9A",
+      quota: 32,
+    },
+  ],
+  subjects: [
+    {
+      code: "PAI-QH",
+      name: "Al-Qur'an Hadits",
+      group: "PAI & Bahasa Arab (KMA 450)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "PAI-AA",
+      name: "Akidah Akhlak",
+      group: "PAI & Bahasa Arab (KMA 450)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "PAI-FQ",
+      name: "Fiqih",
+      group: "PAI & Bahasa Arab (KMA 450)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "PAI-SKI",
+      name: "Sejarah Kebudayaan Islam (SKI)",
+      group: "PAI & Bahasa Arab (KMA 450)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "PAI-BAR",
+      name: "Bahasa Arab",
+      group: "PAI & Bahasa Arab (KMA 450)",
+      jpPerWeek: 3,
+    },
+    {
+      code: "UM-PKN",
+      name: "Pendidikan Pancasila",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "UM-BIN",
+      name: "Bahasa Indonesia",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 6,
+    },
+    {
+      code: "UM-MTK",
+      name: "Matematika",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 5,
+    },
+    {
+      code: "UM-IPA",
+      name: "IPA Terpadu",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 5,
+    },
+    {
+      code: "UM-IPS",
+      name: "Ilmu Pengetahuan Sosial",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 4,
+    },
+    {
+      code: "UM-BIG",
+      name: "Bahasa Inggris",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 4,
+    },
+    {
+      code: "UM-PJOK",
+      name: "PJOK",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 3,
+    },
+    {
+      code: "UM-INF",
+      name: "Informatika",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "UM-SBP",
+      name: "Seni Budaya & Prakarya",
+      group: "Umum (Kurikulum Merdeka)",
+      jpPerWeek: 2,
+    },
+    {
+      code: "ML-BTQ",
+      name: "Tahfidzul Qur'an & BTQ",
+      group: "Muatan Lokal & Pembinaan",
+      jpPerWeek: 2,
+    },
+    {
+      code: "ML-BK",
+      name: "Bimbingan & Konseling",
+      group: "Muatan Lokal & Pembinaan",
+      jpPerWeek: 1,
+    },
+  ],
+};
 
 export interface MadrasahProfileConfig {
   name: string;
@@ -133,6 +333,156 @@ export async function persistMadrasahProfile(
     .catch(() => null);
 }
 
+export function inferGradeCodeFromRombel(rombelCode: string): string {
+  const s = String(rombelCode || "").toUpperCase().trim();
+  if (s.startsWith("IX") || s.startsWith("9")) return "IX";
+  if (s.startsWith("VIII") || s.startsWith("8")) return "VIII";
+  return "VII";
+}
+
+export async function getAcademicMaster(): Promise<AcademicMasterConfig> {
+  let base: AcademicMasterConfig = {
+    gradeLevels: [...DEFAULT_ACADEMIC_MASTER.gradeLevels],
+    rombels: [...DEFAULT_ACADEMIC_MASTER.rombels],
+    subjects: [...DEFAULT_ACADEMIC_MASTER.subjects],
+  };
+
+  try {
+    const latest = await prisma.systemActivityLog.findFirst({
+      where: { category: "academic_master" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (latest && latest.actionText) {
+      const parsed = JSON.parse(latest.actionText);
+      if (Array.isArray(parsed.gradeLevels) && parsed.gradeLevels.length > 0) {
+        base.gradeLevels = parsed.gradeLevels;
+      }
+      if (Array.isArray(parsed.rombels) && parsed.rombels.length > 0) {
+        base.rombels = parsed.rombels;
+      }
+      if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
+        base.subjects = parsed.subjects;
+      }
+    } else {
+      const raw = await fs.readFile(MASTER_CONFIG_PATH, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.gradeLevels) && parsed.gradeLevels.length > 0) {
+        base.gradeLevels = parsed.gradeLevels;
+      }
+      if (Array.isArray(parsed.rombels) && parsed.rombels.length > 0) {
+        base.rombels = parsed.rombels;
+      }
+      if (Array.isArray(parsed.subjects) && parsed.subjects.length > 0) {
+        base.subjects = parsed.subjects;
+      }
+    }
+  } catch {
+    // gunakan default
+  }
+
+  // Sinkronkan rombel & mata pelajaran yang sudah ada di tabel Student & TeacherProfile
+  try {
+    const [stuRombels, teacherSubjects] = await Promise.all([
+      prisma.student.findMany({
+        where: { status: "Aktif" },
+        select: { rombel: true, waliKelas: true },
+        distinct: ["rombel"],
+      }),
+      prisma.teacherProfile.findMany({
+        select: { subject: true },
+        distinct: ["subject"],
+      }),
+    ]);
+
+    const existingRombelCodes = new Set(
+      base.rombels.map((r) => r.code.toUpperCase())
+    );
+    for (const sr of stuRombels) {
+      const code = String(sr.rombel || "").trim();
+      if (code && !existingRombelCodes.has(code.toUpperCase())) {
+        existingRombelCodes.add(code.toUpperCase());
+        base.rombels.push({
+          code,
+          name: `Kelas ${code}`,
+          gradeCode: inferGradeCodeFromRombel(code),
+          waliKelas: sr.waliKelas || "-",
+          room: `R. Kelas ${code}`,
+          quota: 32,
+        });
+      }
+    }
+
+    const existingSubjNames = new Set(
+      base.subjects.map((s) => s.name.toLowerCase())
+    );
+    for (const ts of teacherSubjects) {
+      const name = String(ts.subject || "").trim();
+      if (
+        name &&
+        name !== "Guru Mata Pelajaran" &&
+        !existingSubjNames.has(name.toLowerCase())
+      ) {
+        existingSubjNames.add(name.toLowerCase());
+        base.subjects.push({
+          code: `MP-${base.subjects.length + 1}`,
+          name,
+          group: "Umum (Kurikulum Merdeka)",
+          jpPerWeek: 2,
+        });
+      }
+    }
+  } catch {
+    // abaikan bila koneksi DB belum siap
+  }
+
+  return base;
+}
+
+export async function persistAcademicMaster(
+  master: AcademicMasterConfig,
+  actor: string,
+  roleBadge: string
+) {
+  await prisma.systemActivityLog.create({
+    data: {
+      actor,
+      roleBadge,
+      actionText: JSON.stringify(master),
+      timeLabel: new Date().toLocaleString("id-ID", {
+        timeZone: "Asia/Jakarta",
+      }),
+      category: "academic_master",
+    },
+  });
+  await fs
+    .writeFile(MASTER_CONFIG_PATH, JSON.stringify(master, null, 2), "utf-8")
+    .catch(() => null);
+}
+
+export async function getAcademicArchives(): Promise<AcademicPeriodArchive[]> {
+  try {
+    const logs = await prisma.systemActivityLog.findMany({
+      where: { category: "academic_period_archive" },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
+    const out: AcademicPeriodArchive[] = [];
+    for (const l of logs) {
+      try {
+        const parsed = JSON.parse(l.actionText);
+        if (parsed && parsed.academicYear) {
+          out.push({ id: l.id, ...parsed });
+        }
+      } catch {
+        // skip
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Whitelist kolom
 // ---------------------------------------------------------------------------
@@ -202,7 +552,19 @@ export type ScopedSummary = Awaited<ReturnType<typeof getScopedSummary>>;
  * - Orang Tua → data anak-anaknya (relasi StudentParent) saja.
  */
 export async function getScopedSummary(ctx: AuthContext | null) {
-  const [profile, stats] = await Promise.all([getMadrasahProfile(), getPublicStats()]);
+  const [profile, stats, academicMaster, academicArchives] = await Promise.all([
+    getMadrasahProfile(),
+    getPublicStats(),
+    getAcademicMaster(),
+    ctx?.isStaff ? getAcademicArchives() : Promise.resolve([]),
+  ]);
+  const masterRombelCodes = academicMaster.rombels.map((r) => r.code);
+  const mergedStats = {
+    ...stats,
+    rombels: Array.from(new Set([...masterRombelCodes, ...stats.rombels])).sort(),
+    subjects: academicMaster.subjects.map((s) => s.name),
+    gradeLevels: academicMaster.gradeLevels.map((g) => g.code),
+  };
 
   const publishedCms = { where: { status: "Published" }, orderBy: { createdAt: "desc" as const } };
 
@@ -216,7 +578,9 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ok: true as const,
       scope: "public",
       profile,
-      stats,
+      stats: mergedStats,
+      academicMaster,
+      academicArchives: [] as AcademicPeriodArchive[],
       teachers: teachers.map((t) => ({ ...t, nip: maskNip(t.nip) })),
       students: [] as unknown[],
       ppdb: [] as unknown[],
@@ -274,14 +638,20 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ok: true as const,
       scope: "staff",
       profile,
-      stats,
+      stats: mergedStats,
+      academicMaster,
+      academicArchives,
       teachers,
       students,
       ppdb,
       cmsPosts,
       serviceRequests,
       mailAgenda,
-      activityLogs,
+      activityLogs: activityLogs.filter(
+        (l) =>
+          l.category !== "academic_master" &&
+          l.category !== "academic_period_archive"
+      ),
       schedules,
       counselingNotes,
     });
@@ -316,7 +686,9 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ok: true as const,
       scope: "gtk",
       profile,
-      stats,
+      stats: mergedStats,
+      academicMaster,
+      academicArchives: [] as AcademicPeriodArchive[],
       teachers,
       students,
       ppdb,
@@ -362,7 +734,9 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ok: true as const,
       scope: "siswa",
       profile,
-      stats,
+      stats: mergedStats,
+      academicMaster,
+      academicArchives: [] as AcademicPeriodArchive[],
       teachers,
       students: own ? [own, ...classmates] : [],
       ppdb: [] as unknown[],
@@ -393,7 +767,9 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ok: true as const,
       scope: "ortu",
       profile,
-      stats,
+      stats: mergedStats,
+      academicMaster,
+      academicArchives: [] as AcademicPeriodArchive[],
       teachers,
       students: children,
       ppdb: [] as unknown[],

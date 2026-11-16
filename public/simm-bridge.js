@@ -264,14 +264,70 @@
       // ignore cross-origin check
     }
 
+    // Jika sedang di Dashboard Admin (/admin), sematkan langsung seluruh menu Dashboard TU di bagian Modul Operasional
+    const adminPrimaryNav = document.querySelector(
+      'aside nav[aria-label="Menu Utama Admin"]'
+    );
+    if (adminPrimaryNav && isSuperAdmin) {
+      const existingTuNav = document.getElementById(
+        "sims-admin-tu-native-menus"
+      );
+      if (existingTuNav) existingTuNav.remove();
+
+      const tuMenuBlock = document.createElement("div");
+      tuMenuBlock.id = "sims-admin-tu-native-menus";
+      tuMenuBlock.className = "space-y-1 pt-2";
+      tuMenuBlock.innerHTML = `
+        <p class="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-teal-700">Layanan Tata Usaha (TU) Terpadu</p>
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_persuratan')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="file-signature" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <span class="truncate">Persuratan &amp; Koreksi Induk</span>
+          </span>
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700">TTE</span>
+        </button>
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_agenda')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="mail-check" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <span class="truncate">Agenda Surat Masuk/Keluar</span>
+          </span>
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700">R2</span>
+        </button>
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_emis')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span class="truncate">Validasi EMIS &amp; Ekspor TU</span>
+          </span>
+        </button>
+      `;
+      adminPrimaryNav.appendChild(tuMenuBlock);
+    }
+
     const moduleButtons = [];
 
     if (canAccessGoLiveSettings) {
       moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('academic_master')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="book-open-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span class="truncate">Master Kelas, Rombel &amp; Mapel</span>
+          </span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Ref</span>
+        </button>
+      `);
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('academic_period')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="archive-restore" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <span class="truncate">Semester, Tahun &amp; Arsip</span>
+          </span>
+        </button>
+      `);
+      moduleButtons.push(`
         <button type="button" onclick="window.__SIMM_OPEN_MODAL__('golive_settings')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
             <i data-lucide="building-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
-            <span class="truncate">Master &amp; Import EMIS</span>
+            <span class="truncate">Identitas &amp; Import EMIS</span>
           </span>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">XLSX</span>
         </button>
@@ -317,29 +373,6 @@
           <span class="flex items-center gap-3 min-w-0">
             <i data-lucide="layers" class="w-4 h-4 text-sky-600 shrink-0"></i>
             <span class="truncate">Kenaikan Kelas Massal</span>
-          </span>
-        </button>
-      `);
-    }
-
-    // Navigasi lintas portal khusus Pimpinan (Kepala Madrasah) & Super Admin
-    if (isSuperAdmin && currentPortalPath !== "/admin") {
-      moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_NAVIGATE__('/admin')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
-          <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
-            <span class="truncate">Panel Eksekutif Admin</span>
-          </span>
-        </button>
-      `);
-    }
-
-    if (isSuperAdmin && currentPortalPath !== "/tu") {
-      moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_NAVIGATE__('/tu')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
-          <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-teal-600 shrink-0"></i>
-            <span class="truncate">Portal Tata Usaha (TU)</span>
           </span>
         </button>
       `);
@@ -451,25 +484,29 @@
     });
   }
 
-  // Perbarui opsi dropdown filter Rombel dengan rombel riil dari database (7A, 8A, 9A)
-  function syncRombelSelectOptions(students) {
-    if (!Array.isArray(students) || students.length === 0) return;
-    const uniqueRombels = Array.from(
-      new Set(
-        students
-          .map((s) => String(s.rombel || "").trim())
+  // Perbarui seluruh dropdown Rombel/Kelas & Mata Pelajaran dari Master Akademik + Database
+  function syncRombelSelectOptions(students, academicMaster) {
+    const masterRombels = Array.isArray(academicMaster?.rombels)
+      ? academicMaster.rombels
+          .map((r) => String(r.code || "").trim())
           .filter(Boolean)
-      )
+      : [];
+    const stuRombels = Array.isArray(students)
+      ? students.map((s) => String(s.rombel || "").trim()).filter(Boolean)
+      : [];
+    const uniqueRombels = Array.from(
+      new Set([...masterRombels, ...stuRombels])
     ).sort();
     if (uniqueRombels.length === 0) return;
 
+    const stuCount = Array.isArray(students) ? students.length : 0;
     const filterSelectIds = ["student-rombel-filter", "induk-filter-rombel"];
     filterSelectIds.forEach((id) => {
       const sel = document.getElementById(id);
       if (sel) {
         const currentVal = sel.value || "Semua";
         sel.innerHTML =
-          `<option value="Semua">Semua Rombel / Kelas (${students.length} Siswa)</option>` +
+          `<option value="Semua">Semua Rombel / Kelas (${stuCount} Siswa)</option>` +
           uniqueRombels
             .map((r) => `<option value="${esc(r)}">Kelas ${esc(r)}</option>`)
             .join("");
@@ -479,15 +516,41 @@
       }
     });
 
-    const formSelectIds = ["new-stu-rombel", "new-role-classroom", "add-rombel"];
+    const formSelectIds = [
+      "new-stu-rombel",
+      "edit-stu-rombel",
+      "new-role-class",
+      "new-role-classroom",
+      "add-rombel",
+    ];
     formSelectIds.forEach((id) => {
       const sel = document.getElementById(id);
       if (sel) {
+        const prev = sel.value;
         sel.innerHTML = uniqueRombels
           .map((r) => `<option value="${esc(r)}">Kelas ${esc(r)}</option>`)
           .join("");
+        if (prev && uniqueRombels.includes(prev)) sel.value = prev;
       }
     });
+
+    // Sinkronkan referensi Mata Pelajaran ke datalist global untuk semua input mapel di portal
+    const masterSubjects = Array.isArray(academicMaster?.subjects)
+      ? academicMaster.subjects
+          .map((s) => String(s.name || "").trim())
+          .filter(Boolean)
+      : [];
+    if (masterSubjects.length > 0 && document.body) {
+      let dl = document.getElementById("simm-master-subjects-datalist");
+      if (!dl) {
+        dl = document.createElement("datalist");
+        dl.id = "simm-master-subjects-datalist";
+        document.body.appendChild(dl);
+      }
+      dl.innerHTML = masterSubjects
+        .map((sub) => `<option value="${esc(sub)}"></option>`)
+        .join("");
+    }
   }
 
   // Sinkronkan seluruh variabel data di 7 portal dengan data nyata dari Supabase (hapus total data dummy)
@@ -505,7 +568,7 @@
     const profile = db.profile || window.__MADRASAH_PROFILE__ || {};
 
     applyMadrasahIdentityToDOM(profile);
-    syncRombelSelectOptions(realStudents);
+    syncRombelSelectOptions(realStudents, db.academicMaster);
 
     const uniqueRombels =
       Array.isArray(db.stats?.rombels) && db.stats.rombels.length > 0
@@ -2105,6 +2168,123 @@
             body: JSON.stringify({
               action: "CREATE_CMS_POST",
               payload: { title, category, status, excerpt },
+            }),
+          }).catch(() => null);
+        }
+      };
+    }
+
+    // Hook Layanan Persuratan, Koreksi Data, Agenda Surat & Edit Induk (TU / Admin) ke Supabase
+    if (typeof window.approveDataCorrection === "function") {
+      const origApprove = window.approveDataCorrection;
+      window.approveDataCorrection = function (reqId) {
+        origApprove.apply(this, arguments);
+        fetch("/api/simm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "PROCESS_SERVICE_REQUEST",
+            payload: { id: String(reqId), decision: "APPROVE_CORRECTION" },
+          }),
+        }).catch(() => null);
+      };
+    }
+
+    if (typeof window.rejectServiceRequest === "function") {
+      const origReject = window.rejectServiceRequest;
+      window.rejectServiceRequest = function (reqId) {
+        origReject.apply(this, arguments);
+        fetch("/api/simm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "PROCESS_SERVICE_REQUEST",
+            payload: { id: String(reqId), decision: "REJECT" },
+          }),
+        }).catch(() => null);
+      };
+    }
+
+    if (typeof window.issueOfficialLetter === "function") {
+      const origIssue = window.issueOfficialLetter;
+      window.issueOfficialLetter = function (reqId) {
+        origIssue.apply(this, arguments);
+        const found =
+          typeof SERVICE_REQUESTS !== "undefined"
+            ? SERVICE_REQUESTS.find((r) => r.id === reqId)
+            : null;
+        fetch("/api/simm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "PROCESS_SERVICE_REQUEST",
+            payload: {
+              id: String(reqId),
+              decision: "ISSUE_LETTER",
+              letterNumber: found?.issuedNumber || "",
+            },
+          }),
+        }).catch(() => null);
+      };
+    }
+
+    if (typeof window.handleSaveNewAgenda === "function") {
+      const origSaveAg = window.handleSaveNewAgenda;
+      window.handleSaveNewAgenda = function (e) {
+        const type = document.getElementById("ag-type")?.value;
+        const category = document.getElementById("ag-cat")?.value;
+        const letterNo = document.getElementById("ag-number")?.value;
+        const date = document.getElementById("ag-date")?.value;
+        const party = document.getElementById("ag-party")?.value;
+        const subject = document.getElementById("ag-subject")?.value;
+        origSaveAg.apply(this, arguments);
+        if (letterNo && party && subject) {
+          fetch("/api/simm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "CREATE_MAIL_AGENDA",
+              payload: { type, category, letterNo, date, party, subject },
+            }),
+          }).catch(() => null);
+        }
+      };
+    }
+
+    if (typeof window.handleSaveIndukBiodata === "function") {
+      const origSaveBio = window.handleSaveIndukBiodata;
+      window.handleSaveIndukBiodata = function (e) {
+        const nis = document.getElementById("edit-stu-nis")?.value;
+        const nisn = document.getElementById("edit-stu-nisn")?.value;
+        const nik = document.getElementById("edit-stu-nik")?.value;
+        const name = document.getElementById("edit-stu-name")?.value;
+        const ttl = document.getElementById("edit-stu-ttl")?.value;
+        const fatherName = document.getElementById("edit-stu-father")?.value;
+        const motherName = document.getElementById("edit-stu-mother")?.value;
+        const rombel = document.getElementById("edit-stu-rombel")?.value;
+        const status = document.getElementById("edit-stu-status")?.value;
+        const prevSchool = document.getElementById("edit-stu-prevschool")?.value;
+        const address = document.getElementById("edit-stu-address")?.value;
+        origSaveBio.apply(this, arguments);
+        if (nis || nisn) {
+          fetch("/api/simm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "UPDATE_STUDENT_BIODATA",
+              payload: {
+                nis,
+                nisn,
+                nik,
+                name,
+                ttl,
+                fatherName,
+                motherName,
+                rombel,
+                status,
+                prevSchool,
+                address,
+              },
             }),
           }).catch(() => null);
         }
