@@ -393,6 +393,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, profile: deepNeutralize(profile) });
     }
 
+    // Ringkasan publik untuk beranda & PPDB (tanpa PII, otomatis mengikuti scope jika sudah login)
+    if (resource === "public_summary") {
+      const ctx = await getAuthContext();
+      return NextResponse.json(await getScopedSummary(ctx));
+    }
+
   // 2. Ringkasan data: wajib login, isi disesuaikan dengan peran
     if (resource === "summary") {
       const ctx = await requireAuth();

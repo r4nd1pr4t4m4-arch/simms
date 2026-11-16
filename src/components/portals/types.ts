@@ -19,11 +19,7 @@ export interface ActiveSession {
   rombel?: string;
   waliKelas?: string;
   additionalRoles?: string[];
-  roleDetails?: Array<{
-    type: string;
-    detail: string;
-    skNumber?: string | null;
-  }>;
+  roleDetails?: Array<{ type: string; detail: string; skNumber?: string | null }>;
   targetPath: string;
   mustChangePassword?: boolean;
 }
@@ -72,54 +68,76 @@ export interface AcademicMaster {
   }>;
 }
 
-export interface SimmDbSummary {
+export interface PortalDbSummary {
   ok: boolean;
-  scope?: string;
+  scope: string;
   profile: MadrasahProfile;
-  stats?: {
+  stats: {
     studentCount: number;
     teacherCount: number;
     rombels: string[];
     subjects?: string[];
     gradeLevels?: string[];
   };
-  academicMaster?: AcademicMaster;
-  academicArchives?: Array<any>;
-  teachers?: Array<any>;
-  students?: Array<any>;
-  ppdb?: Array<any>;
-  cmsPosts?: Array<any>;
-  serviceRequests?: Array<any>;
-  mailAgenda?: Array<any>;
-  activityLogs?: Array<any>;
-  schedules?: Array<any>;
-  counselingNotes?: Array<any>;
+  academicMaster: AcademicMaster;
+  academicArchives: Array<any>;
+  teachers: Array<any>;
+  students: Array<any>;
+  ppdb: Array<any>;
+  cmsPosts: Array<any>;
+  serviceRequests: Array<any>;
+  mailAgenda: Array<any>;
+  activityLogs: Array<any>;
+  schedules: Array<any>;
+  counselingNotes: Array<any>;
   dutySchedules?: Array<any>;
   piketIncidents?: Array<any>;
   teacherAttendances?: Array<any>;
   studentLeaves?: Array<any>;
 }
 
-export async function callSimmAction<T = any>(
+export function getInitials(name: string): string {
+  if (!name) return "SM";
+  const parts = String(name)
+    .replace(/^(Ust\.|Usth\.|Dr\.|Drs\.|H\.|Hj\.|Bapak|Ibu)\s+/gi, "")
+    .split(",")[0]
+    .trim()
+    .split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+export function calcHaversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return Math.round(2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+export async function callSimmAction(
   action: string,
   payload: Record<string, unknown> = {}
-): Promise<{ ok: boolean; error?: string; [key: string]: any } & T> {
+) {
   const res = await fetch("/api/simm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, payload }),
   });
-  return res.json();
-}
-
-export async function uploadToR2(file: File, folder: string) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("folder", folder);
-  formData.append("customName", file.name);
-  const res = await fetch("/api/r2/upload", {
-    method: "POST",
-    body: formData,
-  });
-  return res.json();
+  const data = await res.json().catch(() => ({ ok: false, error: "Respon server tidak valid" }));
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || "Gagal memproses aksi");
+  }
+  return data;
 }
