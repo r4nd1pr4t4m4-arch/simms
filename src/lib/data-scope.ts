@@ -14,6 +14,25 @@ import { deepNeutralize } from "@/lib/security";
 const PROFILE_CONFIG_PATH = path.join(process.cwd(), "madrasah-profile.json");
 const MASTER_CONFIG_PATH = path.join(process.cwd(), "academic-master.json");
 
+// Short-TTL in-memory cache untuk mempercepat loading portal & mengurangi round-trip DB
+const CACHE_TTL_MS = 15_000;
+const scopeCache = {
+  profile: null as { val: MadrasahProfileConfig; exp: number } | null,
+  master: null as { val: AcademicMasterConfig; exp: number } | null,
+  archives: null as { val: AcademicPeriodArchive[]; exp: number } | null,
+  stats: null as {
+    val: { studentCount: number; teacherCount: number; rombels: string[] };
+    exp: number;
+  } | null,
+};
+
+export function invalidateScopeCache() {
+  scopeCache.profile = null;
+  scopeCache.master = null;
+  scopeCache.archives = null;
+  scopeCache.stats = null;
+}
+
 export interface AcademicGradeLevel {
   code: string; // contoh: "VII", "VIII", "IX"
   label: string; // contoh: "Kelas VII (Tingkat 7)"
@@ -295,23 +314,37 @@ function pickProfile(raw: unknown): Partial<MadrasahProfileConfig> {
 }
 
 export async function getMadrasahProfile(): Promise<MadrasahProfileConfig> {
+  if (scopeCache.profile && scopeCache.profile.exp > Date.now()) {
+    return scopeCache.profile.val;
+  }
+  let resolved = DEFAULT_MADRASAH_PROFILE;
   try {
     const latest = await prisma.systemActivityLog.findFirst({
       where: { category: "madrasah_profile" },
       orderBy: { createdAt: "desc" },
     });
     if (latest && latest.actionText) {
-      return { ...DEFAULT_MADRASAH_PROFILE, ...pickProfile(JSON.parse(latest.actionText)) };
+      resolved = {
+        ...DEFAULT_MADRASAH_PROFILE,
+        ...pickProfile(JSON.parse(latest.actionText)),
+      };
+      scopeCache.profile = { val: resolved, exp: Date.now() + CACHE_TTL_MS };
+      return resolved;
     }
   } catch {
     // fallback ke file lokal
   }
   try {
     const raw = await fs.readFile(PROFILE_CONFIG_PATH, "utf-8");
-    return { ...DEFAULT_MADRASAH_PROFILE, ...pickProfile(JSON.parse(raw)) };
+    resolved = {
+      ...DEFAULT_MADRASAH_PROFILE,
+      ...pickProfile(JSON.parse(raw)),
+    };
   } catch {
-    return DEFAULT_MADRASAH_PROFILE;
+    resolved = DEFAULT_MADRASAH_PROFILE;
   }
+  scopeCache.profile = { val: resolved, exp: Date.now() + CACHE_TTL_MS };
+  return resolved;
 }
 
 export async function persistMadrasahProfile(
@@ -331,6 +364,7 @@ export async function persistMadrasahProfile(
   await fs
     .writeFile(PROFILE_CONFIG_PATH, JSON.stringify(profile, null, 2), "utf-8")
     .catch(() => null);
+  invalidateScopeCache();
 }
 
 export function inferGradeCodeFromRombel(rombelCode: string): string {
@@ -341,6 +375,9 @@ export function inferGradeCodeFromRombel(rombelCode: string): string {
 }
 
 export async function getAcademicMaster(): Promise<AcademicMasterConfig> {
+  if (scopeCache.master && scopeCache.master.exp > Date.now()) {
+    return scopeCache.master.val;
+  }
   let base: AcademicMasterConfig = {
     gradeLevels: [...DEFAULT_ACADEMIC_MASTER.gradeLevels],
     rombels: [...DEFAULT_ACADEMIC_MASTER.rombels],
@@ -435,6 +472,7 @@ export async function getAcademicMaster(): Promise<AcademicMasterConfig> {
     // abaikan bila koneksi DB belum siap
   }
 
+  scopeCache.master = { val: base, exp: Date.now() + CACHE_TTL_MS };
   return base;
 }
 
@@ -457,9 +495,13 @@ export async function persistAcademicMaster(
   await fs
     .writeFile(MASTER_CONFIG_PATH, JSON.stringify(master, null, 2), "utf-8")
     .catch(() => null);
+  invalidateScopeCache();
 }
 
 export async function getAcademicArchives(): Promise<AcademicPeriodArchive[]> {
+  if (scopeCache.archives && scopeCache.archives.exp > Date.now()) {
+    return scopeCache.archives.val;
+  }
   try {
     const logs = await prisma.systemActivityLog.findMany({
       where: { category: "academic_period_archive" },
@@ -477,6 +519,7 @@ export async function getAcademicArchives(): Promise<AcademicPeriodArchive[]> {
         // skip
       }
     }
+    scopeCache.archives = { val: out, exp: Date.now() + CACHE_TTL_MS };
     return out;
   } catch {
     return [];
@@ -525,6 +568,9 @@ function maskNip(nip: string): string {
 }
 
 async function getPublicStats() {
+  if (scopeCache.stats && scopeCache.stats.exp > Date.now()) {
+    return scopeCache.stats.val;
+  }
   const [studentCount, teacherCount, rombelRows] = await Promise.all([
     prisma.student.count({ where: { status: "Aktif" } }),
     prisma.teacherProfile.count(),
@@ -534,11 +580,13 @@ async function getPublicStats() {
       distinct: ["rombel"],
     }),
   ]);
-  return {
+  const val = {
     studentCount,
     teacherCount,
     rombels: rombelRows.map((r) => r.rombel).filter(Boolean).sort(),
   };
+  scopeCache.stats = { val, exp: Date.now() + CACHE_TTL_MS };
+  return val;
 }
 
 export type ScopedSummary = Awaited<ReturnType<typeof getScopedSummary>>;
@@ -616,6 +664,10 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       activityLogs,
       schedules,
       counselingNotes,
+      dutySchedules,
+      piketIncidents,
+      teacherAttendances,
+      studentLeaves,
     ] = await Promise.all([
       teachersP,
       prisma.student.findMany({ orderBy: { nis: "asc" } }),
@@ -632,6 +684,19 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       prisma.counselingNote.findMany({
         orderBy: { createdAt: "desc" },
         take: 100,
+      }),
+      prisma.dailyDutySchedule.findMany({ orderBy: { day: "asc" } }),
+      prisma.piketIncidentLog.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 80,
+      }),
+      prisma.teacherAttendance.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 80,
+      }),
+      prisma.studentLeaveRequest.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 60,
       }),
     ]);
     return deepNeutralize({
@@ -654,6 +719,10 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       ),
       schedules,
       counselingNotes,
+      dutySchedules,
+      piketIncidents,
+      teacherAttendances,
+      studentLeaves,
     });
   }
 
@@ -662,26 +731,55 @@ export async function getScopedSummary(ctx: AuthContext | null) {
     const canSeeSavings = hasRoleKeyword(ctx, "tabungan");
     const isPpdbPanel = hasRoleKeyword(ctx, "ppdb");
     const canSeeBk = hasRoleKeyword(ctx, "bk") || hasRoleKeyword(ctx, "wali");
-    const [teachers, students, ppdb, cmsPosts, schedules, counselingNotes] =
-      await Promise.all([
-        teachersP,
-        prisma.student.findMany({
-          select: { ...studentForTeacherSelect, savingsBalance: canSeeSavings },
-          where: { status: "Aktif" },
-          orderBy: { nis: "asc" },
-        }),
-        isPpdbPanel
-          ? prisma.ppdbApplicant.findMany({ orderBy: { regNo: "desc" } })
-          : Promise.resolve([]),
-        prisma.cmsPost.findMany(publishedCms),
-        schedulesP,
-        canSeeBk
-          ? prisma.counselingNote.findMany({
-              orderBy: { createdAt: "desc" },
-              take: 100,
-            })
-          : Promise.resolve([]),
-      ]);
+    const isPiket = hasRoleKeyword(ctx, "piket");
+    const [
+      teachers,
+      students,
+      ppdb,
+      cmsPosts,
+      schedules,
+      counselingNotes,
+      dutySchedules,
+      piketIncidents,
+      teacherAttendances,
+      studentLeaves,
+    ] = await Promise.all([
+      teachersP,
+      prisma.student.findMany({
+        select: { ...studentForTeacherSelect, savingsBalance: canSeeSavings },
+        where: { status: "Aktif" },
+        orderBy: { nis: "asc" },
+      }),
+      isPpdbPanel
+        ? prisma.ppdbApplicant.findMany({ orderBy: { regNo: "desc" } })
+        : Promise.resolve([]),
+      prisma.cmsPost.findMany(publishedCms),
+      schedulesP,
+      canSeeBk
+        ? prisma.counselingNote.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 100,
+          })
+        : Promise.resolve([]),
+      prisma.dailyDutySchedule.findMany({ orderBy: { day: "asc" } }),
+      isPiket
+        ? prisma.piketIncidentLog.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 80,
+          })
+        : Promise.resolve([]),
+      prisma.teacherAttendance.findMany({
+        where: isPiket ? undefined : { teacherName: ctx.user.name },
+        orderBy: { createdAt: "desc" },
+        take: 40,
+      }),
+      isPiket || canSeeBk
+        ? prisma.studentLeaveRequest.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 60,
+          })
+        : Promise.resolve([]),
+    ]);
     return deepNeutralize({
       ok: true as const,
       scope: "gtk",
@@ -698,6 +796,10 @@ export async function getScopedSummary(ctx: AuthContext | null) {
       activityLogs: [] as unknown[],
       schedules,
       counselingNotes,
+      dutySchedules,
+      piketIncidents,
+      teacherAttendances,
+      studentLeaves,
     });
   }
 

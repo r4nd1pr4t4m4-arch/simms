@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="simsBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#064e3b" />
+      <stop offset="55%" stop-color="#047857" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="16" y1="10" x2="48" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fde68a" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#simsBg)" />
+  <rect x="5" y="5" width="54" height="54" rx="13" stroke="#34d399" stroke-opacity="0.35" stroke-width="1.5" />
+  <!-- Dome / Arch -->
+  <path d="M32 11C25 16 20 21.5 20 27.5V30H44V27.5C44 21.5 39 16 32 11Z" fill="url(#goldAccent)" fill-opacity="0.92" />
+  <circle cx="32" cy="9" r="2" fill="#fde68a" />
+  <!-- Open Book (Ilmu & Buku Induk) -->
+  <path d="M14 31C19.5 31 24.5 32.6 28 35.2V49.5C24.5 47 19.5 45.5 14 45.5V31Z" fill="#ffffff" />
+  <path d="M50 31C44.5 31 39.5 32.6 36 35.2V49.5C39.5 47 44.5 45.5 50 45.5V31Z" fill="#ecfdf5" />
+  <path d="M32 34V50.5" stroke="#fde68a" stroke-width="2.5" stroke-linecap="round" />
+</svg>

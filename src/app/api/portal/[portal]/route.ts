@@ -90,11 +90,16 @@ export async function GET(
     ]);
 
     const rawHtml = getPortalTemplate(portalKey);
-    // Pin versi pustaka ikon Lucide agar tidak memakai tag @latest yang berisiko supply-chain
-    let html = rawHtml.replace(
-      /https:\/\/unpkg\.com\/lucide@latest/g,
-      "https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"
-    );
+    // Pin versi pustaka ikon Lucide & pasang favicon resmi di setiap portal
+    let html = rawHtml
+      .replace(
+        /https:\/\/unpkg\.com\/lucide@latest/g,
+        "https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"
+      )
+      .replace(
+        /<head>/i,
+        '<head>\n  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />'
+      );
     const profile = dbSummary?.profile;
 
     if (profile) {

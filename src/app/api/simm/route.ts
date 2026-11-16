@@ -20,6 +20,7 @@ import {
   getMadrasahProfile,
   getScopedSummary,
   inferGradeCodeFromRombel,
+  invalidateScopeCache,
   persistAcademicMaster,
   persistMadrasahProfile,
 } from "@/lib/data-scope";
@@ -463,6 +464,10 @@ const ACTION_PERMISSIONS: Record<string, Permission | "PUBLIC"> = {
   CREATE_CLASS_SCHEDULE: can.scheduleBuilder,
   CREATE_COUNSELING_NOTE: can.bkDesk,
   RECORD_TEACHER_ATTENDANCE: can.gtkOrStaff,
+  RECORD_TEACHER_CHECKOUT: can.gtkOrStaff,
+  SAVE_DAILY_DUTY_SCHEDULE: can.scheduleBuilder,
+  OVERRIDE_DAILY_DUTY: can.scheduleBuilder,
+  CREATE_PIKET_INCIDENT: can.scheduleBuilder,
   ADD_GRADE_LEVEL: can.staff,
   DELETE_GRADE_LEVEL: can.staff,
   ADD_ROMBEL: can.staff,
@@ -1170,9 +1175,38 @@ const handlers: Record<string, ActionHandler> = {
       "Hadir"
     );
     const profile = await getMadrasahProfile();
-    let gpsDistanceLabel = "Divalidasi Server";
+    const todayDateLabel = new Date().toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    });
 
-    if (status === "Hadir" && payload.lat !== undefined && payload.lng !== undefined) {
+    // Cek apakah guru sudah check-in pada tanggal hari ini (cegah duplikasi check-in)
+    const existingToday = await prisma.teacherAttendance.findFirst({
+      where: {
+        teacherName: ctx!.user.name,
+        dateLabel: todayDateLabel,
+      },
+    });
+    if (existingToday) {
+      throw new HttpError(
+        409,
+        `Anda sudah tercatat melakukan presensi hari ini (${existingToday.status} pukul ${existingToday.checkInTime || "-"}).`
+      );
+    }
+
+    let gpsDistanceLabel = "Divalidasi Server";
+    let distanceMeters: number | null = null;
+
+    if (status === "Hadir") {
+      if (payload.lat === undefined || payload.lng === undefined) {
+        throw new HttpError(
+          400,
+          "Koordinat GPS wajib dikirim untuk melakukan Check-In Hadir."
+        );
+      }
       const lat = numberIn(payload.lat, "Latitude", -90, 90);
       const lng = numberIn(payload.lng, "Longitude", -180, 180);
       const centerLat = Number(profile.gpsLat);
@@ -1181,27 +1215,32 @@ const handlers: Record<string, ActionHandler> = {
 
       if (Number.isFinite(centerLat) && Number.isFinite(centerLng)) {
         const dist = haversineMeters(lat, lng, centerLat, centerLng);
-        // Toleransi akurasi GPS perangkat mobile +50m
+        distanceMeters = dist;
+        // Toleransi akurasi GPS perangkat +50m
         if (dist > maxRadius + 50) {
           throw new HttpError(
             400,
-            `Presensi ditolak server: lokasi Anda berjarak ${dist}m dari titik madrasah (batas radius ${maxRadius}m).`
+            `Presensi ditolak server: lokasi Anda berjarak ${dist}m dari titik ${profile.name} (batas radius ${maxRadius}m).`
           );
         }
-        gpsDistanceLabel = `${dist} Meter dari Titik Pusat ${profile.name}`;
+        gpsDistanceLabel = `${lat.toFixed(6)}, ${lng.toFixed(6)} (Radius ${dist}m dari ${profile.name})`;
       }
     }
+
+    const checkInTime =
+      new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      }) + " WIB";
 
     const created = await prisma.teacherAttendance.create({
       data: {
         teacherId: ctx!.user.teacherProfile?.id || null,
         teacherName: ctx!.user.name,
-        dateLabel: nowLabel(),
-        checkInTime: new Date().toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Asia/Jakarta",
-        }),
+        dateLabel: todayDateLabel,
+        checkInTime,
         gpsDistance: gpsDistanceLabel,
         status,
         leaveReason: optText(payload.leaveReason, 300) || null,
@@ -1209,7 +1248,151 @@ const handlers: Record<string, ActionHandler> = {
       },
     });
 
-    await writeAuditLog(ctx!, `Mencatat presensi GTK (${status} — ${gpsDistanceLabel})`);
+    await writeAuditLog(ctx!, `Presensi GTK: ${status} (${gpsDistanceLabel})`);
+    return NextResponse.json({
+      ok: true,
+      distanceMeters,
+      data: deepNeutralize(created),
+    });
+  },
+
+  // 11B. Check-Out (Jam Pulang) Guru
+  async RECORD_TEACHER_CHECKOUT(payload, ctx) {
+    const todayDateLabel = new Date().toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    });
+    const record = await prisma.teacherAttendance.findFirst({
+      where: {
+        teacherName: ctx!.user.name,
+        dateLabel: todayDateLabel,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record) {
+      throw new HttpError(404, "Belum ada catatan Check-In hari ini.");
+    }
+    const checkOutTime =
+      new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      }) + " WIB";
+
+    const updated = await prisma.teacherAttendance.update({
+      where: { id: record.id },
+      data: { checkOutTime },
+    });
+    await writeAuditLog(ctx!, `Check-Out GTK pukul ${checkOutTime}`);
+    return NextResponse.json({ ok: true, data: deepNeutralize(updated) });
+  },
+
+  // 11C. Manajemen Jadwal Guru Piket Mingguan
+  async SAVE_DAILY_DUTY_SCHEDULE(payload, ctx) {
+    const day = oneOf(
+      payload.day,
+      ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const,
+      "Hari piket"
+    );
+    const shift = optText(
+      payload.shift,
+      80,
+      "Piket Pagi (06.45 – 11.00)"
+    );
+    const teacherName = reqText(payload.teacherName, "Nama guru piket", 120);
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: { user: { name: teacherName } },
+      select: { id: true, nip: true },
+    });
+
+    const created = await prisma.dailyDutySchedule.create({
+      data: {
+        day,
+        shift,
+        originalTeacherId: teacher?.id || null,
+        originalTeacherName: teacherName,
+        originalTeacherNip: teacher?.nip || "-",
+        dateLabel: nowLabel(),
+      },
+    });
+    await writeAuditLog(
+      ctx!,
+      `Menambahkan jadwal Guru Piket: ${teacherName} (${day} • ${shift})`
+    );
+    return NextResponse.json({ ok: true, data: deepNeutralize(created) });
+  },
+
+  // 11D. Override / Penggantian Guru Piket Harian
+  async OVERRIDE_DAILY_DUTY(payload, ctx) {
+    const id = codeId(payload.id, "ID jadwal piket", 64);
+    const overrideTeacherName = reqText(
+      payload.overrideTeacherName,
+      "Guru piket pengganti",
+      120
+    );
+    const overrideReason = optText(
+      payload.overrideReason,
+      200,
+      "Penyesuaian Tugas Piket"
+    );
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: { user: { name: overrideTeacherName } },
+      select: { id: true, nip: true },
+    });
+
+    const updated = await prisma.dailyDutySchedule.update({
+      where: { id },
+      data: {
+        isOverridden: true,
+        overrideTeacherId: teacher?.id || null,
+        overrideTeacherName,
+        overrideTeacherNip: teacher?.nip || "-",
+        overrideReason,
+      },
+    });
+    await writeAuditLog(
+      ctx!,
+      `Override Guru Piket (${updated.day}): ${updated.originalTeacherName} digantikan oleh ${overrideTeacherName} (${overrideReason})`
+    );
+    return NextResponse.json({ ok: true, data: deepNeutralize(updated) });
+  },
+
+  // 11E. Log Kejadian Piket Harian (Terlambat, Izin Pulang, Sakit UKS)
+  async CREATE_PIKET_INCIDENT(payload, ctx) {
+    const studentName = reqText(payload.studentName, "Nama siswa", 120);
+    const classroom = reqText(payload.classroom, "Kelas / Rombel", 20);
+    const incidentType = oneOf(
+      payload.incidentType,
+      ["Terlambat Masuk", "Izin Pulang Mendadak", "Sakit di UKS"] as const,
+      "Jenis kejadian"
+    );
+    const reason = reqText(payload.reason, "Keterangan kejadian", 300);
+    const timeLabel =
+      new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      }) + " WIB";
+
+    const created = await prisma.piketIncidentLog.create({
+      data: {
+        timeLabel,
+        studentName,
+        classroom,
+        incidentType,
+        reason,
+        recordedBy: ctx!.user.name,
+      },
+    });
+    await writeAuditLog(
+      ctx!,
+      `Log Piket: ${studentName} (${classroom}) — ${incidentType}: ${reason}`
+    );
     return NextResponse.json({ ok: true, data: deepNeutralize(created) });
   },
 
@@ -1583,7 +1766,9 @@ export async function POST(req: NextRequest) {
       ctx = await requireAuth(permission);
     }
 
-    return await handler(payload, ctx);
+    const res = await handler(payload, ctx);
+    invalidateScopeCache();
+    return res;
   } catch (error) {
     return errorResponse(error, "Gagal memproses aksi");
   }

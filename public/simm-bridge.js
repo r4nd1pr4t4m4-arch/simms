@@ -92,17 +92,15 @@
   };
 
   window.__SIMM_LOGOUT__ = async function () {
-    await fetch("/api/auth", { method: "DELETE" }).catch(() => null);
-    notifyShell("LOGOUT", {});
-    try {
-      if (window.top && window.top !== window) {
-        window.top.location.replace("/");
-      } else {
-        window.location.replace("/");
-      }
-    } catch (_) {
-      window.location.replace("/");
+    if (window.parent && window.parent !== window) {
+      notifyShell("OPEN_MODAL", { modal: "logout_confirm" });
+      return;
     }
+    if (!window.confirm("Apakah Anda yakin ingin keluar dari aplikasi SIMS?")) {
+      return;
+    }
+    await fetch("/api/auth", { method: "DELETE" }).catch(() => null);
+    window.location.replace("/");
   };
 
   // Handler Login Utama (Aktif secara sinkron sejak 0ms saat halaman dimuat)
@@ -346,6 +344,14 @@
     }
 
     if (canAccessScheduleBuilder) {
+      moduleButtons.push(`
+        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('piket_management')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+          <span class="flex items-center gap-3 min-w-0">
+            <i data-lucide="clipboard-check" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <span class="truncate">Manajemen Guru Piket</span>
+          </span>
+        </button>
+      `);
       moduleButtons.push(`
         <button type="button" onclick="window.__SIMM_OPEN_MODAL__('schedule_conflict')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
@@ -2374,5 +2380,356 @@
         }
       };
     }
+
+    // =========================================================================
+    // MODUL PRESENSI MANDIRI & GEOFENCING GPS PROFESIONAL (/gtk)
+    // =========================================================================
+    setupProfessionalGpsAttendance();
   });
+
+  function calcHaversineMeters(lat1, lon1, lat2, lon2) {
+    const toRad = (d) => (d * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    return Math.round(2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+
+  function setupProfessionalGpsAttendance() {
+    const checkInBtn = document.getElementById("btn-gps-checkin");
+    if (!checkInBtn) return;
+
+    const profile =
+      (dbSummary && dbSummary.profile) || window.__MADRASAH_PROFILE__ || {};
+    const centerLat = Number(profile.gpsLat || "-3.0659978");
+    const centerLng = Number(profile.gpsLng || "102.8196529");
+    const maxRadius = Number(profile.gpsRadiusMeters) || 100;
+    const todayDateLabel = new Date().toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    // Perbarui tanggal statis pada header kartu presensi GTK
+    const cardRoot = checkInBtn.closest(".glass-surface");
+    if (cardRoot) {
+      const dateSub = cardRoot.querySelector("p.text-xs.text-slate-500");
+      if (dateSub && dateSub.textContent?.includes("Jam Masuk Standar")) {
+        dateSub.textContent = `${todayDateLabel} • Jam Masuk Standar: 07.00 WIB`;
+      }
+    }
+
+    // Sinkronkan riwayat presensi nyata dari database (TeacherAttendance)
+    if (
+      dbSummary &&
+      Array.isArray(dbSummary.teacherAttendances) &&
+      currentSession
+    ) {
+      const myLogs = dbSummary.teacherAttendances.filter(
+        (a) => a.teacherName === currentSession.name
+      );
+      if (typeof MY_DAILY_LOGS !== "undefined") {
+        MY_DAILY_LOGS.length = 0;
+        myLogs.forEach((a) => {
+          MY_DAILY_LOGS.push({
+            date: a.dateLabel || "-",
+            checkIn: a.checkInTime || "-",
+            checkOut: a.checkOutTime || "Aktif Mengajar",
+            gps: a.gpsDistance || "-",
+            status: a.status || "Hadir",
+          });
+        });
+      }
+
+      const todayRecord = myLogs.find((a) => a.dateLabel === todayDateLabel);
+      if (todayRecord && typeof getActiveProfile === "function") {
+        const p = getActiveProfile();
+        if (p && p.attendanceToday) {
+          if (todayRecord.status === "Hadir") {
+            p.attendanceToday.status = "hadir";
+            p.attendanceToday.time = todayRecord.checkInTime || "-";
+            p.attendanceToday.checkOutTime = todayRecord.checkOutTime || null;
+          } else {
+            p.attendanceToday.status = "leave";
+            p.attendanceToday.leaveType = todayRecord.status;
+            p.attendanceToday.leaveReason = todayRecord.leaveReason || "-";
+            p.attendanceToday.r2File = todayRecord.r2FileKey || "-";
+          }
+          if (typeof window.renderOverviewView === "function") {
+            window.renderOverviewView();
+          }
+        }
+      }
+      if (typeof window.renderPresensiView === "function") {
+        window.renderPresensiView();
+      }
+    }
+
+    // Temukan kotak GPS Verification Box dan ubah menjadi indikator real-time
+    const gpsInfoBox = cardRoot
+      ? cardRoot.querySelector(".mt-4.p-4.rounded-2xl")
+      : null;
+
+    let lastCoords = null;
+
+    function renderGpsBox(state, textTitle, textSub, badgeLabel, badgeTone) {
+      if (!gpsInfoBox) return;
+      const toneClass =
+        badgeTone === "ok"
+          ? "bg-emerald-100/90 text-emerald-800"
+          : badgeTone === "warn"
+            ? "bg-amber-100 text-amber-900"
+            : "bg-rose-100 text-rose-800";
+      gpsInfoBox.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
+            <i data-lucide="navigation" class="w-4 h-4"></i>
+          </div>
+          <div class="text-xs space-y-0.5">
+            <p class="font-bold text-slate-800">${esc(textTitle)}</p>
+            <p class="font-mono text-[11px] text-slate-500">${esc(textSub)}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg ${toneClass} text-[11px] font-semibold">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            ${esc(badgeLabel)}
+          </span>
+          <button type="button" id="btn-refresh-gps-loc" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold cursor-pointer">
+            Refresh GPS
+          </button>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      const refreshBtn = document.getElementById("btn-refresh-gps-loc");
+      if (refreshBtn) {
+        refreshBtn.onclick = () => detectCurrentGps();
+      }
+    }
+
+    function detectCurrentGps() {
+      if (!navigator.geolocation) {
+        renderGpsBox(
+          "error",
+          "Peramban Tidak Mendukung Geolocation",
+          `Titik Kampus: ${centerLat}, ${centerLng} (Radius ${maxRadius}m)`,
+          "GPS Tidak Didukung",
+          "err"
+        );
+        return Promise.resolve(null);
+      }
+
+      renderGpsBox(
+        "loading",
+        `Memindai Koordinat GPS Perangkat... (${profile.name || "Madrasah"})`,
+        `Target Kampus: ${centerLat}, ${centerLng} • Batas Radius: ${maxRadius}m`,
+        "Mendeteksi Lokasi...",
+        "warn"
+      );
+
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = Math.round(pos.coords.accuracy || 0);
+            const dist = calcHaversineMeters(lat, lng, centerLat, centerLng);
+            const inRange = dist <= maxRadius + 50;
+            lastCoords = { lat, lng, dist, acc, inRange };
+
+            renderGpsBox(
+              inRange ? "ok" : "out",
+              inRange
+                ? `Lokasi Terverifikasi: Area ${profile.name || "Madrasah"}`
+                : `Di Luar Radius Kampus (${profile.name || "Madrasah"})`,
+              `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} • Jarak: ${dist}m (Akurasi ±${acc}m • Batas ${maxRadius}m)`,
+              inRange ? "Dalam Radius Valid" : "Di Luar Radius",
+              inRange ? "ok" : "err"
+            );
+            resolve(lastCoords);
+          },
+          (err) => {
+            const msgMap = {
+              1: "Izin akses lokasi (GPS) ditolak browser. Aktifkan izin lokasi di bilah alamat.",
+              2: "Sinyal lokasi tidak tersedia. Pastikan GPS perangkat aktif.",
+              3: "Waktu deteksi lokasi habis (timeout). Klik Refresh GPS untuk mencoba lagi.",
+            };
+            renderGpsBox(
+              "error",
+              msgMap[err.code] || "Gagal membaca lokasi perangkat",
+              `Titik Kampus: ${centerLat}, ${centerLng} (Batas ${maxRadius}m)`,
+              "Izin / Sinyal GPS",
+              "err"
+            );
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+        );
+      });
+    }
+
+    // Mulai deteksi GPS otomatis saat membuka portal GTK
+    detectCurrentGps();
+
+    // Tambahkan tombol Check-Out Pulang di samping Check-In bila sudah Check-In
+    const ensureCheckOutButton = () => {
+      const p =
+        typeof window.getActiveProfile === "function"
+          ? window.getActiveProfile()
+          : null;
+      const btnParent = checkInBtn.parentElement;
+      if (!btnParent || !p) return;
+
+      let outBtn = document.getElementById("btn-gps-checkout");
+      if (p.attendanceToday?.status === "hadir" && !p.attendanceToday.checkOutTime) {
+        if (!outBtn) {
+          outBtn = document.createElement("button");
+          outBtn.id = "btn-gps-checkout";
+          outBtn.type = "button";
+          outBtn.className =
+            "flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer";
+          outBtn.innerHTML = `<i data-lucide="log-out" class="w-4 h-4"></i><span>Check-Out Pulang</span>`;
+          outBtn.onclick = async () => {
+            outBtn.disabled = true;
+            try {
+              const res = await fetch("/api/simm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "RECORD_TEACHER_CHECKOUT",
+                  payload: {},
+                }),
+              });
+              const data = await res.json();
+              if (!data.ok) {
+                throw new Error(data.error || "Gagal Check-Out");
+              }
+              const outTime = data.data?.checkOutTime || "Selesai";
+              p.attendanceToday.checkOutTime = outTime;
+              if (typeof MY_DAILY_LOGS !== "undefined" && MY_DAILY_LOGS[0]) {
+                MY_DAILY_LOGS[0].checkOut = outTime;
+              }
+              if (typeof window.renderPresensiView === "function") {
+                window.renderPresensiView();
+              }
+              outBtn.remove();
+              showUnifiedToast(
+                "Check-Out Pulang Tercatat",
+                `Jam pulang Anda tercatat pukul ${outTime}.`
+              );
+            } catch (err) {
+              outBtn.disabled = false;
+              showUnifiedToast(
+                "Gagal Check-Out",
+                err?.message || "Coba lagi."
+              );
+            }
+          };
+          btnParent.appendChild(outBtn);
+          if (window.lucide) window.lucide.createIcons();
+        }
+      } else if (outBtn) {
+        outBtn.remove();
+      }
+    };
+
+    ensureCheckOutButton();
+
+    // Override fungsi Check-In GPS agar selalu memvalidasi ke server (/api/simm)
+    window.handleGpsCheckIn = async function () {
+      const p =
+        typeof window.getActiveProfile === "function"
+          ? window.getActiveProfile()
+          : null;
+      if (!p || p.attendanceToday.status !== "pending") return;
+
+      checkInBtn.disabled = true;
+      const origHtml = checkInBtn.innerHTML;
+      checkInBtn.innerHTML = `<span>Memverifikasi GPS ke Server...</span>`;
+
+      try {
+        const coords = lastCoords || (await detectCurrentGps());
+        if (!coords) {
+          throw new Error(
+            "Koordinat GPS belum tersedia. Izinkan akses lokasi lalu klik Refresh GPS."
+          );
+        }
+
+        const res = await fetch("/api/simm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "RECORD_TEACHER_ATTENDANCE",
+            payload: {
+              status: "Hadir",
+              lat: coords.lat,
+              lng: coords.lng,
+            },
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.error || "Check-In GPS ditolak oleh server.");
+        }
+
+        const saved = data.data || {};
+        const checkInTime = saved.checkInTime || "Tercatat";
+        p.attendanceToday.status = "hadir";
+        p.attendanceToday.time = checkInTime;
+
+        if (typeof PIKET_TEACHER_STATUS !== "undefined") {
+          const piketRow = PIKET_TEACHER_STATUS.find(
+            (t) => t.teacherName === p.name
+          );
+          if (piketRow) {
+            piketRow.status = "Hadir";
+            piketRow.statusDetail = `Check-In GPS ${checkInTime}`;
+            piketRow.needsInval = false;
+          }
+        }
+
+        if (typeof MY_DAILY_LOGS !== "undefined") {
+          MY_DAILY_LOGS.unshift({
+            date: saved.dateLabel || todayDateLabel,
+            checkIn: checkInTime,
+            checkOut: "Aktif Mengajar",
+            gps:
+              saved.gpsDistance ||
+              `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)} (Radius ${coords.dist}m)`,
+            status: "Hadir Terverifikasi GPS",
+          });
+        }
+
+        if (typeof window.renderOverviewView === "function") {
+          window.renderOverviewView();
+        }
+        if (typeof window.renderSidebarNavigation === "function") {
+          window.renderSidebarNavigation();
+        }
+        if (typeof window.renderPresensiView === "function") {
+          window.renderPresensiView();
+        }
+        ensureCheckOutButton();
+        showUnifiedToast(
+          "Check-In GPS Berhasil!",
+          `Kehadiran Anda tercatat pada pukul ${checkInTime} (${saved.gpsDistance || "Terverifikasi Server"}).`
+        );
+      } catch (err) {
+        checkInBtn.disabled = false;
+        checkInBtn.innerHTML = origHtml;
+        if (window.lucide) window.lucide.createIcons();
+        showUnifiedToast(
+          "Check-In GPS Gagal",
+          err?.message || "Gagal memverifikasi lokasi ke server."
+        );
+      }
+    };
+  }
 })();

@@ -119,12 +119,14 @@ type ExtendedModalType =
   | "batch_promotion"
   | "r2_uploader"
   | "change_password"
+  | "logout_confirm"
   | "golive_settings"
   | "academic_master"
   | "academic_period"
   | "tu_persuratan"
   | "tu_agenda"
-  | "tu_emis";
+  | "tu_emis"
+  | "piket_management";
 
 export default function SimmWorkspaceShell({
   activePortal,
@@ -137,6 +139,7 @@ export default function SimmWorkspaceShell({
   const [barCollapsed, setBarCollapsed] = useState(false);
   const [activeModal, setActiveModal] = useState<ExtendedModalType>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
+  const [iframeLoading, setIframeLoading] = useState(true);
   const [toastMsg, setToastMsg] = useState<{ title: string; sub: string } | null>(
     null
   );
@@ -306,6 +309,25 @@ export default function SimmWorkspaceShell({
   const [newAgSubject, setNewAgSubject] = useState("");
   const [newAgR2Key, setNewAgR2Key] = useState("");
 
+  // State Halaman Manajemen Guru Piket
+  const [piketTab, setPiketTab] = useState<"schedule" | "incidents" | "attendance">(
+    "schedule"
+  );
+  const [dutySchedules, setDutySchedules] = useState<Array<any>>([]);
+  const [piketIncidents, setPiketIncidents] = useState<Array<any>>([]);
+  const [teacherAttendances, setTeacherAttendances] = useState<Array<any>>([]);
+  const [studentLeaves, setStudentLeaves] = useState<Array<any>>([]);
+  const [newDutyDay, setNewDutyDay] = useState("Senin");
+  const [newDutyShift, setNewDutyShift] = useState("Piket Pagi (06.45 – 11.00)");
+  const [newDutyTeacher, setNewDutyTeacher] = useState("");
+  const [overrideTargetId, setOverrideTargetId] = useState("");
+  const [overrideTeacher, setOverrideTeacher] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [incStudent, setIncStudent] = useState("");
+  const [incClassroom, setIncClassroom] = useState("7A");
+  const [incType, setIncType] = useState("Terlambat Masuk");
+  const [incReason, setIncReason] = useState("");
+
   // State Modul 1: Panitia PPDB (Input Skor Seleksi & Ranking)
   const [ppdbApplicants, setPpdbApplicants] = useState<
     Array<{
@@ -424,7 +446,15 @@ export default function SimmWorkspaceShell({
           setRealTeacherNames(tNames);
           setNewSchTeacher(tNames[0]);
           setNewRombelWali(tNames[0]);
+          setNewDutyTeacher(tNames[0]);
+          setOverrideTeacher(tNames[0]);
         }
+        if (Array.isArray(d?.dutySchedules)) setDutySchedules(d.dutySchedules);
+        if (Array.isArray(d?.piketIncidents)) setPiketIncidents(d.piketIncidents);
+        if (Array.isArray(d?.teacherAttendances)) {
+          setTeacherAttendances(d.teacherAttendances);
+        }
+        if (Array.isArray(d?.studentLeaves)) setStudentLeaves(d.studentLeaves);
         if (Array.isArray(d?.students)) {
           setTuStudentsList(d.students);
         }
@@ -452,6 +482,7 @@ export default function SimmWorkspaceShell({
           setNewSchRombel(combinedRombels[0]);
           setFromRombel(combinedRombels[0]);
           setToRombel(combinedRombels[1] || combinedRombels[0]);
+          setIncClassroom(combinedRombels[0]);
         }
         if (Array.isArray(d?.students) && d.students.length > 0) {
           const sLabels = d.students.map(
@@ -1342,26 +1373,682 @@ export default function SimmWorkspaceShell({
     }
   };
 
+  // Handler Halaman Manajemen Guru Piket
+  const handleAddDutySchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDutyTeacher) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_DAILY_DUTY_SCHEDULE",
+          payload: {
+            day: newDutyDay,
+            shift: newDutyShift,
+            teacherName: newDutyTeacher,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setDutySchedules((prev) => [...prev, data.data]);
+        setIframeRefreshKey((k) => k + 1);
+        triggerToast(
+          "Jadwal Piket Disimpan",
+          `${newDutyTeacher} dijadwalkan piket hari ${newDutyDay} (${newDutyShift}).`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal menyimpan jadwal piket");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const handleOverrideDuty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!overrideTargetId || !overrideTeacher) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "OVERRIDE_DAILY_DUTY",
+          payload: {
+            id: overrideTargetId,
+            overrideTeacherName: overrideTeacher,
+            overrideReason: overrideReason || "Penyesuaian Tugas Piket",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setDutySchedules((prev) =>
+          prev.map((d) => (d.id === overrideTargetId ? data.data : d))
+        );
+        setOverrideTargetId("");
+        setOverrideReason("");
+        setIframeRefreshKey((k) => k + 1);
+        triggerToast(
+          "Override Piket Berhasil",
+          `Petugas piket digantikan sementara oleh ${overrideTeacher}.`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal melakukan override piket");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const handleCreatePiketIncident = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!incStudent.trim() || !incReason.trim()) return;
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_PIKET_INCIDENT",
+          payload: {
+            studentName: incStudent.trim(),
+            classroom: incClassroom,
+            incidentType: incType,
+            reason: incReason.trim(),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setPiketIncidents((prev) => [data.data, ...prev]);
+        setIncStudent("");
+        setIncReason("");
+        triggerToast(
+          "Log Kejadian Piket Tercatat",
+          `${data.data.studentName} (${data.data.classroom}) — ${data.data.incidentType}`
+        );
+      } else {
+        triggerToast("Gagal", data.error || "Gagal mencatat kejadian piket");
+      }
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server");
+    }
+  };
+
+  const isWorkspacePage =
+    activeModal !== null &&
+    activeModal !== "change_password" &&
+    activeModal !== "logout_confirm";
+
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-950 select-none">
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-50 select-none">
       {/* ===================================================================
-          MAIN PORTAL VIEWPORT (FULLSCREEN TANPA BILAH MENU SESI ATAS)
+          MAIN PORTAL VIEWPORT (TANPA DOUBLE-RELOAD + LOADING INDICATOR)
       =================================================================== */}
-      <main className="relative flex-1 w-full h-full bg-slate-50 overflow-hidden">
+      <main
+        className={`relative flex-1 w-full h-full bg-slate-50 overflow-hidden ${
+          isWorkspacePage ? "hidden" : ""
+        }`}
+      >
+        {iframeLoading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/95 backdrop-blur-xs gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600/15 border border-emerald-500/30 flex items-center justify-center">
+              <div className="w-5 h-5 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" />
+            </div>
+            <p className="text-xs font-semibold text-slate-600">
+              Memuat Portal SIMS MTs Nurul Falah...
+            </p>
+          </div>
+        )}
         <iframe
-          key={`${activePortal}-${session?.userId || "guest"}-${iframeRefreshKey}`}
+          key={`${activePortal}-${iframeRefreshKey}`}
           src={`/api/portal/${activePortal}`}
           title={`Portal SIMS - ${activePortal.toUpperCase()}`}
+          onLoad={() => setIframeLoading(false)}
           className="w-full h-full border-0"
         />
       </main>
 
       {/* ===================================================================
+          BAR NAVIGASI ATAS HALAMAN KERJA PROFESIONAL (SAAT MEMBUKA MODUL)
+      =================================================================== */}
+      {isWorkspacePage && (
+        <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 shadow-2xs shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-xs font-bold transition cursor-pointer shrink-0"
+            >
+              <span>← Kembali ke Dashboard</span>
+            </button>
+            <div className="hidden sm:block h-5 w-px bg-slate-200" />
+            <div className="truncate">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                SIMS {madrasahProfile.name} • TA {madrasahProfile.academicYear} ({madrasahProfile.semester})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {session && (
+              <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
+                {session.name} ({session.baseRole})
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setActiveModal("logout_confirm")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Keluar</span>
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* ===================================================================
+          MODAL KONFIRMASI KELUAR / LOGOUT
+      =================================================================== */}
+      {activeModal === "logout_confirm" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-rose-900 to-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <LogOut className="w-4 h-4 text-rose-300" />
+                <h2 className="text-base font-bold">Konfirmasi Keluar Aplikasi</h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm">
+              <p className="text-slate-700 leading-relaxed">
+                Apakah Anda yakin ingin keluar dari sesi aplikasi SIMS?
+              </p>
+              {session && (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-0.5">
+                  <p className="font-bold text-slate-900">{session.name}</p>
+                  <p className="text-slate-500">
+                    Peran: {session.baseRole} • ID: {session.identifier}
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm cursor-pointer"
+                >
+                  Ya, Keluar Sekarang
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          HALAMAN MANAJEMEN GURU PIKET (FULL PAGE)
+      =================================================================== */}
+      {activeModal === "piket_management" && (
+        <div className="flex-1 overflow-y-auto bg-slate-50 text-slate-800">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+            <div className="rounded-2xl bg-gradient-to-r from-teal-950 via-emerald-900 to-slate-900 text-white p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-400/20 text-teal-200 font-semibold">
+                  Operasional Ketertiban &amp; Harian Madrasah
+                </span>
+                <h1 className="text-xl sm:text-2xl font-bold mt-1.5">
+                  Manajemen Guru Piket, Jadwal Mingguan &amp; Log Kejadian Harian
+                </h1>
+                <p className="text-xs text-slate-300 mt-1">
+                  Atur petugas piket Senin–Sabtu, lakukan override pengganti piket, catat keterlambatan/UKS siswa, serta pantau check-in GPS guru.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+              <button
+                onClick={() => setPiketTab("schedule")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  piketTab === "schedule"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                1. Jadwal Guru Piket &amp; Override ({dutySchedules.length})
+              </button>
+              <button
+                onClick={() => setPiketTab("incidents")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  piketTab === "incidents"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                2. Log Kejadian Piket &amp; UKS ({piketIncidents.length})
+              </button>
+              <button
+                onClick={() => setPiketTab("attendance")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  piketTab === "attendance"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                3. Monitoring Check-In GPS Guru ({teacherAttendances.length}) &amp; Izin Siswa ({studentLeaves.length})
+              </button>
+            </div>
+
+            {piketTab === "schedule" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <form
+                    onSubmit={handleAddDutySchedule}
+                    className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-2xs"
+                  >
+                    <h3 className="font-bold text-sm text-slate-900">
+                      + Tambah Jadwal Guru Piket Mingguan
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">
+                          Hari Piket
+                        </label>
+                        <select
+                          value={newDutyDay}
+                          onChange={(e) => setNewDutyDay(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                        >
+                          {["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"].map(
+                            (d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">
+                          Shift Tugas
+                        </label>
+                        <select
+                          value={newDutyShift}
+                          onChange={(e) => setNewDutyShift(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                        >
+                          <option value="Piket Pagi (06.45 – 11.00)">
+                            Piket Pagi (06.45 – 11.00)
+                          </option>
+                          <option value="Piket Siang (11.00 – 15.00)">
+                            Piket Siang (11.00 – 15.00)
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="text-xs">
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        Pilih Guru Piket
+                      </label>
+                      <select
+                        value={newDutyTeacher}
+                        onChange={(e) => setNewDutyTeacher(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                      >
+                        {realTeacherNames.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+                    >
+                      Simpan Jadwal Guru Piket
+                    </button>
+                  </form>
+
+                  <form
+                    onSubmit={handleOverrideDuty}
+                    className="bg-white rounded-2xl border border-amber-200 p-5 space-y-4 shadow-2xs"
+                  >
+                    <h3 className="font-bold text-sm text-amber-950">
+                      Override / Penggantian Guru Piket Sementara
+                    </h3>
+                    <div className="text-xs space-y-3">
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">
+                          Pilih Jadwal Piket yang Digantikan
+                        </label>
+                        <select
+                          value={overrideTargetId}
+                          onChange={(e) => setOverrideTargetId(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                        >
+                          <option value="">— Pilih Slot Jadwal Piket —</option>
+                          {dutySchedules.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.day} ({d.shift}) — {d.originalTeacherName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-600 mb-1">
+                            Guru Pengganti
+                          </label>
+                          <select
+                            value={overrideTeacher}
+                            onChange={(e) => setOverrideTeacher(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                          >
+                            {realTeacherNames.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-600 mb-1">
+                            Alasan Penggantian
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: Dinas Luar / Sakit"
+                            value={overrideReason}
+                            onChange={(e) => setOverrideReason(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+                    >
+                      Terapkan Override Guru Piket
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 uppercase">
+                        <th className="py-3 px-4">Hari &amp; Shift</th>
+                        <th className="py-3 px-4">Petugas Piket Tetap</th>
+                        <th className="py-3 px-4">Status Override</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {dutySchedules.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="py-8 text-center text-slate-500">
+                            Belum ada jadwal piket tersimpan di database. Gunakan form di atas untuk menambahkan.
+                          </td>
+                        </tr>
+                      ) : (
+                        dutySchedules.map((d) => (
+                          <tr key={d.id} className="hover:bg-slate-50">
+                            <td className="py-3 px-4 font-bold text-slate-900">
+                              {d.day} •{" "}
+                              <span className="font-normal text-slate-600">
+                                {d.shift}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-semibold">
+                              {d.originalTeacherName}{" "}
+                              <span className="font-mono text-slate-400">
+                                ({d.originalTeacherNip})
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {d.isOverridden ? (
+                                <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold">
+                                  Digantikan oleh {d.overrideTeacherName} (
+                                  {d.overrideReason})
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                                  Sesuai Jadwal Tetap
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {piketTab === "incidents" && (
+              <div className="space-y-6">
+                <form
+                  onSubmit={handleCreatePiketIncident}
+                  className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-2xs"
+                >
+                  <h3 className="font-bold text-sm text-slate-900">
+                    + Catat Kejadian Piket Harian (Keterlambatan / Izin Pulang / UKS)
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        Nama Siswa
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nama lengkap siswa..."
+                        value={incStudent}
+                        onChange={(e) => setIncStudent(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        Rombel / Kelas
+                      </label>
+                      <select
+                        value={incClassroom}
+                        onChange={(e) => setIncClassroom(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                      >
+                        {realRombels.map((r) => (
+                          <option key={r} value={r}>
+                            Kelas {r}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        Jenis Kejadian
+                      </label>
+                      <select
+                        value={incType}
+                        onChange={(e) => setIncType(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold"
+                      >
+                        <option value="Terlambat Masuk">Terlambat Masuk</option>
+                        <option value="Izin Pulang Mendadak">
+                          Izin Pulang Mendadak
+                        </option>
+                        <option value="Sakit di UKS">Sakit di UKS</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-600 mb-1">
+                        Keterangan / Tindak Lanjut
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Alasan / penanganan..."
+                        value={incReason}
+                        onChange={(e) => setIncReason(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+                  >
+                    Catat ke Log Piket Database
+                  </button>
+                </form>
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 uppercase">
+                        <th className="py-3 px-4">Waktu</th>
+                        <th className="py-3 px-4">Siswa &amp; Kelas</th>
+                        <th className="py-3 px-4">Kategori</th>
+                        <th className="py-3 px-4">Keterangan</th>
+                        <th className="py-3 px-4">Dicatat Oleh</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {piketIncidents.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-slate-500">
+                            Belum ada log kejadian piket hari ini.
+                          </td>
+                        </tr>
+                      ) : (
+                        piketIncidents.map((inc) => (
+                          <tr key={inc.id} className="hover:bg-slate-50">
+                            <td className="py-3 px-4 font-mono font-bold">
+                              {inc.timeLabel}
+                            </td>
+                            <td className="py-3 px-4 font-bold text-slate-900">
+                              {inc.studentName} ({inc.classroom})
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                                {inc.incidentType}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-slate-600">
+                              {inc.reason}
+                            </td>
+                            <td className="py-3 px-4 text-slate-500">
+                              {inc.recordedBy}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {piketTab === "attendance" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-2xs">
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Rekaman Check-In / Check-Out GPS Guru Terbaru
+                  </h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto text-xs">
+                    {teacherAttendances.length === 0 ? (
+                      <p className="text-slate-500 py-6 text-center">
+                        Belum ada data check-in GPS guru di database.
+                      </p>
+                    ) : (
+                      teacherAttendances.map((a) => (
+                        <div
+                          key={a.id}
+                          className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {a.teacherName}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {a.dateLabel} • Masuk: {a.checkInTime || "-"} •
+                              Pulang: {a.checkOutTime || "Belum"}
+                            </p>
+                            <p className="font-mono text-[10px] text-emerald-700 mt-0.5">
+                              {a.gpsDistance}
+                            </p>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold shrink-0">
+                            {a.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-2xs">
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Daftar Pengajuan Izin / Sakit Siswa Terbaru
+                  </h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto text-xs">
+                    {studentLeaves.length === 0 ? (
+                      <p className="text-slate-500 py-6 text-center">
+                        Belum ada pengajuan izin siswa.
+                      </p>
+                    ) : (
+                      studentLeaves.map((lv) => (
+                        <div
+                          key={lv.id}
+                          className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {lv.studentName} ({lv.classroom})
+                            </p>
+                            <p className="text-[11px] text-slate-600">
+                              {lv.category} • {lv.startDate} s.d. {lv.endDate}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {lv.reason}
+                            </p>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 font-bold shrink-0">
+                            {lv.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
           MODAL PENGATURAN IDENTITAS MADRASAH & IMPORT EXCEL (.XLSX)
       =================================================================== */}
       {activeModal === "golive_settings" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-semibold">
@@ -1867,8 +2554,8 @@ export default function SimmWorkspaceShell({
           MODAL 1: MEJA KERJA PANITIA PPDB
       =================================================================== */}
       {activeModal === "ppdb_scoring" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-emerald-900 to-teal-800 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 font-semibold">
@@ -2103,8 +2790,8 @@ export default function SimmWorkspaceShell({
           MODAL 2: PENYUSUNAN JADWAL ANTI-BENTROK (CONFLICT DETECTION)
       =================================================================== */}
       {activeModal === "schedule_conflict" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-amber-700 to-emerald-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 font-semibold">
@@ -2298,8 +2985,8 @@ export default function SimmWorkspaceShell({
           MODAL 3: MEJA KERJA GURU WALI / BK
       =================================================================== */}
       {activeModal === "bk_counseling" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-purple-900 to-emerald-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 font-semibold">
@@ -2487,8 +3174,8 @@ export default function SimmWorkspaceShell({
           MODAL 4: KENAIKAN KELAS MASSAL
       =================================================================== */}
       {activeModal === "batch_promotion" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-sky-900 to-emerald-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 font-semibold">
@@ -2578,8 +3265,8 @@ export default function SimmWorkspaceShell({
           MODAL 5: CLOUDFLARE R2 STORAGE MANAGER
       =================================================================== */}
       {activeModal === "r2_uploader" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-emerald-900 to-slate-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">
@@ -2661,8 +3348,8 @@ export default function SimmWorkspaceShell({
           MODAL 6: MASTER TINGKAT KELAS, ROMBEL & MATA PELAJARAN (SINGLE SOURCE OF TRUTH)
       =================================================================== */}
       {activeModal === "academic_master" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">
@@ -3091,8 +3778,8 @@ export default function SimmWorkspaceShell({
           MODAL 7: PERGANTIAN SEMESTER / TAHUN PELAJARAN AKTIF & ARSIP AKADEMIK
       =================================================================== */}
       {activeModal === "academic_period" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-amber-900 via-slate-900 to-emerald-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold">
@@ -3376,8 +4063,8 @@ export default function SimmWorkspaceShell({
       {(activeModal === "tu_persuratan" ||
         activeModal === "tu_agenda" ||
         activeModal === "tu_emis") && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto bg-white rounded-2xl w-full flex flex-col shadow-sm border border-slate-200 overflow-hidden text-slate-800">
             <div className="px-6 py-4 bg-gradient-to-r from-teal-950 via-emerald-900 to-slate-900 text-white flex items-center justify-between">
               <div>
                 <span className="text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-400/20 text-teal-200 font-semibold">
