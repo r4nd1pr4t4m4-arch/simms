@@ -6,7 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Memulai seeding database SIMS MTs Nurul Falah ke Supabase...");
 
-  const defaultPassword = await bcrypt.hash("Simms2026!", 10);
+  const rawSeedPassword = process.env.SEED_INITIAL_PASSWORD || "Simms2026!";
+  if (!process.env.SEED_INITIAL_PASSWORD) {
+    console.warn(
+      "⚠️  PERINGATAN KEAMANAN: SEED_INITIAL_PASSWORD tidak diatur di .env. Menggunakan sandi pengembangan lokal. Segera ubah kata sandi seluruh akun sebelum Go-Live!"
+    );
+  }
+  const defaultPassword = await bcrypt.hash(rawSeedPassword, 12);
 
   // 1. Tahun Ajaran Aktif
   await prisma.academicYear.deleteMany();

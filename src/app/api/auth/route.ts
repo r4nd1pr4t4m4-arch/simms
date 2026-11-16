@@ -1,125 +1,132 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import {
   createSessionToken,
-  getServerSession,
   SESSION_COOKIE_NAME,
-  SessionPayload,
+  SESSION_MAX_AGE_SECONDS,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import {
+  HttpError,
+  buildSessionPayload,
+  errorResponse,
+  findAuthUserById,
+  findAuthUserForLogin,
+  getAuthContext,
+  requireAuth,
+} from "@/lib/guard";
+import {
+  checkLoginLockout,
+  clearLoginFailures,
+  enforceRateLimit,
+  getClientIp,
+  recordLoginFailure,
+} from "@/lib/rate-limit";
+import { deepNeutralize } from "@/lib/security";
+
+// Hash dummy untuk menyamakan waktu komputasi bcrypt saat akun tidak ditemukan
+const DUMMY_BCRYPT_HASH =
+  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+const WEAK_PASSWORDS = new Set([
+  "simms2026!",
+  "simms2026",
+  "password",
+  "password123",
+  "admin123",
+  "12345678",
+  "123456789",
+  "qwerty123",
+  "mtsnurulfalah",
+]);
+
+function validateStrongPassword(pw: string) {
+  if (pw.length < 8) {
+    throw new HttpError(400, "Kata sandi baru minimal 8 karakter.");
+  }
+  if (pw.length > 128) {
+    throw new HttpError(400, "Kata sandi baru terlalu panjang.");
+  }
+  if (!/[a-zA-Z]/.test(pw) || !/\d/.test(pw)) {
+    throw new HttpError(
+      400,
+      "Kata sandi baru wajib mengandung kombinasi huruf dan angka."
+    );
+  }
+  if (WEAK_PASSWORDS.has(pw.toLowerCase())) {
+    throw new HttpError(
+      400,
+      "Kata sandi tersebut terlalu umum atau merupakan sandi awal. Gunakan kombinasi lain."
+    );
+  }
+}
 
 export async function GET() {
-  const session = await getServerSession();
-  return NextResponse.json({ ok: true, session });
+  const ctx = await getAuthContext().catch(() => null);
+  if (!ctx) {
+    return NextResponse.json({ ok: true, session: null });
+  }
+  const session = await buildSessionPayload(ctx.user);
+  return NextResponse.json({ ok: true, session: deepNeutralize(session) });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { identifier = "", password = "" } = body;
-    const cleanId = identifier.trim();
+    const ip = getClientIp(req);
+    enforceRateLimit("auth_login", ip, 15, 60 * 1000); // maks 15 req/menit per IP
 
-    if (!cleanId || !password) {
-      return NextResponse.json(
-        { ok: false, error: "Harap isi NIP / NISN / Email dan kata sandi." },
-        { status: 400 }
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      throw new HttpError(400, "Permintaan tidak valid.");
+    }
+    const identifier = String(
+      (body as Record<string, unknown>).identifier || ""
+    ).trim();
+    const password = String((body as Record<string, unknown>).password || "");
+
+    if (
+      !identifier ||
+      !password ||
+      identifier.length > 120 ||
+      password.length > 200
+    ) {
+      throw new HttpError(
+        400,
+        "Harap isi NIP / NISN / Email dan kata sandi dengan benar."
       );
     }
 
-    // 1. Cari pengguna di tabel User Supabase
-    const dbUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { identifier: cleanId },
-          { email: cleanId },
-          { phone: cleanId },
-        ],
-      },
-      include: {
-        teacherProfile: { include: { roles: true } },
-        tuProfile: true,
-        studentProfile: true,
-        parentChildren: { include: { student: true } },
-      },
-    });
+    checkLoginLockout(ip, identifier);
 
-    if (!dbUser) {
+    const dbUser = await findAuthUserForLogin(identifier);
+
+    const hashToCompare = dbUser?.passwordHash || DUMMY_BCRYPT_HASH;
+    const validPw = await bcrypt
+      .compare(password, hashToCompare)
+      .catch(() => false);
+
+    if (!dbUser || !dbUser.isActive || !validPw) {
+      recordLoginFailure(ip, identifier);
       return NextResponse.json(
         {
           ok: false,
           error:
-            "Akun dengan NIP / NISN / Email tersebut tidak ditemukan di dalam sistem.",
+            "Identitas akun atau kata sandi yang Anda masukkan tidak sesuai.",
         },
-        { status: 404 }
-      );
-    }
-
-    // 2. Verifikasi kata sandi terhadap hash di database Supabase
-    const validPw = await bcrypt
-      .compare(password, dbUser.passwordHash)
-      .catch(() => false);
-
-    if (!validPw) {
-      return NextResponse.json(
-        { ok: false, error: "Kata sandi yang Anda masukkan tidak sesuai." },
         { status: 401 }
       );
     }
 
-    // 3. Susun daftar Tugas Tambahan Dinamis & Detail Profil
-    const roleDetails =
-      dbUser.teacherProfile?.roles.map((r) => ({
-        type: r.type,
-        detail: r.detail,
-        skNumber: r.skNumber,
-      })) || [];
+    clearLoginFailures(identifier);
 
-    const addRoles =
-      dbUser.teacherProfile?.roles.map((r) => `${r.type} (${r.detail})`) ||
-      (dbUser.tuProfile ? [dbUser.tuProfile.position] : []);
-
-    // Jika Siswa namun relasi studentProfile belum terhubung langsung lewat userId, cari via NISN
-    let stuProfile = dbUser.studentProfile;
-    if (dbUser.baseRole === "SISWA" && !stuProfile) {
-      stuProfile = await prisma.student.findUnique({
-        where: { nisn: dbUser.identifier },
-      });
+    const builtPayload = await buildSessionPayload(dbUser);
+    if (password === "Simms2026!") {
+      builtPayload.mustChangePassword = true;
     }
 
-    // 4. Tentukan halaman tujuan (targetPath) otomatis berdasarkan peran & tugas tambahan
-    const targetMap: Record<string, string> = {
-      ADMIN: "/admin",
-      TU: "/tu",
-      GTK: "/gtk",
-      SISWA: "/siswa",
-      ORTU: "/ortu",
-      PPDB: "/ppdb",
-    };
-
-    const sessionPayload: SessionPayload = {
-      userId: dbUser.id,
-      identifier: dbUser.identifier,
-      name: dbUser.name,
-      baseRole: dbUser.baseRole,
-      subject: dbUser.teacherProfile?.subject || undefined,
-      nip:
-        dbUser.teacherProfile?.nip ||
-        dbUser.tuProfile?.nip ||
-        (dbUser.baseRole === "GTK" || dbUser.baseRole === "TU"
-          ? dbUser.identifier
-          : undefined),
-      nis: stuProfile?.nis || undefined,
-      nisn:
-        stuProfile?.nisn ||
-        (dbUser.baseRole === "SISWA" ? dbUser.identifier : undefined),
-      rombel: stuProfile?.rombel || undefined,
-      waliKelas: stuProfile?.waliKelas || undefined,
-      additionalRoles: addRoles,
-      roleDetails,
-      targetPath: targetMap[dbUser.baseRole] || "/",
-    };
-
+    const sessionPayload = deepNeutralize(builtPayload);
     const token = await createSessionToken(sessionPayload);
+
     const res = NextResponse.json({
       ok: true,
       session: sessionPayload,
@@ -127,52 +134,86 @@ export async function POST(req: NextRequest) {
 
     res.cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       sameSite: "lax",
     });
 
     return res;
-  } catch (error: any) {
-    return NextResponse.json(
-      { ok: false, error: error?.message || "Gagal memproses autentikasi" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return errorResponse(error, "Gagal memproses autentikasi");
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session) {
-      return NextResponse.json(
-        { ok: false, error: "Anda belum login" },
-        { status: 401 }
+    const ip = getClientIp(req);
+    enforceRateLimit("auth_patch", ip, 10, 60 * 1000);
+
+    const ctx = await requireAuth();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      throw new HttpError(400, "Permintaan tidak valid.");
+    }
+    const { currentPassword, newPassword } = body as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    if (!currentPassword || typeof currentPassword !== "string") {
+      throw new HttpError(400, "Kata sandi saat ini wajib diisi.");
+    }
+    if (!newPassword || typeof newPassword !== "string") {
+      throw new HttpError(400, "Kata sandi baru wajib diisi.");
+    }
+
+    const okOld = await bcrypt
+      .compare(currentPassword, ctx.user.passwordHash)
+      .catch(() => false);
+    if (!okOld) {
+      recordLoginFailure(ip, ctx.user.identifier);
+      throw new HttpError(401, "Kata sandi saat ini tidak sesuai.");
+    }
+
+    if (currentPassword === newPassword) {
+      throw new HttpError(
+        400,
+        "Kata sandi baru harus berbeda dari kata sandi saat ini."
       );
     }
-    const { newPassword } = await req.json();
-    if (!newPassword || newPassword.length < 6) {
-      return NextResponse.json(
-        { ok: false, error: "Kata sandi baru minimal 6 karakter" },
-        { status: 400 }
-      );
-    }
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.updateMany({
-      where: {
-        OR: [{ id: session.userId }, { identifier: session.identifier }],
-      },
+
+    validateStrongPassword(newPassword);
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: ctx.user.id },
       data: { passwordHash },
     });
-    return NextResponse.json({
+
+    // Terbitkan ulang token sesi baru dengan pwdFp terbaru (sesi di perangkat lain otomatis gugur)
+    const updatedUser = await findAuthUserById(ctx.user.id);
+    const res = NextResponse.json({
       ok: true,
-      message: "Kata sandi berhasil diperbarui di database.",
+      message:
+        "Kata sandi berhasil diperbarui. Seluruh sesi lama di perangkat lain telah diakhiri.",
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { ok: false, error: error?.message || "Gagal mengubah kata sandi" },
-      { status: 500 }
-    );
+
+    if (updatedUser) {
+      const freshSession = deepNeutralize(await buildSessionPayload(updatedUser));
+      const newToken = await createSessionToken(freshSession);
+      res.cookies.set(SESSION_COOKIE_NAME, newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+        sameSite: "lax",
+      });
+    }
+
+    return res;
+  } catch (error) {
+    return errorResponse(error, "Gagal mengubah kata sandi");
   }
 }
 

@@ -137,6 +137,7 @@ export default function SimmWorkspaceShell({
   );
 
   // State Ubah Kata Sandi
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -165,6 +166,7 @@ export default function SimmWorkspaceShell({
     gpsRadiusMeters: 100,
     komiteBankInfo: "Bank Mandiri | 1130016126868 a.n. MTSS NURUL FALAH",
   });
+  const [profileAdminPassword, setProfileAdminPassword] = useState("");
   const [importTarget, setImportTarget] = useState<"students" | "teachers">(
     "students"
   );
@@ -262,11 +264,12 @@ export default function SimmWorkspaceShell({
   useEffect(() => {
     fetch("/api/auth")
       .then((r) => r.json())
-      .then((d) => setSession(d?.session || null))
-      .catch(() => setSession(null));
-
-    fetch("/api/simm?resource=summary")
-      .then((r) => r.json())
+      .then((authData) => {
+        const currentSess = authData?.session || null;
+        setSession(currentSess);
+        const resource = currentSess ? "summary" : "profile";
+        return fetch(`/api/simm?resource=${resource}`).then((r) => r.json());
+      })
       .then((d) => {
         if (d?.profile) setMadrasahProfile(d.profile);
         if (Array.isArray(d?.teachers) && d.teachers.length > 0) {
@@ -308,23 +311,56 @@ export default function SimmWorkspaceShell({
             }))
           );
         }
+        if (Array.isArray(d?.schedules)) {
+          setSchedules(
+            d.schedules.map((s: any) => ({
+              id: s.id,
+              day: s.day,
+              slot: s.timeSlot,
+              rombel: s.classroom,
+              subject: s.subject,
+              teacher: s.teacherName,
+            }))
+          );
+        }
+        if (Array.isArray(d?.counselingNotes)) {
+          setBkRecords(
+            d.counselingNotes.map((n: any) => ({
+              id: n.id,
+              student: `${n.studentName} (${n.classroom})`,
+              type: n.category,
+              points: n.pointDelta || 0,
+              note: n.note,
+              date: n.dateLabel || "-",
+            }))
+          );
+        }
       })
-      .catch(() => null);
+      .catch(() => {
+        setSession(null);
+      });
   }, [pathname]);
 
-  // Dengarkan event postMessage dari iframe portal
+  // Dengarkan event postMessage dari iframe portal (wajib same-origin + path internal)
   useEffect(() => {
+    const isSafeInternalPath = (p: unknown): p is string =>
+      typeof p === "string" && /^\/(?!\/)[a-zA-Z0-9/_-]*$/.test(p);
+
     const handler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       const data = event.data;
       if (!data || data.source !== "SIMM_PORTAL") return;
 
-      if (data.type === "NAVIGATE" && data.payload?.path) {
+      if (data.type === "NAVIGATE" && isSafeInternalPath(data.payload?.path)) {
         window.location.href = data.payload.path;
       } else if (data.type === "OPEN_MODAL" && data.payload?.modal) {
         setActiveModal(data.payload.modal as ExtendedModalType);
       } else if (data.type === "LOGOUT") {
         handleLogout();
-      } else if (data.type === "AUTH_SUCCESS" && data.payload?.targetPath) {
+      } else if (
+        data.type === "AUTH_SUCCESS" &&
+        isSafeInternalPath(data.payload?.targetPath)
+      ) {
         setSession(data.payload);
         triggerToast(
           `Autentikasi Berhasil (${data.payload.baseRole})`,
@@ -360,8 +396,19 @@ export default function SimmWorkspaceShell({
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      triggerToast("Validasi Gagal", "Kata sandi baru minimal 6 karakter.");
+    if (!currentPassword) {
+      triggerToast("Validasi Gagal", "Kata sandi saat ini wajib diisi.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      triggerToast("Validasi Gagal", "Kata sandi baru minimal 8 karakter.");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      triggerToast(
+        "Validasi Gagal",
+        "Kata sandi baru wajib mengandung kombinasi huruf dan angka."
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -372,10 +419,11 @@ export default function SimmWorkspaceShell({
       const res = await fetch("/api/auth", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
       if (data.ok) {
+        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
         setActiveModal(null);
@@ -397,16 +445,27 @@ export default function SimmWorkspaceShell({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "SAVE_MADRASAH_PROFILE",
-          payload: madrasahProfile,
+          payload: {
+            ...madrasahProfile,
+            ...(profileAdminPassword
+              ? { adminPassword: profileAdminPassword }
+              : {}),
+          },
         }),
       });
       const data = await res.json();
       if (data.ok) {
+        setProfileAdminPassword("");
         setIframeRefreshKey((k) => k + 1);
         setActiveModal(null);
         triggerToast(
           "Identitas Madrasah Diperbarui!",
           `Profil resmi "${madrasahProfile.name}" telah diterapkan di seluruh portal & cetakan surat.`
+        );
+      } else {
+        triggerToast(
+          "Gagal Menyimpan Profil",
+          data.error || "Periksa kembali input dan kata sandi konfirmasi Anda."
         );
       }
     } catch {
@@ -515,7 +574,10 @@ export default function SimmWorkspaceShell({
       const res = await fetch("/api/simm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "RESET_DUMMY_DATA" }),
+        body: JSON.stringify({
+          action: "RESET_DUMMY_DATA",
+          payload: { confirm: resetConfirmText },
+        }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -558,7 +620,7 @@ export default function SimmWorkspaceShell({
       (s.teacher === newSchTeacher || s.rombel === newSchRombel)
   );
 
-  const handleAddSchedule = (e: React.FormEvent) => {
+  const handleAddSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (conflictingSchedule) {
       triggerToast(
@@ -567,21 +629,47 @@ export default function SimmWorkspaceShell({
       );
       return;
     }
-    setSchedules((prev) => [
-      {
-        id: "sch-" + Date.now(),
-        day: newSchDay,
-        slot: newSchSlot,
-        rombel: newSchRombel,
-        subject: newSchSubject,
-        teacher: newSchTeacher,
-      },
-      ...prev,
-    ]);
-    triggerToast(
-      "Jadwal Pelajaran Disimpan",
-      `${newSchSubject} (${newSchRombel}) berhasil ditambahkan tanpa bentrok jam mengajar.`
-    );
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_CLASS_SCHEDULE",
+          payload: {
+            day: newSchDay,
+            timeSlot: newSchSlot,
+            classroom: newSchRombel,
+            subject: newSchSubject,
+            teacherName: newSchTeacher,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        triggerToast(
+          "Jadwal Ditolak Server",
+          data.error || "Gagal menyimpan jadwal pelajaran"
+        );
+        return;
+      }
+      setSchedules((prev) => [
+        {
+          id: data.data?.id || "sch-" + Date.now(),
+          day: newSchDay,
+          slot: newSchSlot,
+          rombel: newSchRombel,
+          subject: newSchSubject,
+          teacher: newSchTeacher,
+        },
+        ...prev,
+      ]);
+      triggerToast(
+        "Jadwal Pelajaran Disimpan ke Database",
+        `${newSchSubject} (${newSchRombel}) berhasil ditambahkan tanpa bentrok jam mengajar.`
+      );
+    } catch {
+      triggerToast("Error", "Gagal menghubungi server saat menyimpan jadwal");
+    }
   };
 
   const handleSavePpdbScore = async (regNo: string, idx: number) => {
@@ -639,27 +727,53 @@ export default function SimmWorkspaceShell({
     );
   };
 
-  const handleAddBkRecord = (e: React.FormEvent) => {
+  const handleAddBkRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bkNote.trim()) return;
     const isNegative = bkCategory.includes("Pelanggaran");
     const delta = isNegative ? -Math.abs(bkPoints) : Math.abs(bkPoints);
-    setBkRecords((prev) => [
-      {
-        id: "bk-" + Date.now(),
-        student: bkStudent,
-        type: bkCategory,
-        points: delta,
-        note: bkNote,
-        date: "15 Nov 2026",
-      },
-      ...prev,
-    ]);
-    setBkNote("");
-    triggerToast(
-      "Catatan BK & Poin Siswa Tersimpan",
-      `Catatan pembinaan untuk ${bkStudent} (${delta > 0 ? "+" + delta : delta} poin) berhasil disinkronkan ke portal Siswa & Orang Tua.`
-    );
+    try {
+      const res = await fetch("/api/simm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_COUNSELING_NOTE",
+          payload: {
+            student: bkStudent,
+            category: bkCategory,
+            points: delta,
+            note: bkNote,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        triggerToast(
+          "Gagal Menyimpan Catatan BK",
+          data.error || "Periksa kembali data catatan BK"
+        );
+        return;
+      }
+      setBkRecords((prev) => [
+        {
+          id: data.data?.id || "bk-" + Date.now(),
+          student: bkStudent,
+          type: bkCategory,
+          points: delta,
+          note: bkNote,
+          date: data.data?.dateLabel || "Hari Ini",
+        },
+        ...prev,
+      ]);
+      setBkNote("");
+      setIframeRefreshKey((k) => k + 1);
+      triggerToast(
+        "Catatan BK & Poin Siswa Tersimpan di Supabase",
+        `Catatan pembinaan untuk ${bkStudent} (${delta > 0 ? "+" + delta : delta} poin) berhasil disinkronkan ke portal Siswa & Orang Tua.`
+      );
+    } catch {
+      triggerToast("Error", "Gagal menyimpan catatan BK ke server");
+    }
   };
 
   const handleSendBkChat = (e: React.FormEvent) => {
@@ -1016,6 +1130,19 @@ export default function SimmWorkspaceShell({
                     </div>
                   </div>
 
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
+                    <label className="block text-xs font-semibold text-amber-900">
+                      Konfirmasi Kata Sandi Admin (Wajib diisi jika mengubah Nomor Rekening Komite)
+                    </label>
+                    <input
+                      type="password"
+                      value={profileAdminPassword}
+                      onChange={(e) => setProfileAdminPassword(e.target.value)}
+                      placeholder="Masukkan kata sandi akun Anda bila mengubah rekening bank..."
+                      className="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-xs"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-md"
@@ -1201,12 +1328,25 @@ export default function SimmWorkspaceShell({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kata Sandi Baru (Minimal 6 Karakter)
+                  Kata Sandi Saat Ini
                 </label>
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi saat ini..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Kata Sandi Baru (Minimal 8 Karakter, Huruf &amp; Angka)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Masukkan kata sandi baru..."
@@ -1220,7 +1360,7 @@ export default function SimmWorkspaceShell({
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Ulangi kata sandi baru..."

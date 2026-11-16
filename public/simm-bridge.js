@@ -9,10 +9,51 @@
   let currentSession = window.__SIMM_PRELOADED_SESSION__ || null;
   let dbSummary = window.__SIMM_PRELOADED_DB__ || null;
 
+  function esc(str) {
+    return String(str ?? "").replace(
+      /[&<>"'`]/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+          "`": "&#96;",
+        })[c]
+    );
+  }
+
+  function neutralizeClientText(str) {
+    return String(str ?? "")
+      .replace(
+        /[<>"'`\\]/g,
+        (c) =>
+          ({
+            "<": "\u2039",
+            ">": "\u203A",
+            '"': "\u201D",
+            "'": "\u2019",
+            "`": "\u02CB",
+            "\\": "\uFF3C",
+          })[c] || c
+      )
+      .replace(/&(?=[#a-zA-Z0-9])/g, "&amp;");
+  }
+
+  window.__SIMM_ESC__ = esc;
+
+  function isSafeInternalPath(path) {
+    return typeof path === "string" && /^\/(?!\/)[a-zA-Z0-9/_-]*$/.test(path);
+  }
+
   function notifyShell(type, payload) {
     try {
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ source: "SIMM_PORTAL", type, payload }, "*");
+        window.parent.postMessage(
+          { source: "SIMM_PORTAL", type, payload },
+          window.location.origin
+        );
       }
     } catch (e) {
       console.warn("Notify shell error:", e);
@@ -37,15 +78,16 @@
   };
 
   window.__SIMM_NAVIGATE__ = function (path) {
-    notifyShell("NAVIGATE", { path });
+    const safePath = isSafeInternalPath(path) ? path : "/";
+    notifyShell("NAVIGATE", { path: safePath });
     try {
       if (window.top && window.top !== window) {
-        window.top.location.href = path;
+        window.top.location.href = safePath;
       } else {
-        window.location.href = path;
+        window.location.href = safePath;
       }
     } catch (_) {
-      window.location.href = path;
+      window.location.href = safePath;
     }
   };
 
@@ -165,13 +207,16 @@
     if (!session) return;
 
     // Jika sedang di Halaman Publik (/), ubah tombol "Masuk SIMS" menjadi "Dashboard Saya"
+    const safeTarget = isSafeInternalPath(session.targetPath)
+      ? session.targetPath
+      : "/gtk";
     const loginBtns = document.querySelectorAll(
       'button[onclick*="openLoginModal"]'
     );
     loginBtns.forEach((btn) => {
       btn.setAttribute(
         "onclick",
-        `window.__SIMM_NAVIGATE__('${session.targetPath || "/gtk"}')`
+        `window.__SIMM_NAVIGATE__('${esc(safeTarget)}')`
       );
       btn.innerHTML = `<i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Dashboard Saya</span>`;
     });
@@ -426,7 +471,7 @@
         sel.innerHTML =
           `<option value="Semua">Semua Rombel / Kelas (${students.length} Siswa)</option>` +
           uniqueRombels
-            .map((r) => `<option value="${r}">Kelas ${r}</option>`)
+            .map((r) => `<option value="${esc(r)}">Kelas ${esc(r)}</option>`)
             .join("");
         if (uniqueRombels.includes(currentVal) || currentVal === "Semua") {
           sel.value = currentVal;
@@ -439,7 +484,7 @@
       const sel = document.getElementById(id);
       if (sel) {
         sel.innerHTML = uniqueRombels
-          .map((r) => `<option value="${r}">Kelas ${r}</option>`)
+          .map((r) => `<option value="${esc(r)}">Kelas ${esc(r)}</option>`)
           .join("");
       }
     });
@@ -462,9 +507,20 @@
     applyMadrasahIdentityToDOM(profile);
     syncRombelSelectOptions(realStudents);
 
-    const uniqueRombels = Array.from(
-      new Set(realStudents.map((s) => s.rombel).filter(Boolean))
-    ).sort();
+    const uniqueRombels =
+      Array.isArray(db.stats?.rombels) && db.stats.rombels.length > 0
+        ? db.stats.rombels
+        : Array.from(
+            new Set(realStudents.map((s) => s.rombel).filter(Boolean))
+          ).sort();
+    const totalStudentCount =
+      typeof db.stats?.studentCount === "number"
+        ? db.stats.studentCount
+        : realStudents.length;
+    const totalTeacherCount =
+      typeof db.stats?.teacherCount === "number"
+        ? db.stats.teacherCount
+        : realTeachers.length;
 
     // =========================================================================
     // A. HALAMAN PUBLIK (`/`)
@@ -582,7 +638,7 @@
             excerpt: `Selamat datang di Sistem Informasi Manajemen Madrasah (${profile.name || "MTs Nurul Falah"}, NSM: ${profile.nsm || "121216050060"}, NPSN: ${profile.npsn || "69963460"}).`,
             content: [
               `${profile.name || "MTs Nurul Falah"} menyelenggarakan layanan pendidikan terpadu berbasis ${profile.curriculum || "Kurikulum Merdeka & KMA 450"} dengan dukungan Sistem Informasi Manajemen Madrasah (SIMS).`,
-              `Saat ini tercatat sebanyak ${realStudents.length} peserta didik aktif pada rombongan belajar ${uniqueRombels.join(", ") || "7A, 8A, 9A"} serta ${realTeachers.length} pendidik dan tenaga kependidikan aktif.`,
+              `Saat ini tercatat sebanyak ${totalStudentCount} peserta didik aktif pada rombongan belajar ${uniqueRombels.join(", ") || "7A, 8A, 9A"} serta ${totalTeacherCount} pendidik dan tenaga kependidikan aktif.`,
               `Masyarakat dan orang tua/wali dapat mengakses layanan cek NISN Buku Induk, informasi pendaftaran peserta didik baru (PPDB), serta portal akademik secara daring.`,
             ],
           },
@@ -695,7 +751,7 @@
         kpiSiswa.textContent = String(realStudents.length);
         const subEl = kpiSiswa.nextElementSibling;
         if (subEl) {
-          subEl.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>Tersebar di ${uniqueRombels.length || 3} Rombel (${uniqueRombels.join(", ") || "7A, 8A, 9A"})</span>`;
+          subEl.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>Tersebar di ${uniqueRombels.length || 3} Rombel (${esc(uniqueRombels.join(", ") || "7A, 8A, 9A")})</span>`;
         }
       }
     }
@@ -801,6 +857,16 @@
 
     if (typeof ACTIVITY_LOGS !== "undefined") {
       ACTIVITY_LOGS.length = 0;
+      const realLogs = Array.isArray(db.activityLogs) ? db.activityLogs : [];
+      realLogs.slice(0, 15).forEach((l) => {
+        ACTIVITY_LOGS.push({
+          time: l.timeLabel || "Baru saja",
+          actor: l.actor || "Sistem SIMS",
+          action: l.actionText || "-",
+          badge: l.roleBadge || "AUDIT",
+          color: l.category === "security_audit" ? "amber" : "emerald",
+        });
+      });
       ACTIVITY_LOGS.push(
         {
           time: "Aktif",
@@ -1031,6 +1097,15 @@
 
     if (typeof TU_ACTIVITY_LOGS !== "undefined") {
       TU_ACTIVITY_LOGS.length = 0;
+      const realLogs = Array.isArray(db.activityLogs) ? db.activityLogs : [];
+      realLogs.slice(0, 12).forEach((l) => {
+        TU_ACTIVITY_LOGS.push({
+          time: l.timeLabel || "Baru saja",
+          actor: l.actor || "Sistem SIMS",
+          action: l.actionText || "-",
+          tag: l.roleBadge || "Audit",
+        });
+      });
       TU_ACTIVITY_LOGS.push(
         {
           time: "Tersinkron",
@@ -1729,24 +1804,26 @@
     // Jika belum ada data preload (fallback), baru ambil secara asinkron
     if (!currentSession || !dbSummary) {
       try {
-        const [authRes, dbRes] = await Promise.all([
-          !currentSession ? fetch("/api/auth").catch(() => null) : null,
-          !dbSummary
-            ? fetch("/api/simm?resource=summary").catch(() => null)
-            : null,
-        ]);
-        if (authRes) {
-          const authData = await authRes.json().catch(() => null);
-          if (authData && authData.session) {
-            currentSession = authData.session;
+        if (!currentSession) {
+          const authRes = await fetch("/api/auth").catch(() => null);
+          if (authRes) {
+            const authData = await authRes.json().catch(() => null);
+            if (authData && authData.session) {
+              currentSession = authData.session;
+            }
           }
         }
-        if (dbRes) {
-          const dbData = await dbRes.json().catch(() => null);
-          if (dbData && dbData.ok) {
-            dbSummary = dbData;
-            window.__SIMM_DB__ = dbData;
-            syncDatabaseRecordsToPortal(dbSummary);
+        if (!dbSummary && currentSession) {
+          const dbRes = await fetch("/api/simm?resource=summary").catch(
+            () => null
+          );
+          if (dbRes) {
+            const dbData = await dbRes.json().catch(() => null);
+            if (dbData && dbData.ok) {
+              dbSummary = dbData;
+              window.__SIMM_DB__ = dbData;
+              syncDatabaseRecordsToPortal(dbSummary);
+            }
           }
         }
         if (currentSession) {
@@ -1756,6 +1833,50 @@
       } catch (e) {
         console.warn("Fallback sync warning:", e);
       }
+    }
+
+    // Override lookupNISN di Halaman Publik agar aman dari Reflected/DOM XSS
+    if (typeof window.lookupNISN === "function") {
+      window.lookupNISN = async function () {
+        const inputEl = document.getElementById("nisn-lookup-input");
+        const box = document.getElementById("nisn-lookup-result");
+        const val = inputEl ? String(inputEl.value || "").trim() : "";
+        if (!val || !box) return;
+        box.innerHTML =
+          '<p class="text-xs text-slate-500">Memeriksa database Buku Induk...</p>';
+        try {
+          const res = await fetch(
+            "/api/simm?resource=nisn&nisn=" + encodeURIComponent(val)
+          );
+          const data = await res.json();
+          const student = data && data.student ? data.student : null;
+          if (student) {
+            box.innerHTML = `
+              <div class="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="font-heading font-bold text-slate-900 text-base">${esc(student.name)}</span>
+                  <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-semibold">${esc(student.status || "Terdaftar Aktif")}</span>
+                </div>
+                <p class="text-xs text-slate-600">NIS / NISN: <strong>${esc(student.nis)} / ${esc(student.nisn)}</strong></p>
+                <p class="text-xs text-slate-600">Rombongan Belajar: <strong>${esc(student.rombel)}</strong></p>
+                <p class="text-xs text-slate-600">Wali Kelas: <strong>${esc(student.waliKelas || "-")}</strong></p>
+              </div>
+            `;
+          } else {
+            box.innerHTML = `
+              <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                Data peserta didik dengan NISN <strong>"${esc(val)}"</strong> tidak ditemukan pada Buku Induk Madrasah.
+              </div>
+            `;
+          }
+        } catch {
+          box.innerHTML = `
+            <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+              Gagal memeriksa NISN. Pastikan koneksi aktif.
+            </div>
+          `;
+        }
+      };
     }
 
     // Jika diarahkan oleh Middleware karena belum login (?login=required), buka modal login otomatis
@@ -1884,6 +2005,16 @@
     if (typeof window.handleAddStudentSubmit === "function") {
       const origAddStu = window.handleAddStudentSubmit;
       window.handleAddStudentSubmit = async function (e) {
+        [
+          "new-stu-name",
+          "new-stu-nis",
+          "new-stu-nisn",
+          "new-stu-rombel",
+          "new-stu-parent",
+        ].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el && el.value) el.value = neutralizeClientText(el.value);
+        });
         const name = document.getElementById("new-stu-name")?.value;
         const nis = document.getElementById("new-stu-nis")?.value;
         const nisn = document.getElementById("new-stu-nisn")?.value;
@@ -1915,6 +2046,13 @@
     if (typeof window.submitRegistration === "function") {
       const origSubmitPpdb = window.submitRegistration;
       window.submitRegistration = async function () {
+        if (typeof state !== "undefined" && state.formData) {
+          Object.keys(state.formData).forEach((k) => {
+            if (typeof state.formData[k] === "string") {
+              state.formData[k] = neutralizeClientText(state.formData[k]);
+            }
+          });
+        }
         origSubmitPpdb.apply(this, arguments);
         if (typeof state !== "undefined" && state.formData) {
           const w = state.formData;
@@ -1924,7 +2062,6 @@
             body: JSON.stringify({
               action: "SUBMIT_PPDB",
               payload: {
-                regNo: "PPDB-2728-" + Math.floor(100 + Math.random() * 899),
                 track: w.track,
                 fullName: w.fullName,
                 nisn: w.nisn,
@@ -1950,6 +2087,12 @@
     if (typeof window.handleCreateCmsPost === "function") {
       const origCreateCms = window.handleCreateCmsPost;
       window.handleCreateCmsPost = async function (e) {
+        ["cms-new-title", "cms-new-category", "cms-new-excerpt"].forEach(
+          (id) => {
+            const el = document.getElementById(id);
+            if (el && el.value) el.value = neutralizeClientText(el.value);
+          }
+        );
         const title = document.getElementById("cms-new-title")?.value;
         const category = document.getElementById("cms-new-category")?.value;
         const status = document.getElementById("cms-new-status")?.value;

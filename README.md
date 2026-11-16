@@ -18,9 +18,9 @@ Aplikasi web **Sistem Informasi Manajemen Sekolah/Madrasah (SIMS)** berbasis **N
 
 ---
 
-## 2. Daftar Akun Login Awal (Default Seed)
+## 2. Daftar Akun Uji Pengembangan (Development Seed)
 
-Kata sandi awal seluruh akun sebelum diubah melalui menu **Ubah Sandi**: **`Simms2026!`**
+> **Catatan Keamanan Produksi:** Kata sandi awal saat menjalankan `npm run db:seed` diambil dari variabel lingkungan `SEED_INITIAL_PASSWORD` di `.env`. **Wajib** mengganti kata sandi seluruh akun pejabat/admin melalui menu **Ubah Kata Sandi** (minimal 8 karakter, kombinasi huruf & angka) serta mengaktifkan **Row Level Security (RLS)** di Supabase sebelum digunakan untuk data riil.
 
 | Peran (*Base Role*) | Identifier Login (NIP / NISN / Email) | Nama Pengguna & Hak Akses | Rute Tujuan |
 | :--- | :--- | :--- | :--- |

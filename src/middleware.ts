@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const secretKey = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "sims-mts-nurul-falah-secret-key-2026"
-);
+function getJwtSecretKey(): Uint8Array | null {
+  const raw = process.env.AUTH_SECRET || "";
+  if (raw.length >= 32) {
+    return new TextEncoder().encode(raw);
+  }
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  return new TextEncoder().encode(
+    raw || "dev-only-sims-mts-nurul-falah-secret-key-2026"
+  );
+}
 
 const SESSION_COOKIE_NAME = "sims_session_token";
 
@@ -21,6 +30,8 @@ async function getSessionFromRequest(
 ): Promise<MiddlewareSession | null> {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
+  const secretKey = getJwtSecretKey();
+  if (!secretKey) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey);
     return payload as unknown as MiddlewareSession;
@@ -41,14 +52,18 @@ const ROUTE_ROLE_MAP: Record<string, Array<MiddlewareSession["baseRole"]>> = {
   "/api/portal/gtk": ["GTK", "ADMIN"],
   "/api/portal/siswa": ["SISWA", "ADMIN"],
   "/api/portal/ortu": ["ORTU", "ADMIN"],
+  "/api/xlsx": ["TU", "ADMIN"],
+  "/api/r2/presign": ["ADMIN", "TU", "GTK", "SISWA", "ORTU"],
 };
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const normalizedPathname = pathname.toLowerCase();
 
-  // Cek apakah pathname termasuk rute yang dilindungi RBAC
+  // Cek apakah pathname (case-insensitive) termasuk rute yang dilindungi RBAC
   const matchedPrefix = Object.keys(ROUTE_ROLE_MAP).find(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    (prefix) =>
+      normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`)
   );
 
   if (!matchedPrefix) {
@@ -59,9 +74,12 @@ export async function middleware(req: NextRequest) {
 
   // 1. Jika belum login -> arahkan ke halaman utama dengan trigger modal login
   if (!session) {
-    if (pathname.startsWith("/api/")) {
+    if (normalizedPathname.startsWith("/api/")) {
       return NextResponse.json(
-        { ok: false, error: "Sesi tidak ditemukan. Silakan login terlebih dahulu." },
+        {
+          ok: false,
+          error: "Sesi tidak ditemukan. Silakan login terlebih dahulu.",
+        },
         { status: 401 }
       );
     }
@@ -81,7 +99,7 @@ export async function middleware(req: NextRequest) {
 
   const allowedRoles = ROUTE_ROLE_MAP[matchedPrefix];
   if (!allowedRoles.includes(session.baseRole) && !isKepalaMadrasah) {
-    if (pathname.startsWith("/api/")) {
+    if (normalizedPathname.startsWith("/api/")) {
       return NextResponse.json(
         {
           ok: false,
@@ -106,5 +124,7 @@ export const config = {
     "/siswa/:path*",
     "/ortu/:path*",
     "/api/portal/:path*",
+    "/api/xlsx/:path*",
+    "/api/r2/presign/:path*",
   ],
 };

@@ -109,10 +109,11 @@ function extractZipEntries(zipBuf: Buffer): Record<string, string> {
     throw new Error("Format file bukan file Excel (.xlsx) yang valid");
   }
 
-  const totalEntries = zipBuf.readUInt16LE(eocdPos + 10);
+  const totalEntries = Math.min(zipBuf.readUInt16LE(eocdPos + 10), 64);
   let cdPos = zipBuf.readUInt32LE(eocdPos + 16);
 
   for (let i = 0; i < totalEntries; i++) {
+    if (cdPos + 46 > zipBuf.length) break;
     if (zipBuf.readUInt32LE(cdPos) !== 0x02014b50) break;
     const method = zipBuf.readUInt16LE(cdPos + 10);
     const compSize = zipBuf.readUInt32LE(cdPos + 20);
@@ -121,17 +122,27 @@ function extractZipEntries(zipBuf: Buffer): Record<string, string> {
     const commentLen = zipBuf.readUInt16LE(cdPos + 32);
     const localOffset = zipBuf.readUInt32LE(cdPos + 42);
 
+    if (cdPos + 46 + nameLen > zipBuf.length || localOffset + 30 > zipBuf.length) {
+      break;
+    }
+
     const name = zipBuf.toString("utf-8", cdPos + 46, cdPos + 46 + nameLen);
     const localNameLen = zipBuf.readUInt16LE(localOffset + 26);
     const localExtraLen = zipBuf.readUInt16LE(localOffset + 28);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    if (dataStart + compSize > zipBuf.length) break;
     const compData = zipBuf.subarray(dataStart, dataStart + compSize);
 
     if (name.endsWith(".xml") || name.endsWith(".rels")) {
       if (method === 0) {
+        if (compData.length > 10 * 1024 * 1024) {
+          throw new Error("Ukuran konten XML Excel melebihi batas aman");
+        }
         entries[name] = compData.toString("utf-8");
       } else if (method === 8) {
-        entries[name] = zlib.inflateRawSync(compData).toString("utf-8");
+        entries[name] = zlib
+          .inflateRawSync(compData, { maxOutputLength: 10 * 1024 * 1024 })
+          .toString("utf-8");
       }
     }
 

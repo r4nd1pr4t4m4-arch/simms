@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildXlsxBuffer, parseXlsxBuffer } from "@/lib/xlsx-helper";
+import { HttpError, can, errorResponse, requireAuth } from "@/lib/guard";
+import { deepNeutralize } from "@/lib/security";
+
+const MAX_XLSX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
 
 const STUDENT_TEMPLATE_ROWS: string[][] = [
   [
@@ -75,43 +79,55 @@ const TEACHER_TEMPLATE_ROWS: string[][] = [
 ];
 
 export async function GET(req: NextRequest) {
-  const type = req.nextUrl.searchParams.get("type") || "students";
+  try {
+    await requireAuth(can.staff);
+    const type = req.nextUrl.searchParams.get("type") || "students";
 
-  if (type === "teachers") {
-    const buf = buildXlsxBuffer("Template Guru GTK", TEACHER_TEMPLATE_ROWS);
+    if (type === "teachers") {
+      const buf = buildXlsxBuffer("Template Guru GTK", TEACHER_TEMPLATE_ROWS);
+      return new NextResponse(new Uint8Array(buf), {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition":
+            'attachment; filename="Template_Import_Guru_GTK_SIMS.xlsx"',
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    const buf = buildXlsxBuffer("Template Siswa EMIS", STUDENT_TEMPLATE_ROWS);
     return new NextResponse(new Uint8Array(buf), {
       status: 200,
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition":
-          'attachment; filename="Template_Import_Guru_GTK_SIMS.xlsx"',
+          'attachment; filename="Template_Import_Siswa_EMIS_SIMS.xlsx"',
         "Cache-Control": "no-store",
       },
     });
+  } catch (error) {
+    return errorResponse(error, "Gagal mengunduh template Excel");
   }
-
-  const buf = buildXlsxBuffer("Template Siswa EMIS", STUDENT_TEMPLATE_ROWS);
-  return new NextResponse(new Uint8Array(buf), {
-    status: 200,
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition":
-        'attachment; filename="Template_Import_Siswa_EMIS_SIMS.xlsx"',
-      "Cache-Control": "no-store",
-    },
-  });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    await requireAuth(can.staff);
+    const formData = await req.formData().catch(() => null);
+    if (!formData) {
+      throw new HttpError(400, "Data form tidak valid.");
+    }
     const file = formData.get("file") as File | null;
     if (!file) {
-      return NextResponse.json(
-        { ok: false, error: "File Excel (.xlsx) tidak ditemukan" },
-        { status: 400 }
+      throw new HttpError(400, "File Excel (.xlsx) tidak ditemukan.");
+    }
+    if (file.size <= 0 || file.size > MAX_XLSX_UPLOAD_BYTES) {
+      throw new HttpError(
+        400,
+        "Ukuran file Excel tidak valid atau melebihi batas maksimal 2 MB."
       );
     }
 
@@ -121,16 +137,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      filename: file.name,
-      rows,
+      filename: deepNeutralize(file.name),
+      rows: deepNeutralize(rows.slice(0, 2000)),
     });
-  } catch (error: any) {
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return errorResponse(error);
+    }
     return NextResponse.json(
       {
         ok: false,
         error:
-          error?.message ||
-          "Gagal membaca file Excel (.xlsx). Pastikan menggunakan format .xlsx",
+          "Gagal membaca file Excel (.xlsx). Pastikan menggunakan format .xlsx sesuai template.",
       },
       { status: 400 }
     );
