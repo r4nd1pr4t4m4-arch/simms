@@ -59,11 +59,9 @@ export default function SimmWorkspaceShell({
   const loadWorkspaceData = useCallback(async () => {
     try {
       setLoadError(null);
-      const sessRes = await fetch("/api/auth/session", { cache: "no-store" });
-      const sessData = await sessRes.json();
-      const activeUser: ActiveSession | null = sessData?.authenticated
-        ? sessData.user
-        : null;
+      const sessRes = await fetch("/api/auth", { cache: "no-store" });
+      const sessData = sessRes.ok ? await sessRes.json().catch(() => null) : null;
+      const activeUser: ActiveSession | null = sessData?.session ?? null;
       setSession(activeUser);
 
       if (PROTECTED_PORTALS.has(activePortal) && !activeUser) {
@@ -81,7 +79,7 @@ export default function SimmWorkspaceShell({
       const dbRes = await fetch(`/api/simm?resource=${resource}`, {
         cache: "no-store",
       });
-      const dbData = await dbRes.json();
+      const dbData = await dbRes.json().catch(() => null);
       if (!dbRes.ok || !dbData?.ok) {
         if (dbRes.status === 401 && PROTECTED_PORTALS.has(activePortal)) {
           router.replace("/");
@@ -118,12 +116,12 @@ export default function SimmWorkspaceShell({
     }
     setChangingPassword(true);
     try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
+      const res = await fetch("/api/auth", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         triggerToast("Kata Sandi Diperbarui", "Kata sandi akun Anda berhasil diubah.");
         setCurrentPassword("");
@@ -143,7 +141,7 @@ export default function SimmWorkspaceShell({
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth", { method: "DELETE" });
     } catch {
       // ignore network error on logout
     }
