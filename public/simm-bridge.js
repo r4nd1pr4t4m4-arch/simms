@@ -73,7 +73,164 @@
     }
   }
 
+  const EMBEDDED_PAGE_META = {
+    tu_persuratan: {
+      breadcrumb: "Persuratan & Koreksi Induk",
+      title: "Layanan Persuratan Resmi & Koreksi Buku Induk",
+    },
+    tu_agenda: {
+      breadcrumb: "Agenda Surat Masuk/Keluar",
+      title: "Buku Agenda Surat Masuk & Keluar (Arsip R2)",
+    },
+    tu_emis: {
+      breadcrumb: "Validasi EMIS & Ekspor TU",
+      title: "Audit Residu EMIS Kemenag & Ekspor Laporan",
+    },
+    academic_master: {
+      breadcrumb: "Master Kelas, Rombel & Mapel",
+      title: "Manajemen Tingkat Kelas, Rombel & Mata Pelajaran",
+    },
+    academic_period: {
+      breadcrumb: "Semester, Tahun & Arsip",
+      title: "Pergantian Semester, Tahun Pelajaran & Arsip Akademik",
+    },
+    golive_settings: {
+      breadcrumb: "Identitas & Import EMIS",
+      title: "Identitas Resmi Madrasah & Import Excel (.xlsx)",
+    },
+    ppdb_scoring: {
+      breadcrumb: "Skor & Seleksi PPDB",
+      title: "Penilaian Tes Seleksi & Migrasi PPDB",
+    },
+    piket_management: {
+      breadcrumb: "Manajemen Guru Piket",
+      title: "Jadwal Guru Piket, Override & Log Kejadian Harian",
+    },
+    schedule_conflict: {
+      breadcrumb: "Jadwal Kurikulum",
+      title: "Penyusunan Jadwal Pelajaran Anti-Bentrok",
+    },
+    bk_counseling: {
+      breadcrumb: "Meja Kerja BK & Poin",
+      title: "Meja Kerja Guru Wali / BK & Poin Siswa",
+    },
+    batch_promotion: {
+      breadcrumb: "Kenaikan Kelas Massal",
+      title: "Kenaikan Kelas Massal & Kelulusan Akhir Tahun",
+    },
+    r2_uploader: {
+      breadcrumb: "Arsip Cloudflare R2",
+      title: "Manajemen Unggah Berkas Cloudflare R2",
+    },
+  };
+
+  let activeEmbeddedModalKey = null;
+
+  function computeDashboardEmbedRect() {
+    const header = document.querySelector("header");
+    const main = document.querySelector("main");
+    const wrapper = main ? main.parentElement : null;
+    const sidebar = document.querySelector("aside");
+    const headerBottom = header ? Math.round(header.getBoundingClientRect().bottom) : 0;
+    let left = 0;
+    if (sidebar && window.innerWidth >= 1024) {
+      left = Math.round(sidebar.getBoundingClientRect().right);
+    } else if (wrapper) {
+      left = Math.round(wrapper.getBoundingClientRect().left);
+    }
+    return {
+      top: Math.max(0, headerBottom),
+      left: Math.max(0, left),
+      width: Math.max(300, window.innerWidth - Math.max(0, left)),
+      height: Math.max(200, window.innerHeight - Math.max(0, headerBottom)),
+    };
+  }
+
+  function updateSidebarEmbeddedActiveState(modalKey) {
+    if (modalKey) {
+      document.querySelectorAll(".sidebar-link").forEach((btn) => {
+        btn.className =
+          "sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer";
+      });
+    }
+    document.querySelectorAll("[data-simm-modal]").forEach((btn) => {
+      const isCurrent = modalKey && btn.getAttribute("data-simm-modal") === modalKey;
+      if (isCurrent) {
+        btn.className =
+          "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 transition-all cursor-pointer";
+      } else {
+        btn.className =
+          "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer";
+      }
+    });
+  }
+
+  function hookDashboardSwitchViewSync() {
+    if (
+      typeof window.switchView === "function" &&
+      !window.switchView.__simmSwitchHooked
+    ) {
+      const origSwitch = window.switchView;
+      const wrapped = function () {
+        activeEmbeddedModalKey = null;
+        updateSidebarEmbeddedActiveState(null);
+        notifyShell("CLOSE_EMBEDDED_PAGE", {});
+        return origSwitch.apply(this, arguments);
+      };
+      wrapped.__simmSwitchHooked = true;
+      window.switchView = wrapped;
+    }
+  }
+
+  window.addEventListener("resize", () => {
+    if (activeEmbeddedModalKey) {
+      notifyShell("EMBED_RECT", {
+        modal: activeEmbeddedModalKey,
+        embedRect: computeDashboardEmbedRect(),
+      });
+    }
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (data && data.source === "SIMM_SHELL" && data.type === "PAGE_CLOSED") {
+      activeEmbeddedModalKey = null;
+      updateSidebarEmbeddedActiveState(null);
+      if (typeof window.switchView === "function") {
+        window.switchView("overview");
+      }
+    }
+  });
+
   window.__SIMM_OPEN_MODAL__ = function (modalKey) {
+    const meta = EMBEDDED_PAGE_META[modalKey];
+    const hasDashboardShell = Boolean(
+      document.querySelector("aside") && document.querySelector("main")
+    );
+    if (meta && hasDashboardShell) {
+      activeEmbeddedModalKey = modalKey;
+      document
+        .querySelectorAll(".view-panel")
+        .forEach((el) => el.classList.add("hidden"));
+      const bc = document.getElementById("header-breadcrumb");
+      const ttl = document.getElementById("header-page-title");
+      if (bc) bc.textContent = meta.breadcrumb;
+      if (ttl) ttl.textContent = meta.title;
+      updateSidebarEmbeddedActiveState(modalKey);
+      if (typeof window.toggleSidebar === "function") {
+        try {
+          window.toggleSidebar(false);
+        } catch (_) {
+          // ignore
+        }
+      }
+      notifyShell("OPEN_MODAL", {
+        modal: modalKey,
+        embedRect: computeDashboardEmbedRect(),
+      });
+      return;
+    }
     notifyShell("OPEN_MODAL", { modal: modalKey });
   };
 
@@ -277,23 +434,23 @@
       tuMenuBlock.className = "space-y-1 pt-2";
       tuMenuBlock.innerHTML = `
         <p class="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-teal-700">Layanan Tata Usaha (TU) Terpadu</p>
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_persuratan')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="tu_persuratan" onclick="window.__SIMM_OPEN_MODAL__('tu_persuratan')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="file-signature" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <i data-lucide="file-signature" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Persuratan &amp; Koreksi Induk</span>
           </span>
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700">TTE</span>
         </button>
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_agenda')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="tu_agenda" onclick="window.__SIMM_OPEN_MODAL__('tu_agenda')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="mail-check" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <i data-lucide="mail-check" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Agenda Surat Masuk/Keluar</span>
           </span>
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700">R2</span>
         </button>
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('tu_emis')" class="sidebar-link w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="tu_emis" onclick="window.__SIMM_OPEN_MODAL__('tu_emis')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <i data-lucide="shield-check" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Validasi EMIS &amp; Ekspor TU</span>
           </span>
         </button>
@@ -305,26 +462,26 @@
 
     if (canAccessGoLiveSettings) {
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('academic_master')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="academic_master" onclick="window.__SIMM_OPEN_MODAL__('academic_master')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="book-open-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <i data-lucide="book-open-check" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Master Kelas, Rombel &amp; Mapel</span>
           </span>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Ref</span>
         </button>
       `);
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('academic_period')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="academic_period" onclick="window.__SIMM_OPEN_MODAL__('academic_period')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="archive-restore" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <i data-lucide="archive-restore" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Semester, Tahun &amp; Arsip</span>
           </span>
         </button>
       `);
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('golive_settings')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="golive_settings" onclick="window.__SIMM_OPEN_MODAL__('golive_settings')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="building-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <i data-lucide="building-2" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Identitas &amp; Import EMIS</span>
           </span>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">XLSX</span>
@@ -334,9 +491,9 @@
 
     if (canAccessPpdbScoring) {
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('ppdb_scoring')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="ppdb_scoring" onclick="window.__SIMM_OPEN_MODAL__('ppdb_scoring')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="award" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <i data-lucide="award" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Skor &amp; Seleksi PPDB</span>
           </span>
         </button>
@@ -345,17 +502,17 @@
 
     if (canAccessScheduleBuilder) {
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('piket_management')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="piket_management" onclick="window.__SIMM_OPEN_MODAL__('piket_management')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="clipboard-check" class="w-4 h-4 text-teal-600 shrink-0"></i>
+            <i data-lucide="clipboard-check" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Manajemen Guru Piket</span>
           </span>
         </button>
       `);
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('schedule_conflict')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="schedule_conflict" onclick="window.__SIMM_OPEN_MODAL__('schedule_conflict')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <i data-lucide="calendar-clock" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Jadwal Kurikulum</span>
           </span>
         </button>
@@ -364,9 +521,9 @@
 
     if (canAccessBkDesk) {
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('bk_counseling')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="bk_counseling" onclick="window.__SIMM_OPEN_MODAL__('bk_counseling')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="sparkles" class="w-4 h-4 text-purple-600 shrink-0"></i>
+            <i data-lucide="sparkles" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Meja Kerja BK &amp; Poin</span>
           </span>
         </button>
@@ -375,9 +532,9 @@
 
     if (canAccessBatchPromotion) {
       moduleButtons.push(`
-        <button type="button" onclick="window.__SIMM_OPEN_MODAL__('batch_promotion')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
+        <button type="button" data-simm-modal="batch_promotion" onclick="window.__SIMM_OPEN_MODAL__('batch_promotion')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all cursor-pointer">
           <span class="flex items-center gap-3 min-w-0">
-            <i data-lucide="layers" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <i data-lucide="layers" class="w-4 h-4 shrink-0"></i>
             <span class="truncate">Kenaikan Kelas Massal</span>
           </span>
         </button>
@@ -433,6 +590,7 @@
 
   // Pasang hook fungsi render sidebar SECARA SINKRON sebelum DOMContentLoaded dijalankan
   function hookSidebarRenderersSync() {
+    hookDashboardSwitchViewSync();
     [
       "renderSidebarNavigation",
       "renderSidebarMenu",

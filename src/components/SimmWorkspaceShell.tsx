@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Globe,
@@ -138,6 +138,13 @@ export default function SimmWorkspaceShell({
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [barCollapsed, setBarCollapsed] = useState(false);
   const [activeModal, setActiveModal] = useState<ExtendedModalType>(null);
+  const [embedRect, setEmbedRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [iframeRefreshKey, setIframeRefreshKey] = useState(0);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [toastMsg, setToastMsg] = useState<{ title: string; sub: string } | null>(
@@ -550,7 +557,17 @@ export default function SimmWorkspaceShell({
       if (data.type === "NAVIGATE" && isSafeInternalPath(data.payload?.path)) {
         window.location.href = data.payload.path;
       } else if (data.type === "OPEN_MODAL" && data.payload?.modal) {
+        if (data.payload?.embedRect) {
+          setEmbedRect(data.payload.embedRect);
+        } else {
+          setEmbedRect(null);
+        }
         setActiveModal(data.payload.modal as ExtendedModalType);
+      } else if (data.type === "EMBED_RECT" && data.payload?.embedRect) {
+        setEmbedRect(data.payload.embedRect);
+      } else if (data.type === "CLOSE_EMBEDDED_PAGE") {
+        setActiveModal(null);
+        setEmbedRect(null);
       } else if (data.type === "LOGOUT") {
         handleLogout();
       } else if (
@@ -1476,6 +1493,19 @@ export default function SimmWorkspaceShell({
     }
   };
 
+  const closeEmbeddedPage = () => {
+    setActiveModal(null);
+    setEmbedRect(null);
+    try {
+      iframeRef.current?.contentWindow?.postMessage(
+        { source: "SIMM_SHELL", type: "PAGE_CLOSED" },
+        window.location.origin
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const isWorkspacePage =
     activeModal !== null &&
     activeModal !== "change_password" &&
@@ -1484,13 +1514,9 @@ export default function SimmWorkspaceShell({
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-50 select-none">
       {/* ===================================================================
-          MAIN PORTAL VIEWPORT (TANPA DOUBLE-RELOAD + LOADING INDICATOR)
+          MAIN PORTAL VIEWPORT (SIDEBAR & TOPBAR DASHBOARD TETAP TAMPIL UTUH)
       =================================================================== */}
-      <main
-        className={`relative flex-1 w-full h-full bg-slate-50 overflow-hidden ${
-          isWorkspacePage ? "hidden" : ""
-        }`}
-      >
+      <main className="relative flex-1 w-full h-full bg-slate-50 overflow-hidden">
         {iframeLoading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/95 backdrop-blur-xs gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-600/15 border border-emerald-500/30 flex items-center justify-center">
@@ -1502,6 +1528,7 @@ export default function SimmWorkspaceShell({
           </div>
         )}
         <iframe
+          ref={iframeRef}
           key={`${activePortal}-${iframeRefreshKey}`}
           src={`/api/portal/${activePortal}`}
           title={`Portal SIMS - ${activePortal.toUpperCase()}`}
@@ -1509,45 +1536,6 @@ export default function SimmWorkspaceShell({
           className="w-full h-full border-0"
         />
       </main>
-
-      {/* ===================================================================
-          BAR NAVIGASI ATAS HALAMAN KERJA PROFESIONAL (SAAT MEMBUKA MODUL)
-      =================================================================== */}
-      {isWorkspacePage && (
-        <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 shadow-2xs shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setActiveModal(null)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-xs font-bold transition cursor-pointer shrink-0"
-            >
-              <span>← Kembali ke Dashboard</span>
-            </button>
-            <div className="hidden sm:block h-5 w-px bg-slate-200" />
-            <div className="truncate">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                SIMS {madrasahProfile.name} • TA {madrasahProfile.academicYear} ({madrasahProfile.semester})
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {session && (
-              <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
-                {session.name} ({session.baseRole})
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setActiveModal("logout_confirm")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Keluar</span>
-            </button>
-          </div>
-        </header>
-      )}
 
       {/* ===================================================================
           MODAL KONFIRMASI KELUAR / LOGOUT
@@ -1599,6 +1587,101 @@ export default function SimmWorkspaceShell({
           </div>
         </div>
       )}
+
+      {/* ===================================================================
+          MODAL UBAH KATA SANDI MANDIRI (PRODUCTION SECURITY)
+      =================================================================== */}
+      {activeModal === "change_password" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-emerald-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-base font-bold">Ubah Kata Sandi Akun</h2>
+              </div>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4 text-sm">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                Akun Aktif: <strong className="text-slate-900">{session?.name}</strong> ({session?.identifier})
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Kata Sandi Saat Ini
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi saat ini..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Kata Sandi Baru (Minimal 8 Karakter, Huruf &amp; Angka)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi baru..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Konfirmasi Kata Sandi Baru
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ulangi kata sandi baru..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
+              >
+                Simpan Kata Sandi Baru ke Supabase
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          AREA KONTEN HALAMAN MODUL TERTANAM DI DALAM DASHBOARD
+          (Tetap mempertahankan Sidebar Kiri & Topbar Header Dashboard!)
+      =================================================================== */}
+      {isWorkspacePage && (
+        <div
+          style={
+            embedRect
+              ? {
+                  top: `${embedRect.top}px`,
+                  left: `${embedRect.left}px`,
+                  width: `${embedRect.width}px`,
+                  height: `${embedRect.height}px`,
+                }
+              : undefined
+          }
+          className={`fixed z-30 overflow-y-auto bg-slate-50/95 ${
+            embedRect ? "" : "inset-0"
+          }`}
+        >
 
       {/* ===================================================================
           HALAMAN MANAJEMEN GURU PIKET (FULL PAGE)
@@ -2472,80 +2555,6 @@ export default function SimmWorkspaceShell({
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          MODAL UBAH KATA SANDI MANDIRI (PRODUCTION SECURITY)
-      =================================================================== */}
-      {activeModal === "change_password" && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
-            <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-emerald-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-emerald-400" />
-                <h2 className="text-base font-bold">Ubah Kata Sandi Akun</h2>
-              </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handleChangePassword} className="p-6 space-y-4 text-sm">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                Akun Aktif: <strong className="text-slate-900">{session?.name}</strong> ({session?.identifier})
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kata Sandi Saat Ini
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi saat ini..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kata Sandi Baru (Minimal 8 Karakter, Huruf &amp; Angka)
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi baru..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Konfirmasi Kata Sandi Baru
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi kata sandi baru..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition"
-              >
-                Simpan Kata Sandi Baru ke Supabase
-              </button>
-            </form>
           </div>
         </div>
       )}
@@ -4490,6 +4499,8 @@ export default function SimmWorkspaceShell({
               )}
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
 
